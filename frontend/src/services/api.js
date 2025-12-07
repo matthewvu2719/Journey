@@ -249,3 +249,23 @@ export const api = {
     return data
   }
 }
+
+  // ============================================================================
+  // ACHIEVEMENTS
+  // ============================================================================
+  
+  checkAchievements: async (completionDate = null) => {
+    const params = completionDate ? { completion_date: completionDate } : {}
+    const { data } = await client.post('/api/achievements/check', null, { params })
+    return data
+  },
+
+  getAchievementProgress: async () => {
+    const { data } = await client.get('/api/achievements/progress')
+    return data
+  },
+
+  getAvailableRewards: async () => {
+    const { data } = await client.get('/api/achievements/rewards')
+    return data
+  },

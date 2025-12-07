@@ -77,7 +77,7 @@ export default function WeeklySchedule({ habits, completions = [] }) {
       {/* Weekly Schedule Grid - Split by Time of Day */}
       {habits.length > 0 ? (
         <div className="glass rounded-2xl p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4">
             {days.map((day) => (
               <div key={day.short} className="bg-light/5 rounded-xl p-4">
                 <h4 className="font-bold text-sm uppercase tracking-wider text-light/80 mb-3">

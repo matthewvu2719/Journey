@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { api } from '../services/api'
+import RobotMascot from './RobotMascot'
 
 export default function FloatingChat({ habits, logs, onAction }) {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hi! I'm your AI Agent Coach powered by advanced NLP. I can help you create habits, optimize your schedule, and provide personalized insights! 🤖"
+      content: "Hi there! I'm Bobo, your personal habit companion! 🤖 I'm here to help you build amazing habits, celebrate your wins, and keep you on track. What would you like to work on today?"
     }
   ])
   const [input, setInput] = useState('')
@@ -86,19 +87,19 @@ export default function FloatingChat({ habits, logs, onAction }) {
   return (
     <>
       {/* Chat Window */}
-      <div className={`fixed bottom-24 right-6 z-50 transition-all duration-300 ${
+      <div className={`fixed bottom-40 right-6 z-50 transition-all duration-300 ${
         isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
       }`}>
         <div className="w-96 h-[500px] max-h-[calc(100vh-150px)] glass rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-light/20">
           {/* Header */}
           <div className="p-4 border-b border-light/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-light/10 rounded-full flex items-center justify-center text-xl">
-                🤖
+              <div className="w-12 h-12 flex items-center justify-center">
+                <RobotMascot size="sm" emotion="excited" animate={true} />
               </div>
               <div>
-                <h3 className="font-bold">AI Agent Coach</h3>
-                <p className="text-xs text-light/60 font-mono">Powered by advanced NLP</p>
+                <h3 className="font-bold">Bobo</h3>
+                <p className="text-xs text-light/60 font-mono">Your AI Companion</p>
               </div>
             </div>
             <button
@@ -218,30 +219,37 @@ export default function FloatingChat({ habits, logs, onAction }) {
         </div>
       </div>
 
-      {/* Floating Button */}
+      {/* Speech Bubble - shows when there are unread messages */}
+      {unreadCount > 0 && !isOpen && (
+        <div 
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-36 right-6 z-50 cursor-pointer animate-float"
+        >
+          <div className="relative bg-white/95 backdrop-blur-sm text-gray-800 px-4 py-3 rounded-2xl shadow-xl max-w-[250px]">
+            <p className="text-sm font-medium">
+              {messages[messages.length - 1]?.role === 'assistant' 
+                ? messages[messages.length - 1].content.substring(0, 80) + (messages[messages.length - 1].content.length > 80 ? '...' : '')
+                : "I have something to tell you! 💬"}
+            </p>
+            {/* Speech bubble tail */}
+            <div className="absolute top-full right-8 w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-white/95"></div>
+            {/* Notification badge on bubble */}
+            <div className="absolute -top-2 -right-2 min-w-[20px] h-5 bg-red-500 rounded-full flex items-center justify-center px-1 shadow-lg">
+              <span className="text-white text-xs font-bold">{unreadCount}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Robot Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-50 w-16 h-16 bg-light text-dark rounded-full shadow-2xl hover-lift flex items-center justify-center transition-all ${
-          isOpen ? 'rotate-0' : 'rotate-0'
+        className={`fixed bottom-6 right-6 z-50 transition-all hover:scale-110 focus:outline-none ${
+          isOpen ? 'scale-95' : 'scale-100'
         }`}
+        style={{ width: '80px', height: '112px' }}
       >
-        {isOpen ? (
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <div className="relative">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            {/* Notification badge */}
-            {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 rounded-full flex items-center justify-center px-1 animate-pulse">
-                <span className="text-white text-xs font-bold">{unreadCount > 9 ? '9+' : unreadCount}</span>
-              </div>
-            )}
-          </div>
-        )}
+        <RobotMascot size="md" emotion="excited" animate={!isOpen} />
       </button>
     </>
   )

@@ -121,6 +121,8 @@ export const themes = {
       accentHover: '#E88FB5',
       border: 'rgba(135, 206, 235, 0.3)',
       glass: 'rgba(244, 166, 200, 0.15)',
+      accentBlue: '#87CEEB',
+      accentYellow: '#F4D03F',
     }
   },
 

@@ -41,20 +41,20 @@ export default function AnalyticsInsights({ habits, logs, onRefresh }) {
       <div className="flex gap-2">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2 rounded-full font-mono text-sm transition-all ${
+          className={`px-6 py-2 rounded-lg font-semibold transition-all ${
             activeTab === 'overview'
-              ? 'bg-light text-dark'
-              : 'text-light/60 hover:text-light hover:bg-light/10'
+              ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+              : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
           }`}
         >
           Overview
         </button>
         <button
           onClick={() => setActiveTab('ml-insights')}
-          className={`px-4 py-2 rounded-full font-mono text-sm transition-all ${
+          className={`px-6 py-2 rounded-lg font-semibold transition-all ${
             activeTab === 'ml-insights'
-              ? 'bg-light text-dark'
-              : 'text-light/60 hover:text-light hover:bg-light/10'
+              ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+              : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
           }`}
         >
           ML Insights

@@ -255,3 +255,35 @@ class DailyCapacityBulkUpdate(BaseModel):
                 }
             }
         }
+
+
+# ============================================================================
+# ACHIEVEMENT MODELS
+# ============================================================================
+
+class UnlockedReward(BaseModel):
+    """Model for tracking unlocked rewards"""
+    id: Optional[int] = None
+    user_id: str
+    reward_type: str  # motivational_sentence, dance_emotion, hat_costume, theme
+    reward_data: Dict  # JSON data about the reward
+    unlocked_at: datetime = Field(default_factory=datetime.now)
+    achievement_type: str  # any_completion, daily_perfect, weekly_perfect, monthly_perfect
+
+
+class AchievementProgress(BaseModel):
+    """Model for achievement progress tracking"""
+    user_id: str
+    daily_progress: Dict
+    weekly_progress: Dict
+    monthly_progress: Dict
+    total_completions: int
+
+
+class AchievementUnlock(BaseModel):
+    """Model for achievement unlock notification"""
+    achievement_type: str
+    achievement_name: str
+    reward_type: str
+    reward: Dict
+    message: str

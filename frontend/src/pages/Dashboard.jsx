@@ -8,7 +8,7 @@ import FloatingChat from '../components/FloatingChat'
 import GuestModeBanner from '../components/GuestModeBanner'
 import EnhancedDashboard from '../components/EnhancedDashboard'
 import ThemeSelector from '../components/ThemeSelector'
-import CompanionSelector from '../components/CompanionSelector'
+import AchievementProgress from '../components/AchievementProgress'
 import { api } from '../services/api'
 
 function Dashboard() {
@@ -58,6 +58,13 @@ function Dashboard() {
   }
 
   const handleExplore = () => {
+    // Smooth scroll to journey section
+    setTimeout(() => {
+      document.getElementById('journey')?.scrollIntoView({ behavior: 'smooth' })
+    }, 100)
+  }
+
+  const handleContinue = () => {
     setShowMainApp(true)
     // Smooth scroll to main app section
     setTimeout(() => {
@@ -84,32 +91,27 @@ function Dashboard() {
       </section>
 
       {/* Journey Section */}
-      <section className="min-h-screen">
+      <section id="journey" className="min-h-screen">
         <Journey 
-          onContinue={handleExplore}
+          onContinue={handleContinue}
           habitsCount={habits.length}
           completionsCount={logs.length}
         />
-      </section>
-
-      {/* Companion Selector Section */}
-      <section className="py-20 px-6">
-        <CompanionSelector />
       </section>
 
       {/* Main App Section */}
       {showMainApp && (
         <section id="main-app" className="min-h-screen">
           {/* Sticky Navigation Bar */}
-          <div className="bg-theme-bg bg-opacity-80 backdrop-blur-sm border-b border-light/10 sticky top-0 z-10">
-            <div className="max-w-5xl mx-auto px-6">
+          <div className="bg-[var(--color-background)] bg-opacity-80 backdrop-blur-sm border-b border-[var(--color-border)] sticky top-0 z-10">
+            <div className="max-w-[1600px] mx-auto px-6">
               <div className="flex items-center justify-center gap-2 h-16">
                 <button
                   onClick={() => setCurrentSection('habits')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'habits'
-                      ? 'bg-light text-dark'
-                      : 'text-light/70 hover:bg-light/10'
+                      ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+                      : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
                   }`}
                 >
                   Habits
@@ -118,8 +120,8 @@ function Dashboard() {
                   onClick={() => setCurrentSection('schedule')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'schedule'
-                      ? 'bg-light text-dark'
-                      : 'text-light/70 hover:bg-light/10'
+                      ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+                      : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
                   }`}
                 >
                   Schedule
@@ -128,8 +130,8 @@ function Dashboard() {
                   onClick={() => setCurrentSection('calls')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'calls'
-                      ? 'bg-light text-dark'
-                      : 'text-light/70 hover:bg-light/10'
+                      ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+                      : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
                   }`}
                 >
                   Calls
@@ -138,8 +140,8 @@ function Dashboard() {
                   onClick={() => setCurrentSection('insights')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'insights'
-                      ? 'bg-light text-dark'
-                      : 'text-light/70 hover:bg-light/10'
+                      ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+                      : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
                   }`}
                 >
                   Insights
@@ -149,7 +151,7 @@ function Dashboard() {
           </div>
 
           {/* Content Panel - Centered */}
-          <div className="max-w-5xl mx-auto px-6 py-8 min-h-[calc(100vh-4rem)]">
+          <div className="max-w-[1600px] mx-auto px-6 py-8 min-h-[calc(100vh-4rem)]">
             {currentSection === 'habits' && (
               <EnhancedDashboard 
                 habits={habits}
@@ -167,17 +169,20 @@ function Dashboard() {
             )}
 
             {currentSection === 'insights' && (
-              <AnalyticsInsights 
-                habits={habits}
-                logs={logs}
-                onRefresh={loadData}
-              />
+              <div className="space-y-8">
+                <AnalyticsInsights 
+                  habits={habits}
+                  logs={logs}
+                  onRefresh={loadData}
+                />
+                <AchievementProgress />
+              </div>
             )}
           </div>
 
           {/* Footer */}
           <footer className="border-t border-light/10 py-12 px-6">
-            <div className="max-w-5xl mx-auto text-center">
+            <div className="max-w-[1600px] mx-auto text-center">
               <p className="text-light/60 font-mono text-sm">
                 Built with intention • Powered by AI • Designed for growth
               </p>

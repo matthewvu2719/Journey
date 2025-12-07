@@ -7,6 +7,8 @@ import { ShimmerButton } from './ui/ShimmerButton'
 import { BlurFade } from './ui/BlurFade'
 import { CircularProgress } from './ui/CircularProgress'
 import { DotPattern } from './ui/DotPattern'
+import RobotMascot from './RobotMascot'
+import AchievementNotification from './AchievementNotification'
 
 export default function EnhancedDashboard({ habits, logs, onRefresh }) {
   const [stats, setStats] = useState(null)
@@ -14,6 +16,9 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
   const [completingHabit, setCompletingHabit] = useState(null)
   const [completingTimeOfDay, setCompletingTimeOfDay] = useState(null)
   const [showConfetti, setShowConfetti] = useState(0)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [celebrationMessage, setCelebrationMessage] = useState('')
+  const [achievementToShow, setAchievementToShow] = useState(null)
   const [completionData, setCompletionData] = useState({
     mood_before: 'good',
     mood_after: 'great',
@@ -111,6 +116,21 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
         time_of_day_id: timeOfDayMap[timeOfDay]
       })
       
+      // Check for achievements
+      await checkAchievements(today)
+      
+      // Show celebration
+      const habit = habits.find(h => h.id === habitId)
+      const messages = [
+        `Amazing! You completed "${habit?.name}"! 🎉`,
+        `Great job on "${habit?.name}"! Keep it up! 💪`,
+        `Woohoo! "${habit?.name}" is done! You're on fire! 🔥`,
+        `Fantastic! Another win with "${habit?.name}"! ⭐`
+      ]
+      setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
+      setShowCelebration(true)
+      setTimeout(() => setShowCelebration(false), 3000)
+      
       setShowConfetti(Date.now()) // Trigger confetti!
       onRefresh()
     } catch (error) {
@@ -138,6 +158,22 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       }
       
       await api.createCompletion(completionPayload)
+      
+      // Check for achievements
+      await checkAchievements(today)
+      
+      // Show celebration
+      const messages = [
+        `Incredible! You completed "${completingHabit.name}"! 🎉`,
+        `You're crushing it! "${completingHabit.name}" is done! 💪`,
+        `Outstanding work on "${completingHabit.name}"! 🌟`,
+        `Yes! Another "${completingHabit.name}" in the books! 🚀`
+      ]
+      setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
+      setShowCelebration(true)
+      setTimeout(() => setShowCelebration(false), 3000)
+      
+      setShowConfetti(Date.now()) // Trigger confetti!
       setCompletingHabit(null)
       setCompletingTimeOfDay(null)
       onRefresh()
@@ -145,6 +181,18 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       console.error('Failed to log habit:', error)
       console.error('Error details:', error.response?.data)
       alert('Failed to log habit. Please try again.')
+    }
+  }
+
+  const checkAchievements = async (date) => {
+    try {
+      const achievements = await api.checkAchievements(date)
+      if (achievements && achievements.length > 0) {
+        // Show first achievement (you can queue multiple if needed)
+        setAchievementToShow(achievements[0])
+      }
+    } catch (error) {
+      console.error('Failed to check achievements:', error)
     }
   }
 
@@ -161,7 +209,33 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
 
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {/* Confetti Effect */}
+      <Confetti trigger={showConfetti} />
+      
+      {/* Achievement Notification */}
+      {achievementToShow && (
+        <AchievementNotification 
+          achievement={achievementToShow}
+          onClose={() => setAchievementToShow(null)}
+        />
+      )}
+      
+      {/* Celebration Popup */}
+      {showCelebration && (
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 animate-bounce">
+          <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 flex flex-col items-center gap-4 border-4 border-[var(--color-accent)]">
+            <RobotMascot size="lg" emotion="happy" animate={true} dance={true} />
+            <p className="text-2xl font-bold text-gray-800 text-center max-w-md">
+              {celebrationMessage}
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {/* Dot Pattern Background */}
+      <DotPattern opacity={0.1} />
+
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-light mb-2">Habits Overview</h2>
@@ -183,27 +257,48 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="glass rounded-xl p-6">
-          <div className="text-3xl font-bold text-light">{habits.length}</div>
-          <div className="text-light/60 text-sm">Active Habits</div>
-        </div>
-        
-        <div className="glass rounded-xl p-6">
-          <div className="text-3xl font-bold text-light">{logs.length}</div>
-          <div className="text-light/60 text-sm">Total Completions</div>
-        </div>
-        
-        <div className="glass rounded-xl p-6">
-          <div className="text-3xl font-bold text-light">{stats?.logs_this_week || 0}</div>
-          <div className="text-light/60 text-sm">This Week</div>
-        </div>
-
-        <div className="glass rounded-xl p-6">
-          <div className="text-3xl font-bold text-light">
-            {habits.length > 0 ? Math.round((logs.length / (habits.length * 7)) * 100) : 0}%
+        <BlurFade delay={0}>
+          <div className="glass rounded-xl p-6">
+            <div className="text-3xl font-bold text-light">
+              <NumberTicker value={habits.length} />
+            </div>
+            <div className="text-light/60 text-sm">Active Habits</div>
           </div>
-          <div className="text-light/60 text-sm">Success Rate</div>
-        </div>
+        </BlurFade>
+        
+        <BlurFade delay={0.1}>
+          <div className="glass rounded-xl p-6">
+            <div className="text-3xl font-bold text-light">
+              <NumberTicker value={logs.length} />
+            </div>
+            <div className="text-light/60 text-sm">Total Completions</div>
+          </div>
+        </BlurFade>
+        
+        <BlurFade delay={0.2}>
+          <div className="glass rounded-xl p-6">
+            <div className="text-3xl font-bold text-light">
+              <NumberTicker value={stats?.logs_this_week || 0} />
+            </div>
+            <div className="text-light/60 text-sm">This Week</div>
+          </div>
+        </BlurFade>
+
+        <BlurFade delay={0.3}>
+          <div className="glass rounded-xl p-6 flex items-center justify-between">
+            <div>
+              <div className="text-3xl font-bold text-light">
+                <NumberTicker value={habits.length > 0 ? Math.round((logs.length / (habits.length * 7)) * 100) : 0} />%
+              </div>
+              <div className="text-light/60 text-sm">Success Rate</div>
+            </div>
+            <CircularProgress 
+              value={habits.length > 0 ? (logs.length / (habits.length * 7)) * 100 : 0} 
+              size={60}
+              strokeWidth={4}
+            />
+          </div>
+        </BlurFade>
       </div>
 
       <div className="glass rounded-2xl p-6">
@@ -279,7 +374,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
                             </div>
                             <div className="text-sm font-medium text-light mb-1">{habit.name}</div>
                             <div className="text-xs text-light/40 mb-2">{habit.category}</div>
-                            <button
+                            <ShimmerButton
                               onClick={() => handleStartCompletion(habit.id, timeOfDay)}
                               className={`w-full py-1.5 rounded text-xs font-semibold transition ${
                                 isCompleted(habit.id, timeOfDay)
@@ -288,7 +383,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
                               }`}
                             >
                               {isCompleted(habit.id, timeOfDay) ? '✓ Done (click to undo)' : 'Complete'}
-                            </button>
+                            </ShimmerButton>
                           </div>
                           
                           {/* Completion Form - Only for Big Habits */}

@@ -23,7 +23,7 @@ const companions = {
   },
 }
 
-export default function CompanionSelector() {
+export default function CompanionSelector({ onContinue }) {
   const [activeCompanion, setActiveCompanion] = useState('sunkun')
   const companion = companions[activeCompanion]
 
@@ -74,6 +74,21 @@ export default function CompanionSelector() {
           </p>
         </div>
       </div>
+
+      {/* Continue Button */}
+      {onContinue && (
+        <div className="text-center mt-12">
+          <button
+            onClick={onContinue}
+            className="px-10 py-4 bg-[var(--color-accent)] text-[var(--color-background)] font-bold text-lg rounded-full hover:scale-105 transition-all duration-300 inline-flex items-center gap-3"
+          >
+            <span>Start Your Journey</span>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

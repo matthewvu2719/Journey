@@ -177,7 +177,13 @@ class SupabaseClient:
                 completed_date = date_type.fromisoformat(completion_data['completed_date'])
             else:
                 completed_date = completion_data['completed_date']
+                # Convert date object to string BEFORE inserting
+                completion_data['completed_date'] = completed_date.isoformat()
             completion_data['day_of_week'] = completed_date.weekday()  # 0=Monday, 6=Sunday
+        
+        # Ensure completed_at is also a string
+        if 'completed_at' in completion_data and isinstance(completion_data['completed_at'], datetime):
+            completion_data['completed_at'] = completion_data['completed_at'].isoformat()
         
         if self.mock_mode:
             completion = {**completion_data, "id": self.next_id}

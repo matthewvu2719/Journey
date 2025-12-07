@@ -503,3 +503,65 @@ async def delete_daily_capacity(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ACHIEVEMENT ENDPOINTS
+# ============================================================================
+
+from achievement_engine import AchievementEngine
+from models import AchievementProgress, AchievementUnlock
+
+@app.post("/api/achievements/check", response_model=List[AchievementUnlock])
+async def check_achievements(
+    completion_date: Optional[str] = None,
+    user_id: str = Depends(get_user_id)
+):
+    """
+    Check for newly unlocked achievements after completing a habit
+    
+    Returns list of unlocked achievements with rewards
+    """
+    try:
+        # Get database session (you'll need to adapt this to your Supabase setup)
+        # For now, we'll create a simple wrapper
+        achievement_engine = AchievementEngine(db)
+        unlocked = achievement_engine.check_achievements(user_id, completion_date)
+        return unlocked
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to check achievements: {str(e)}")
+
+
+@app.get("/api/achievements/progress", response_model=AchievementProgress)
+async def get_achievement_progress(user_id: str = Depends(get_user_id)):
+    """
+    Get user's current achievement progress
+    
+    Returns progress for daily, weekly, and monthly achievements
+    """
+    try:
+        achievement_engine = AchievementEngine(db)
+        progress = achievement_engine.get_user_progress(user_id)
+        return AchievementProgress(user_id=user_id, **progress)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get progress: {str(e)}")
+
+
+@app.get("/api/achievements/rewards")
+async def get_available_rewards(user_id: str = Depends(get_user_id)):
+    """
+    Get all available rewards that can be unlocked
+    
+    Returns libraries of dances, emotions, hats, costumes, and themes
+    """
+    try:
+        return {
+            'dances': AchievementEngine.DANCES,
+            'emotions': AchievementEngine.EMOTIONS,
+            'hats': AchievementEngine.HATS,
+            'costumes': AchievementEngine.COSTUMES,
+            'themes': AchievementEngine.THEMES,
+            'motivational_sentences': AchievementEngine.MOTIVATIONAL_SENTENCES
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get rewards: {str(e)}")
