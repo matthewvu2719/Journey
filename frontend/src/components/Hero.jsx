@@ -3,9 +3,12 @@ import { AnimatedGradientText } from './ui/AnimatedGradientText'
 import { GridPattern } from './ui/GridPattern'
 import { DotPattern } from './ui/DotPattern'
 import RobotMascot from './RobotMascot'
+import { useBobo } from '../contexts/BoboContext'
 
 export default function Hero({ onExplore }) {
   const [isVisible, setIsVisible] = useState(false)
+  const { getEquippedItems } = useBobo()
+  const equippedItems = getEquippedItems()
 
   useEffect(() => {
     setIsVisible(true)
@@ -29,7 +32,15 @@ export default function Hero({ onExplore }) {
         {/* Bobo Introduction */}
         <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <div className="flex justify-center mb-6">
-            <RobotMascot size="lg" emotion="excited" animate={true} />
+            <RobotMascot 
+              size="lg" 
+              emotion="excited"
+              color={equippedItems.color?.hex || null}
+              hat={equippedItems.hat}
+              costume={equippedItems.costume}
+              dance={equippedItems.dance}
+              animate={true} 
+            />
           </div>
           <p className="font-mono text-sm text-light/60 tracking-wider uppercase mb-8">
             Hi! I'm Bobo, your companion

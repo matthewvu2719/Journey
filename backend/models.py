@@ -265,7 +265,7 @@ class UnlockedReward(BaseModel):
     """Model for tracking unlocked rewards"""
     id: Optional[int] = None
     user_id: str
-    reward_type: str  # motivational_sentence, dance_emotion, hat_costume, theme
+    reward_type: str  # motivational_sentence, dance, hat_costume, theme
     reward_data: Dict  # JSON data about the reward
     unlocked_at: datetime = Field(default_factory=datetime.now)
     achievement_type: str  # any_completion, daily_perfect, weekly_perfect, monthly_perfect

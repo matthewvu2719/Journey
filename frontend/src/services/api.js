@@ -29,8 +29,10 @@ client.interceptors.response.use(
       // Clear auth data on unauthorized
       localStorage.removeItem('habit_coach_token')
       localStorage.removeItem('habit_coach_user')
-      // Redirect to login page
-      window.location.href = '/login'
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -204,7 +206,7 @@ export const api = {
   
   // Phase 4: AI Agents
   agentChat: async (message, context = {}) => {
-    const { data } = await client.post('/api/agents/chat', { message, context })
+    const { data } = await client.post('/api/chat', { message, context })
     return data
   },
   
@@ -247,8 +249,7 @@ export const api = {
   getModelStatus: async () => {
     const { data } = await client.get('/api/ml/models/status')
     return data
-  }
-}
+  },
 
   // ============================================================================
   // ACHIEVEMENTS
@@ -269,3 +270,43 @@ export const api = {
     const { data } = await client.get('/api/achievements/rewards')
     return data
   },
+
+  // ============================================================================
+  // BOBO CUSTOMIZATION
+  // ============================================================================
+  
+  getEquippedCustomizations: async () => {
+    const { data } = await client.get('/api/bobo/customizations')
+    return data
+  },
+
+  equipCustomization: async (customizations) => {
+    const { data } = await client.post('/api/bobo/equip', customizations)
+    return data
+  },
+
+  getUnlockedRewards: async () => {
+    const { data } = await client.get('/api/achievements/unlocked')
+    return data
+  },
+
+  getBoboItems: async (itemType = null) => {
+    const params = itemType ? { item_type: itemType } : {}
+    const { data } = await client.get('/api/bobo/items', { params })
+    return data
+  },
+
+  // ============================================================================
+  // TESTING
+  // ============================================================================
+  
+  triggerTestAchievement: async (type) => {
+    const { data } = await client.post(`/api/test/trigger-achievement?achievement_type=${type}`)
+    return data
+  },
+
+  unlockTestItems: async () => {
+    const { data } = await client.post('/api/test/unlock-items')
+    return data
+  }
+}

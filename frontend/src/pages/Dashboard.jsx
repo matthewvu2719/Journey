@@ -7,8 +7,9 @@ import AnalyticsInsights from '../components/AnalyticsInsights'
 import FloatingChat from '../components/FloatingChat'
 import GuestModeBanner from '../components/GuestModeBanner'
 import EnhancedDashboard from '../components/EnhancedDashboard'
-import ThemeSelector from '../components/ThemeSelector'
 import AchievementProgress from '../components/AchievementProgress'
+import AchievementNotification from '../components/AchievementNotification'
+import BoboCustomization from '../components/BoboCustomization'
 import { api } from '../services/api'
 
 function Dashboard() {
@@ -17,6 +18,7 @@ function Dashboard() {
   const [habits, setHabits] = useState([])
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [testAchievement, setTestAchievement] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -74,16 +76,19 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-theme-bg">
+      {/* Test Achievement Notification */}
+      {testAchievement && (
+        <AchievementNotification 
+          achievement={testAchievement}
+          onClose={() => setTestAchievement(null)}
+        />
+      )}
+
       {/* Guest Mode Banner */}
       <GuestModeBanner />
 
       {/* Floating AI Agent Chat Widget */}
       <FloatingChat habits={habits} logs={logs} onAction={handleAgentAction} />
-
-      {/* Floating Theme Selector */}
-      <div className="fixed bottom-24 left-6 z-40">
-        <ThemeSelector />
-      </div>
 
       {/* Hero Section */}
       <section className="min-h-screen">
@@ -146,6 +151,16 @@ function Dashboard() {
                 >
                   Insights
                 </button>
+                <button
+                  onClick={() => setCurrentSection('bobo')}
+                  className={`px-6 py-2 font-semibold transition rounded-lg ${
+                    currentSection === 'bobo'
+                      ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+                      : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
+                  }`}
+                >
+                  Bobo
+                </button>
               </div>
             </div>
           </div>
@@ -177,6 +192,10 @@ function Dashboard() {
                 />
                 <AchievementProgress />
               </div>
+            )}
+
+            {currentSection === 'bobo' && (
+              <BoboCustomization />
             )}
           </div>
 

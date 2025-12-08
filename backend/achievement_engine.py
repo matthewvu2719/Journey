@@ -3,8 +3,6 @@ Achievement Engine - Tracks user achievements and unlocks rewards
 """
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
-from sqlalchemy.orm import Session
-from models import Completion, Habit, User
 import random
 
 class AchievementEngine:
@@ -21,13 +19,13 @@ class AchievementEngine:
         'daily_perfect': {
             'name': 'Perfect Day',
             'description': 'Complete 100% of today\'s habits',
-            'reward_type': 'dance_emotion',
+            'reward_type': 'dance',
             'check_frequency': 'daily'
         },
         'weekly_perfect': {
             'name': 'Perfect Week',
             'description': 'Complete 100% of this week\'s habits',
-            'reward_type': 'hat_costume',
+            'reward_type': 'hat_costume_color',
             'check_frequency': 'weekly'
         },
         'monthly_perfect': {
@@ -68,12 +66,7 @@ class AchievementEngine:
         {'id': 'robot', 'name': 'Robot Dance', 'description': 'Classic robot moves'}
     ]
     
-    EMOTIONS = [
-        {'id': 'super_happy', 'name': 'Super Happy', 'description': 'Extra wide smile'},
-        {'id': 'wink', 'name': 'Wink', 'description': 'Playful wink'},
-        {'id': 'star_eyes', 'name': 'Star Eyes', 'description': 'Eyes turn to stars'},
-        {'id': 'heart_eyes', 'name': 'Heart Eyes', 'description': 'Eyes turn to hearts'}
-    ]
+
     
     HATS = [
         {'id': 'party_hat', 'name': 'Party Hat', 'description': 'Colorful party cone'},
@@ -91,6 +84,17 @@ class AchievementEngine:
         {'id': 'wings', 'name': 'Wings', 'description': 'Angel or fairy wings'}
     ]
     
+    COLORS = [
+        {'id': 'cream', 'name': 'Cream', 'description': 'Classic cream color', 'hex': '#F9F5F2'},
+        {'id': 'sky_blue', 'name': 'Sky Blue', 'description': 'Light sky blue', 'hex': '#87CEEB'},
+        {'id': 'mint', 'name': 'Mint Green', 'description': 'Fresh mint green', 'hex': '#98D8C8'},
+        {'id': 'lavender', 'name': 'Lavender', 'description': 'Soft lavender purple', 'hex': '#B19CD9'},
+        {'id': 'peach', 'name': 'Peach', 'description': 'Warm peach', 'hex': '#FFB6A3'},
+        {'id': 'coral', 'name': 'Coral Pink', 'description': 'Vibrant coral', 'hex': '#FF6B9D'},
+        {'id': 'sunshine', 'name': 'Sunshine Yellow', 'description': 'Bright yellow', 'hex': '#FFD93D'},
+        {'id': 'rose_gold', 'name': 'Rose Gold', 'description': 'Elegant rose gold', 'hex': '#E0A899'}
+    ]
+    
     THEMES = [
         {'id': 'sunset', 'name': 'Sunset Glow', 'description': 'Warm orange and pink'},
         {'id': 'ocean', 'name': 'Ocean Breeze', 'description': 'Cool blues and teals'},
@@ -100,8 +104,8 @@ class AchievementEngine:
         {'id': 'cherry_blossom', 'name': 'Cherry Blossom', 'description': 'Soft pinks'}
     ]
     
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db):
+        self.db = db  # SupabaseClient instance
     
     def check_achievements(self, user_id: str, completion_date: str = None) -> List[Dict]:
         """
@@ -124,7 +128,7 @@ class AchievementEngine:
             unlocked.append(self._unlock_motivational_sentence(user_id))
         
         if self._check_daily_perfect(user_id, completion_date):
-            unlocked.append(self._unlock_dance_emotion(user_id))
+            unlocked.append(self._unlock_dance(user_id))
         
         if self._check_weekly_perfect(user_id, completion_date):
             unlocked.append(self._unlock_hat_costume(user_id))
@@ -136,153 +140,233 @@ class AchievementEngine:
     
     def _check_any_completion(self, user_id: str, date: str) -> bool:
         """Check if user completed any habit today"""
-        completions = self.db.query(Completion).filter(
-            Completion.user_id == user_id,
-            Completion.completed_date == date
-        ).count()
-        return completions > 0
+        try:
+            completions = self.db.get_completions(user_id, start_date=date, end_date=date)
+            return len(completions) > 0
+        except:
+            return False
     
     def _check_daily_perfect(self, user_id: str, date: str) -> bool:
         """Check if user completed 100% of today's habits"""
-        # Get today's day of week
-        date_obj = datetime.fromisoformat(date)
-        day_name = date_obj.strftime('%a')  # Mon, Tue, etc.
-        
-        # Get all habits scheduled for today
-        habits = self.db.query(Habit).filter(
-            Habit.user_id == user_id,
-            Habit.days.contains([day_name])
-        ).all()
-        
-        if not habits:
+        try:
+            # Get today's day of week
+            date_obj = datetime.fromisoformat(date)
+            day_name = date_obj.strftime('%a')  # Mon, Tue, etc.
+            
+            # Get all habits scheduled for today
+            habits = self.db.get_habits(user_id)
+            today_habits = [h for h in habits if h.get('days') and day_name in h.get('days', [])]
+            
+            if not today_habits:
+                return False
+            
+            # Count total required completions (habits * times_of_day)
+            total_required = sum(len(h.get('times_of_day', [])) if h.get('times_of_day') else 1 for h in today_habits)
+            
+            # Count actual completions
+            completions = self.db.get_completions(user_id, start_date=date, end_date=date)
+            completed = len(completions)
+            
+            return completed >= total_required and total_required > 0
+        except:
             return False
-        
-        # Count total required completions (habits * times_of_day)
-        total_required = sum(len(h.times_of_day) if h.times_of_day else 1 for h in habits)
-        
-        # Count actual completions
-        completed = self.db.query(Completion).filter(
-            Completion.user_id == user_id,
-            Completion.completed_date == date
-        ).count()
-        
-        return completed >= total_required
     
     def _check_weekly_perfect(self, user_id: str, date: str) -> bool:
         """Check if user completed 100% of this week's habits"""
-        date_obj = datetime.fromisoformat(date)
-        # Get Monday of current week
-        monday = date_obj - timedelta(days=date_obj.weekday())
-        sunday = monday + timedelta(days=6)
-        
-        # Get all habits
-        habits = self.db.query(Habit).filter(Habit.user_id == user_id).all()
-        if not habits:
+        try:
+            date_obj = datetime.fromisoformat(date)
+            # Get Monday of current week
+            monday = date_obj - timedelta(days=date_obj.weekday())
+            sunday = monday + timedelta(days=6)
+            
+            # Get all habits
+            habits = self.db.get_habits(user_id)
+            if not habits:
+                return False
+            
+            # Calculate total required completions for the week
+            total_required = 0
+            for habit in habits:
+                if habit.get('days'):
+                    days_count = len(habit.get('days', []))
+                    times_count = len(habit.get('times_of_day', [])) if habit.get('times_of_day') else 1
+                    total_required += days_count * times_count
+            
+            # Count actual completions this week
+            completions = self.db.get_completions(
+                user_id, 
+                start_date=monday.date().isoformat(),
+                end_date=sunday.date().isoformat()
+            )
+            completed = len(completions)
+            
+            return completed >= total_required and total_required > 0
+        except:
             return False
-        
-        # Calculate total required completions for the week
-        total_required = 0
-        for habit in habits:
-            if habit.days:
-                days_count = len(habit.days)
-                times_count = len(habit.times_of_day) if habit.times_of_day else 1
-                total_required += days_count * times_count
-        
-        # Count actual completions this week
-        completed = self.db.query(Completion).filter(
-            Completion.user_id == user_id,
-            Completion.completed_date >= monday.date().isoformat(),
-            Completion.completed_date <= sunday.date().isoformat()
-        ).count()
-        
-        return completed >= total_required and total_required > 0
     
     def _check_monthly_perfect(self, user_id: str, date: str) -> bool:
         """Check if user completed 100% of this month's habits"""
-        date_obj = datetime.fromisoformat(date)
-        # Get first and last day of month
-        first_day = date_obj.replace(day=1)
-        if date_obj.month == 12:
-            last_day = date_obj.replace(year=date_obj.year + 1, month=1, day=1) - timedelta(days=1)
-        else:
-            last_day = date_obj.replace(month=date_obj.month + 1, day=1) - timedelta(days=1)
-        
-        # Get all habits
-        habits = self.db.query(Habit).filter(Habit.user_id == user_id).all()
-        if not habits:
+        try:
+            date_obj = datetime.fromisoformat(date)
+            # Get first and last day of month
+            first_day = date_obj.replace(day=1)
+            if date_obj.month == 12:
+                last_day = date_obj.replace(year=date_obj.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                last_day = date_obj.replace(month=date_obj.month + 1, day=1) - timedelta(days=1)
+            
+            # Get all habits
+            habits = self.db.get_habits(user_id)
+            if not habits:
+                return False
+            
+            # Calculate total required completions for the month
+            total_required = 0
+            current_day = first_day
+            while current_day <= last_day:
+                day_name = current_day.strftime('%a')
+                for habit in habits:
+                    if habit.get('days') and day_name in habit.get('days', []):
+                        times_count = len(habit.get('times_of_day', [])) if habit.get('times_of_day') else 1
+                        total_required += times_count
+                current_day += timedelta(days=1)
+            
+            # Count actual completions this month
+            completions = self.db.get_completions(
+                user_id,
+                start_date=first_day.date().isoformat(),
+                end_date=last_day.date().isoformat()
+            )
+            completed = len(completions)
+            
+            return completed >= total_required and total_required > 0
+        except:
             return False
-        
-        # Calculate total required completions for the month
-        total_required = 0
-        current_day = first_day
-        while current_day <= last_day:
-            day_name = current_day.strftime('%a')
-            for habit in habits:
-                if habit.days and day_name in habit.days:
-                    times_count = len(habit.times_of_day) if habit.times_of_day else 1
-                    total_required += times_count
-            current_day += timedelta(days=1)
-        
-        # Count actual completions this month
-        completed = self.db.query(Completion).filter(
-            Completion.user_id == user_id,
-            Completion.completed_date >= first_day.date().isoformat(),
-            Completion.completed_date <= last_day.date().isoformat()
-        ).count()
-        
-        return completed >= total_required and total_required > 0
     
     def _unlock_motivational_sentence(self, user_id: str) -> Optional[Dict]:
         """Unlock a random motivational sentence"""
         sentence = random.choice(self.MOTIVATIONAL_SENTENCES)
-        return {
+        reward_data = {
             'achievement_type': 'any_completion',
             'achievement_name': 'Habit Completed',
             'reward_type': 'motivational_sentence',
             'reward': sentence,
             'message': f'🎯 Achievement Unlocked! New motivational message: "{sentence}"'
         }
+        
+        # Save to database
+        self._save_reward(user_id, reward_data)
+        return reward_data
     
-    def _unlock_dance_emotion(self, user_id: str) -> Optional[Dict]:
-        """Unlock a random dance and emotion"""
-        dance = random.choice(self.DANCES)
-        emotion = random.choice(self.EMOTIONS)
-        return {
+    def _unlock_dance(self, user_id: str) -> Optional[Dict]:
+        """Unlock an AI-generated dance"""
+        from bobo_customization_agent import customization_agent
+        
+        # Generate COMPLETELY NEW dance using AI!
+        dance = customization_agent.generate_dance()
+        
+        # Save individual item to bobo_items table
+        self._save_bobo_item(user_id, 'dance', dance, 'daily_perfect')
+        
+        reward_data = {
             'achievement_type': 'daily_perfect',
             'achievement_name': 'Perfect Day',
-            'reward_type': 'dance_emotion',
-            'reward': {
-                'dance': dance,
-                'emotion': emotion
-            },
-            'message': f'⭐ Perfect Day! Bobo learned "{dance["name"]}" and "{emotion["name"]}"!'
+            'reward_type': 'dance',
+            'reward': dance,
+            'message': f'⭐ Perfect Day! Bobo learned "{dance["name"]}"!'
         }
+        
+        # Also save to unlocked_rewards for history
+        self._save_reward(user_id, reward_data)
+        return reward_data
     
     def _unlock_hat_costume(self, user_id: str) -> Optional[Dict]:
-        """Unlock a random hat and costume"""
-        hat = random.choice(self.HATS)
-        costume = random.choice(self.COSTUMES)
-        return {
+        """Unlock an AI-generated hat, costume, and random color"""
+        from bobo_customization_agent import customization_agent
+        import random
+        
+        # Generate COMPLETELY NEW hat and costume using AI!
+        hat = customization_agent.generate_hat()
+        costume = customization_agent.generate_costume()
+        
+        # Pick a random color
+        color = random.choice(self.COLORS)
+        
+        # Save individual items to bobo_items table
+        self._save_bobo_item(user_id, 'hat', hat, 'weekly_perfect')
+        self._save_bobo_item(user_id, 'costume', costume, 'weekly_perfect')
+        self._save_bobo_item(user_id, 'color', color, 'weekly_perfect')
+        
+        reward_data = {
             'achievement_type': 'weekly_perfect',
             'achievement_name': 'Perfect Week',
-            'reward_type': 'hat_costume',
+            'reward_type': 'hat_costume_color',
             'reward': {
                 'hat': hat,
-                'costume': costume
+                'costume': costume,
+                'color': color
             },
-            'message': f'🏆 Perfect Week! Bobo got a {hat["name"]} and {costume["name"]}!'
+            'message': f'🏆 Perfect Week! Bobo got a {hat["name"]}, {costume["name"]}, and {color["name"]} color!'
         }
+        
+        # Also save to unlocked_rewards for history
+        self._save_reward(user_id, reward_data)
+        return reward_data
     
     def _unlock_theme(self, user_id: str) -> Optional[Dict]:
         """Unlock a random theme"""
         theme = random.choice(self.THEMES)
-        return {
+        reward_data = {
             'achievement_type': 'monthly_perfect',
             'achievement_name': 'Perfect Month',
             'reward_type': 'theme',
             'reward': theme,
             'message': f'👑 Perfect Month! New theme unlocked: {theme["name"]}!'
         }
+        
+        # Save to database
+        self._save_reward(user_id, reward_data)
+        return reward_data
+    
+    def _save_reward(self, user_id: str, reward_data: Dict):
+        """Save unlocked reward to database (for history)"""
+        try:
+            self.db.save_unlocked_reward({
+                'user_id': user_id,
+                'reward_type': reward_data['reward_type'],
+                'reward_data': reward_data['reward'],
+                'achievement_type': reward_data['achievement_type']
+            })
+        except Exception as e:
+            print(f"Error saving reward: {e}")
+    
+    def _save_bobo_item(self, user_id: str, item_type: str, item_data: Dict, achievement_type: str):
+        """Save individual Bobo item to bobo_items table"""
+        try:
+            # For colors, store hex value in svg_data field
+            svg_data = item_data.get('hex', '') if item_type == 'color' else item_data.get('svg', '')
+            
+            self.db.save_bobo_item({
+                'user_id': user_id,
+                'item_type': item_type,
+                'item_id': item_data['id'],
+                'item_name': item_data['name'],
+                'item_description': item_data.get('description', ''),
+                'svg_data': svg_data,
+                'animation_data': {
+                    'keyframes': item_data.get('keyframes', {}),
+                    'duration': item_data.get('duration', 800),
+                    'timing': item_data.get('timing', 'ease-in-out'),
+                    'movements': item_data.get('movements', {
+                        'arms': {'speed': 50, 'amplitude': 20, 'pattern': 'wave'},
+                        'head': {'speed': 100, 'amplitude': 5, 'pattern': 'nod'},
+                        'hands': {'speed': 80, 'amplitude': 15, 'pattern': 'wiggle'}
+                    })
+                } if item_type == 'dance' else item_data.get('keyframes', {}),
+                'achievement_type': achievement_type
+            })
+        except Exception as e:
+            print(f"Error saving bobo item: {e}")
     
     def get_user_progress(self, user_id: str) -> Dict:
         """Get user's current achievement progress"""
@@ -297,86 +381,95 @@ class AchievementEngine:
     
     def _get_daily_progress(self, user_id: str, date: str) -> Dict:
         """Get daily completion progress"""
-        date_obj = datetime.fromisoformat(date)
-        day_name = date_obj.strftime('%a')
-        
-        habits = self.db.query(Habit).filter(
-            Habit.user_id == user_id,
-            Habit.days.contains([day_name])
-        ).all()
-        
-        total_required = sum(len(h.times_of_day) if h.times_of_day else 1 for h in habits)
-        completed = self.db.query(Completion).filter(
-            Completion.user_id == user_id,
-            Completion.completed_date == date
-        ).count()
-        
-        return {
-            'completed': completed,
-            'total': total_required,
-            'percentage': (completed / total_required * 100) if total_required > 0 else 0
-        }
+        try:
+            date_obj = datetime.fromisoformat(date)
+            day_name = date_obj.strftime('%a')
+            
+            habits = self.db.get_habits(user_id)
+            today_habits = [h for h in habits if h.get('days') and day_name in h.get('days', [])]
+            
+            total_required = sum(len(h.get('times_of_day', [])) if h.get('times_of_day') else 1 for h in today_habits)
+            completions = self.db.get_completions(user_id, start_date=date, end_date=date)
+            completed = len(completions)
+            
+            return {
+                'completed': completed,
+                'total': total_required,
+                'percentage': (completed / total_required * 100) if total_required > 0 else 0
+            }
+        except:
+            return {'completed': 0, 'total': 0, 'percentage': 0}
     
     def _get_weekly_progress(self, user_id: str, date: str) -> Dict:
         """Get weekly completion progress"""
-        date_obj = datetime.fromisoformat(date)
-        monday = date_obj - timedelta(days=date_obj.weekday())
-        sunday = monday + timedelta(days=6)
-        
-        habits = self.db.query(Habit).filter(Habit.user_id == user_id).all()
-        total_required = sum(
-            len(h.days) * (len(h.times_of_day) if h.times_of_day else 1)
-            for h in habits if h.days
-        )
-        
-        completed = self.db.query(Completion).filter(
-            Completion.user_id == user_id,
-            Completion.completed_date >= monday.date().isoformat(),
-            Completion.completed_date <= sunday.date().isoformat()
-        ).count()
-        
-        return {
-            'completed': completed,
-            'total': total_required,
-            'percentage': (completed / total_required * 100) if total_required > 0 else 0
-        }
+        try:
+            date_obj = datetime.fromisoformat(date)
+            monday = date_obj - timedelta(days=date_obj.weekday())
+            sunday = monday + timedelta(days=6)
+            
+            habits = self.db.get_habits(user_id)
+            total_required = sum(
+                len(h.get('days', [])) * (len(h.get('times_of_day', [])) if h.get('times_of_day') else 1)
+                for h in habits if h.get('days')
+            )
+            
+            completions = self.db.get_completions(
+                user_id,
+                start_date=monday.date().isoformat(),
+                end_date=sunday.date().isoformat()
+            )
+            completed = len(completions)
+            
+            return {
+                'completed': completed,
+                'total': total_required,
+                'percentage': (completed / total_required * 100) if total_required > 0 else 0
+            }
+        except:
+            return {'completed': 0, 'total': 0, 'percentage': 0}
     
     def _get_monthly_progress(self, user_id: str, date: str) -> Dict:
         """Get monthly completion progress"""
-        date_obj = datetime.fromisoformat(date)
-        first_day = date_obj.replace(day=1)
-        if date_obj.month == 12:
-            last_day = date_obj.replace(year=date_obj.year + 1, month=1, day=1) - timedelta(days=1)
-        else:
-            last_day = date_obj.replace(month=date_obj.month + 1, day=1) - timedelta(days=1)
-        
-        habits = self.db.query(Habit).filter(Habit.user_id == user_id).all()
-        
-        # Calculate total required
-        total_required = 0
-        current_day = first_day
-        while current_day <= last_day:
-            day_name = current_day.strftime('%a')
-            for habit in habits:
-                if habit.days and day_name in habit.days:
-                    times_count = len(habit.times_of_day) if habit.times_of_day else 1
-                    total_required += times_count
-            current_day += timedelta(days=1)
-        
-        completed = self.db.query(Completion).filter(
-            Completion.user_id == user_id,
-            Completion.completed_date >= first_day.date().isoformat(),
-            Completion.completed_date <= last_day.date().isoformat()
-        ).count()
-        
-        return {
-            'completed': completed,
-            'total': total_required,
-            'percentage': (completed / total_required * 100) if total_required > 0 else 0
-        }
+        try:
+            date_obj = datetime.fromisoformat(date)
+            first_day = date_obj.replace(day=1)
+            if date_obj.month == 12:
+                last_day = date_obj.replace(year=date_obj.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                last_day = date_obj.replace(month=date_obj.month + 1, day=1) - timedelta(days=1)
+            
+            habits = self.db.get_habits(user_id)
+            
+            # Calculate total required
+            total_required = 0
+            current_day = first_day
+            while current_day <= last_day:
+                day_name = current_day.strftime('%a')
+                for habit in habits:
+                    if habit.get('days') and day_name in habit.get('days', []):
+                        times_count = len(habit.get('times_of_day', [])) if habit.get('times_of_day') else 1
+                        total_required += times_count
+                current_day += timedelta(days=1)
+            
+            completions = self.db.get_completions(
+                user_id,
+                start_date=first_day.date().isoformat(),
+                end_date=last_day.date().isoformat()
+            )
+            completed = len(completions)
+            
+            return {
+                'completed': completed,
+                'total': total_required,
+                'percentage': (completed / total_required * 100) if total_required > 0 else 0
+            }
+        except:
+            return {'completed': 0, 'total': 0, 'percentage': 0}
     
     def _get_total_completions(self, user_id: str) -> int:
         """Get total all-time completions"""
-        return self.db.query(Completion).filter(
-            Completion.user_id == user_id
-        ).count()
+        try:
+            completions = self.db.get_completions(user_id)
+            return len(completions)
+        except:
+            return 0

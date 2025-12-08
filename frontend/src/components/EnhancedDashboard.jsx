@@ -9,8 +9,46 @@ import { CircularProgress } from './ui/CircularProgress'
 import { DotPattern } from './ui/DotPattern'
 import RobotMascot from './RobotMascot'
 import AchievementNotification from './AchievementNotification'
+import { useBobo } from '../contexts/BoboContext'
+
+// Celebration Popup Component
+function CelebrationPopup({ message, dance, getEquippedItems }) {
+  const equippedItems = getEquippedItems()
+  
+  return (
+    <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 animate-bounce">
+      <div 
+        className="backdrop-blur-sm rounded-3xl shadow-2xl p-8 flex flex-col items-center gap-4 border-4"
+        style={{
+          backgroundColor: 'var(--color-background)',
+          borderColor: 'var(--color-accent)',
+          opacity: 0.98
+        }}
+      >
+        <RobotMascot 
+          size="lg" 
+          emotion="celebrating" 
+          animate={true} 
+          dance={dance}
+          color={equippedItems?.color?.hex || null}
+          hat={equippedItems?.hat}
+          costume={equippedItems?.costume}
+        />
+        <p 
+          className="text-2xl font-bold text-center max-w-md"
+          style={{ color: 'var(--color-foreground)' }}
+        >
+          {message}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 export default function EnhancedDashboard({ habits, logs, onRefresh }) {
+  const boboContext = useBobo()
+  const { getEquippedItems, items = { dances: [], hats: [], costumes: [], colors: [] } } = boboContext || {}
+  
   const [stats, setStats] = useState(null)
   const [showHabitForm, setShowHabitForm] = useState(false)
   const [completingHabit, setCompletingHabit] = useState(null)
@@ -18,6 +56,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
   const [showConfetti, setShowConfetti] = useState(0)
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationMessage, setCelebrationMessage] = useState('')
+  const [celebrationDance, setCelebrationDance] = useState(null)
   const [achievementToShow, setAchievementToShow] = useState(null)
   const [completionData, setCompletionData] = useState({
     mood_before: 'good',
@@ -119,7 +158,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       // Check for achievements
       await checkAchievements(today)
       
-      // Show celebration
+      // Show celebration with random dance
       const habit = habits.find(h => h.id === habitId)
       const messages = [
         `Amazing! You completed "${habit?.name}"! 🎉`,
@@ -127,9 +166,20 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
         `Woohoo! "${habit?.name}" is done! You're on fire! 🔥`,
         `Fantastic! Another win with "${habit?.name}"! ⭐`
       ]
-      setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
+      const message = messages[Math.floor(Math.random() * messages.length)]
+      setCelebrationMessage(message)
+      
+      // Pick random dance from unlocked dances, or use default
+      const unlockedDances = items?.dances || []
+      const randomDance = unlockedDances.length > 0 
+        ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
+        : true // Default dance
+      setCelebrationDance(randomDance)
+      
       setShowCelebration(true)
-      setTimeout(() => setShowCelebration(false), 3000)
+      setTimeout(() => {
+        setShowCelebration(false)
+      }, 3000)
       
       setShowConfetti(Date.now()) // Trigger confetti!
       onRefresh()
@@ -162,7 +212,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       // Check for achievements
       await checkAchievements(today)
       
-      // Show celebration
+      // Show celebration with random dance
       const messages = [
         `Incredible! You completed "${completingHabit.name}"! 🎉`,
         `You're crushing it! "${completingHabit.name}" is done! 💪`,
@@ -170,6 +220,14 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
         `Yes! Another "${completingHabit.name}" in the books! 🚀`
       ]
       setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
+      
+      // Pick random dance from unlocked dances, or use default
+      const unlockedDances = items.dances || []
+      const randomDance = unlockedDances.length > 0 
+        ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
+        : true // Default dance
+      setCelebrationDance(randomDance)
+      
       setShowCelebration(true)
       setTimeout(() => setShowCelebration(false), 3000)
       
@@ -206,8 +264,6 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
     }
   }
 
-
-
   return (
     <div className="space-y-8 relative">
       {/* Confetti Effect */}
@@ -223,14 +279,11 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       
       {/* Celebration Popup */}
       {showCelebration && (
-        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 animate-bounce">
-          <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 flex flex-col items-center gap-4 border-4 border-[var(--color-accent)]">
-            <RobotMascot size="lg" emotion="happy" animate={true} dance={true} />
-            <p className="text-2xl font-bold text-gray-800 text-center max-w-md">
-              {celebrationMessage}
-            </p>
-          </div>
-        </div>
+        <CelebrationPopup 
+          message={celebrationMessage}
+          dance={celebrationDance}
+          getEquippedItems={getEquippedItems}
+        />
       )}
       
       {/* Dot Pattern Background */}

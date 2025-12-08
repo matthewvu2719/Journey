@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import RobotMascot from './RobotMascot'
+import { useBobo } from '../contexts/BoboContext'
 
 export default function Journey({ onContinue, habitsCount, completionsCount }) {
   const [isVisible, setIsVisible] = useState(false)
+  const { getEquippedItems } = useBobo()
+  const equippedItems = getEquippedItems()
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -60,7 +63,15 @@ export default function Journey({ onContinue, habitsCount, completionsCount }) {
         }`}>
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="flex-shrink-0">
-              <RobotMascot size="xl" emotion="excited" animate={true} />
+              <RobotMascot 
+                size="xl" 
+                emotion="excited"
+                color={equippedItems.color?.hex || null}
+                hat={equippedItems.hat}
+                costume={equippedItems.costume}
+                dance={equippedItems.dance}
+                animate={true} 
+              />
             </div>
             <div className="flex-1 text-left">
               <h3 className="text-3xl font-bold mb-4 text-[var(--color-foreground)]">

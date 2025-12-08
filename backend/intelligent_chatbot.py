@@ -15,10 +15,13 @@ class IntelligentChatbot:
     def __init__(self):
         # Use Groq AI
         api_key = os.getenv("GROQ_API_KEY")
-        base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
         
         if api_key:
-            self.client = OpenAI(api_key=api_key, base_url=base_url)
+            # Don't use GROQ_BASE_URL - SDK handles it automatically
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url="https://api.groq.com/openai/v1"
+            )
             self.ai_enabled = True
             print(f"✓ Intelligent chatbot enabled with Groq AI")
         else:
@@ -288,13 +291,26 @@ class IntelligentChatbot:
         # Build context
         habit_context = self._build_context(habits, logs)
         
-        system_prompt = f"""You are a personal habit coach AI. You help users build and maintain healthy habits.
+        system_prompt = f"""You are Bobo, a friendly and supportive AI habit coach! 🤖
+
+Your personality:
+- Warm, encouraging, and positive
+- Use emojis to be friendly (but not too many)
+- Give specific, actionable advice
+- Reference habit formation science when helpful
+- Keep responses SHORT (2-3 sentences for simple questions, 1 paragraph for advice)
 
 User's current habits:
 {habit_context}
 
-Provide supportive, actionable advice. Be encouraging but realistic. Use habit formation science.
-Keep responses concise (2-3 paragraphs max)."""
+Guidelines:
+- If they ask about habits, reference their actual habits above
+- If they need motivation, be specific about their progress
+- If they want to create a habit, ask clarifying questions
+- If they're just chatting, be friendly but guide them back to habits
+- Always end with a question or suggestion to keep the conversation going
+
+Remember: You're Bobo, their companion on this journey! Be helpful, relevant, and concise."""
         
         try:
             response = self.client.chat.completions.create(

@@ -15,7 +15,8 @@ class SupabaseClient:
     
     def __init__(self):
         url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_KEY")
+        # Try service_role key first (bypasses RLS), fallback to anon key
+        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
         
         # Use mock mode if credentials are missing or invalid
         if not url or not key or url == "https://your-project.supabase.co":
@@ -27,7 +28,8 @@ class SupabaseClient:
             try:
                 self.client: Client = create_client(url, key)
                 self.mock_mode = False
-                print("✓ Connected to Supabase")
+                key_type = "service_role" if os.getenv("SUPABASE_SERVICE_ROLE_KEY") else "anon"
+                print(f"✓ Connected to Supabase (using {key_type} key)")
             except Exception as e:
                 print(f"⚠️  Supabase connection failed: {e}")
                 print("⚠️  Running in MOCK MODE")
@@ -794,3 +796,198 @@ class SupabaseClient:
         ).eq("day_of_week", day_of_week).execute()
         
         return len(response.data) > 0
+
+
+    # ========================================================================
+    # UNLOCKED REWARDS
+    # ========================================================================
+    
+    def save_unlocked_reward(self, reward_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Save an unlocked reward"""
+        if self.mock_mode:
+            reward_data['id'] = self.next_id
+            self.next_id += 1
+            if not hasattr(self, 'mock_rewards'):
+                self.mock_rewards = []
+            self.mock_rewards.append(reward_data)
+            return reward_data
+        
+        try:
+            result = self.client.table('unlocked_rewards').insert(reward_data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error saving unlocked reward: {e}")
+            return None
+    
+    def get_unlocked_rewards(self, user_id: str, reward_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get user's unlocked rewards, optionally filtered by type"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_rewards'):
+                self.mock_rewards = []
+            rewards = [r for r in self.mock_rewards if r.get('user_id') == user_id]
+            if reward_type:
+                rewards = [r for r in rewards if r.get('reward_type') == reward_type]
+            return rewards
+        
+        try:
+            query = self.client.table('unlocked_rewards').select('*').eq('user_id', user_id)
+            if reward_type:
+                query = query.eq('reward_type', reward_type)
+            result = query.order('unlocked_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting unlocked rewards: {e}")
+            return []
+    
+    def check_reward_unlocked(self, user_id: str, achievement_type: str) -> bool:
+        """Check if user has already unlocked this achievement type"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_rewards'):
+                return False
+            return any(r.get('user_id') == user_id and r.get('achievement_type') == achievement_type 
+                      for r in self.mock_rewards)
+        
+        try:
+            result = self.client.table('unlocked_rewards')\
+                .select('id')\
+                .eq('user_id', user_id)\
+                .eq('achievement_type', achievement_type)\
+                .limit(1)\
+                .execute()
+            return len(result.data) > 0 if result.data else False
+        except Exception as e:
+            print(f"Error checking reward: {e}")
+            return False
+
+
+    # ========================================================================
+    # BOBO CUSTOMIZATIONS
+    # ========================================================================
+    
+    def get_equipped_customizations(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user's equipped Bobo customizations"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_equipped'):
+                self.mock_equipped = {}
+            return self.mock_equipped.get(user_id)
+        
+        try:
+            result = self.client.table('bobo_equipped')\
+                .select('*')\
+                .eq('user_id', user_id)\
+                .limit(1)\
+                .execute()
+            
+            if result.data and len(result.data) > 0:
+                return {
+                    'hat': result.data[0].get('hat'),
+                    'costume': result.data[0].get('costume'),
+                    'dance': result.data[0].get('dance'),
+                    'color': result.data[0].get('color')
+                }
+            return None
+        except Exception as e:
+            print(f"Error getting equipped customizations: {e}")
+            return None
+    
+    def save_equipped_customizations(self, user_id: str, customizations: Dict[str, Any]) -> Dict[str, Any]:
+        """Save user's equipped Bobo customizations"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_equipped'):
+                self.mock_equipped = {}
+            self.mock_equipped[user_id] = customizations
+            return customizations
+        
+        try:
+            # Upsert (insert or update)
+            data = {
+                'user_id': user_id,
+                'hat': customizations.get('hat'),
+                'costume': customizations.get('costume'),
+                'dance': customizations.get('dance'),
+                'color': customizations.get('color')
+            }
+            
+            result = self.client.table('bobo_equipped').upsert(data).execute()
+            return result.data[0] if result.data else customizations
+        except Exception as e:
+            print(f"Error saving equipped customizations: {e}")
+            return customizations
+
+
+    # ========================================================================
+    # BOBO ITEMS (Individual customizations)
+    # ========================================================================
+    
+    def save_bobo_item(self, item_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Save an individual Bobo item (hat, costume, dance, color)"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_bobo_items'):
+                self.mock_bobo_items = []
+            item_data['id'] = self.next_id
+            self.next_id += 1
+            self.mock_bobo_items.append(item_data)
+            print(f"[MOCK] Saved bobo item: {item_data}")
+            return item_data
+        
+        try:
+            print(f"[DB] Attempting to save bobo item: {item_data}")
+            result = self.client.table('bobo_items').insert(item_data).execute()
+            print(f"[DB] Save result: {result}")
+            if result.data:
+                print(f"[DB] Successfully saved: {result.data[0]}")
+                return result.data[0]
+            else:
+                print(f"[DB] No data returned from insert")
+                return None
+        except Exception as e:
+            print(f"[DB] Error saving bobo item: {e}")
+            print(f"[DB] Error type: {type(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def get_bobo_items(self, user_id: str, item_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get user's unlocked Bobo items, optionally filtered by type"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_bobo_items'):
+                self.mock_bobo_items = []
+            items = [i for i in self.mock_bobo_items if i.get('user_id') == user_id]
+            if item_type:
+                items = [i for i in items if i.get('item_type') == item_type]
+            return items
+        
+        try:
+            query = self.client.table('bobo_items').select('*').eq('user_id', user_id)
+            if item_type:
+                query = query.eq('item_type', item_type)
+            result = query.order('unlocked_at', desc=True).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting bobo items: {e}")
+            return []
+    
+    def check_bobo_item_unlocked(self, user_id: str, item_type: str, item_id: str) -> bool:
+        """Check if user has unlocked a specific Bobo item"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_bobo_items'):
+                return False
+            return any(
+                i.get('user_id') == user_id and 
+                i.get('item_type') == item_type and 
+                i.get('item_id') == item_id 
+                for i in self.mock_bobo_items
+            )
+        
+        try:
+            result = self.client.table('bobo_items')\
+                .select('id')\
+                .eq('user_id', user_id)\
+                .eq('item_type', item_type)\
+                .eq('item_id', item_id)\
+                .limit(1)\
+                .execute()
+            return len(result.data) > 0 if result.data else False
+        except Exception as e:
+            print(f"Error checking bobo item: {e}")
+            return False

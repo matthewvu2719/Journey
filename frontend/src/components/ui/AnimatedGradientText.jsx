@@ -7,7 +7,7 @@ export function AnimatedGradientText({ children, className = '' }) {
       }}
     >
       {children}
-      <style jsx>{`
+      <style>{`
         @keyframes gradient {
           0%, 100% {
             background-position: 0% center;

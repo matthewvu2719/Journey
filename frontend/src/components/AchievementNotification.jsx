@@ -1,15 +1,25 @@
 import { useEffect, useState } from 'react'
 import RobotMascot from './RobotMascot'
 import { Confetti } from './ui/Confetti'
+import { useBobo } from '../contexts/BoboContext'
 
 export default function AchievementNotification({ achievement, onClose }) {
+  const { getEquippedItems, items } = useBobo()
   const [isVisible, setIsVisible] = useState(false)
   const [confettiTrigger, setConfettiTrigger] = useState(0)
+  const [celebrationDance, setCelebrationDance] = useState(null)
 
   useEffect(() => {
     if (achievement) {
       setIsVisible(true)
       setConfettiTrigger(Date.now())
+      
+      // Pick random dance from unlocked dances, or use default
+      const unlockedDances = items.dances || []
+      const randomDance = unlockedDances.length > 0 
+        ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
+        : true // Default dance
+      setCelebrationDance(randomDance)
       
       // Auto-close after 5 seconds
       const timer = setTimeout(() => {
@@ -18,7 +28,7 @@ export default function AchievementNotification({ achievement, onClose }) {
       
       return () => clearTimeout(timer)
     }
-  }, [achievement])
+  }, [achievement, items.dances])
 
   const handleClose = () => {
     setIsVisible(false)
@@ -35,7 +45,7 @@ export default function AchievementNotification({ achievement, onClose }) {
         return (
           <div className="text-center">
             <div className="text-4xl mb-3">💬</div>
-            <p className="text-lg font-medium text-gray-800 italic">
+            <p className="text-lg font-medium italic">
               "{achievement.reward}"
             </p>
           </div>
@@ -45,16 +55,16 @@ export default function AchievementNotification({ achievement, onClose }) {
         return (
           <div className="text-center">
             <div className="text-4xl mb-3">💃✨</div>
-            <p className="text-lg font-bold text-gray-800 mb-2">
+            <p className="text-lg font-bold mb-2">
               {achievement.reward.dance.name}
             </p>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm opacity-70 mb-2">
               {achievement.reward.dance.description}
             </p>
-            <p className="text-lg font-bold text-gray-800 mb-2">
+            <p className="text-lg font-bold mb-2">
               {achievement.reward.emotion.name}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm opacity-70">
               {achievement.reward.emotion.description}
             </p>
           </div>
@@ -64,16 +74,16 @@ export default function AchievementNotification({ achievement, onClose }) {
         return (
           <div className="text-center">
             <div className="text-4xl mb-3">🎩👔</div>
-            <p className="text-lg font-bold text-gray-800 mb-2">
+            <p className="text-lg font-bold mb-2">
               {achievement.reward.hat.name}
             </p>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm opacity-70 mb-2">
               {achievement.reward.hat.description}
             </p>
-            <p className="text-lg font-bold text-gray-800 mb-2">
+            <p className="text-lg font-bold mb-2">
               {achievement.reward.costume.name}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm opacity-70">
               {achievement.reward.costume.description}
             </p>
           </div>
@@ -83,10 +93,10 @@ export default function AchievementNotification({ achievement, onClose }) {
         return (
           <div className="text-center">
             <div className="text-4xl mb-3">🎨</div>
-            <p className="text-lg font-bold text-gray-800 mb-2">
+            <p className="text-lg font-bold mb-2">
               {achievement.reward.name}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm opacity-70">
               {achievement.reward.description}
             </p>
           </div>
@@ -126,15 +136,25 @@ export default function AchievementNotification({ achievement, onClose }) {
         />
         
         {/* Notification Card */}
-        <div className={`relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform transition-all duration-500 ${
-          isVisible ? 'scale-100 translate-y-0' : 'scale-75 translate-y-10'
-        }`}>
+        <div 
+          className={`relative rounded-3xl shadow-2xl max-w-md w-full p-8 transform transition-all duration-500 ${
+            isVisible ? 'scale-100 translate-y-0' : 'scale-75 translate-y-10'
+          }`}
+          style={{
+            backgroundColor: 'var(--color-background)',
+            border: '2px solid var(--color-accent)'
+          }}
+        >
           {/* Close Button */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{
+              backgroundColor: 'var(--color-glass)',
+              color: 'var(--color-foreground)'
+            }}
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -144,7 +164,10 @@ export default function AchievementNotification({ achievement, onClose }) {
             <div className="text-6xl mb-3 animate-bounce">
               {getAchievementIcon()}
             </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
+            <h2 
+              className="text-3xl font-bold mb-2"
+              style={{ color: 'var(--color-foreground)' }}
+            >
               Achievement Unlocked!
             </h2>
             <p className="text-xl font-semibold text-[var(--color-accent)]">
@@ -154,28 +177,51 @@ export default function AchievementNotification({ achievement, onClose }) {
 
           {/* Bobo Celebration */}
           <div className="flex justify-center mb-6">
-            <RobotMascot 
-              size="lg" 
-              emotion="happy" 
-              animate={true} 
-              dance={true}
-            />
+            {(() => {
+              const equippedItems = getEquippedItems()
+              return (
+                <RobotMascot 
+                  size="lg" 
+                  emotion="celebrating"
+                  color={equippedItems.color?.hex || null}
+                  hat={equippedItems.hat}
+                  costume={equippedItems.costume}
+                  animate={true} 
+                  dance={celebrationDance}
+                />
+              )
+            })()}
           </div>
 
           {/* Reward Display */}
-          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-6 mb-6">
-            {getRewardDisplay()}
+          <div 
+            className="rounded-2xl p-6 mb-6"
+            style={{
+              backgroundColor: 'var(--color-glass)',
+              border: '1px solid var(--color-border)'
+            }}
+          >
+            <div style={{ color: 'var(--color-foreground)' }}>
+              {getRewardDisplay()}
+            </div>
           </div>
 
           {/* Message */}
-          <p className="text-center text-gray-700 font-medium">
+          <p 
+            className="text-center font-medium"
+            style={{ color: 'var(--color-foreground-secondary)' }}
+          >
             {achievement.message}
           </p>
 
           {/* Continue Button */}
           <button
             onClick={handleClose}
-            className="w-full mt-6 py-3 bg-[var(--color-accent)] text-white font-bold rounded-full hover:scale-105 transition-transform"
+            className="w-full mt-6 py-3 font-bold rounded-full hover:scale-105 transition-transform"
+            style={{
+              backgroundColor: 'var(--color-accent)',
+              color: 'var(--color-background)'
+            }}
           >
             Awesome! 🎉
           </button>

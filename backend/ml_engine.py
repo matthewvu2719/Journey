@@ -57,11 +57,31 @@ class MLEngine:
         total_completions = len(logs)
         
         # Analyze time of day patterns
-        time_counter = Counter([l.get("time_of_day", "unknown") for l in logs])
+        time_map = {0: "morning", 1: "afternoon", 2: "evening", 3: "night"}
+        times = []
+        for l in logs:
+            tod = l.get("time_of_day", "morning")
+            # Convert integer to string if needed
+            if isinstance(tod, int):
+                tod = time_map.get(tod, "morning")
+            times.append(tod if tod else "morning")
+        
+        time_counter = Counter(times)
         best_time = time_counter.most_common(1)[0][0] if time_counter else "morning"
         
         # Analyze energy levels
-        energy_counter = Counter([l.get("energy_level", "medium") for l in logs])
+        energy_levels = []
+        for l in logs:
+            energy = l.get("energy_level", "medium")
+            # Ensure it's a string
+            if energy is None:
+                energy = "medium"
+            elif isinstance(energy, int):
+                energy_map = {1: "low", 2: "medium", 3: "high"}
+                energy = energy_map.get(energy, "medium")
+            energy_levels.append(energy)
+        
+        energy_counter = Counter(energy_levels)
         best_energy = energy_counter.most_common(1)[0][0] if energy_counter else "medium"
         
         # Success by difficulty

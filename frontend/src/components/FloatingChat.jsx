@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { api } from '../services/api'
 import RobotMascot from './RobotMascot'
+import { useBobo } from '../contexts/BoboContext'
 
 export default function FloatingChat({ habits, logs, onAction }) {
   const [isOpen, setIsOpen] = useState(false)
+  const { getEquippedItems } = useBobo()
+  const equippedItems = getEquippedItems()
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -95,7 +98,7 @@ export default function FloatingChat({ habits, logs, onAction }) {
           <div className="p-4 border-b border-light/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 flex items-center justify-center">
-                <RobotMascot size="sm" emotion="excited" animate={true} />
+                <RobotMascot size="sm" emotion="excited" animate={true} color={equippedItems.color?.hex || null} />
               </div>
               <div>
                 <h3 className="font-bold">Bobo</h3>
@@ -117,8 +120,22 @@ export default function FloatingChat({ habits, logs, onAction }) {
             {messages.map((msg, idx) => (
               <div key={idx}>
                 <div
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
+                  {/* Bobo avatar for assistant messages */}
+                  {msg.role === 'assistant' && (
+                    <div className="flex-shrink-0 mt-1">
+                      <RobotMascot 
+                        size="sm" 
+                        emotion="excited"
+                        color={equippedItems.color?.hex || null}
+                        hat={equippedItems.hat}
+                        costume={equippedItems.costume}
+                        animate={false}
+                      />
+                    </div>
+                  )}
+                  
                   <div
                     className={`max-w-[80%] p-3 rounded-2xl ${
                       msg.role === 'user'
@@ -249,7 +266,15 @@ export default function FloatingChat({ habits, logs, onAction }) {
         }`}
         style={{ width: '80px', height: '112px' }}
       >
-        <RobotMascot size="md" emotion="excited" animate={!isOpen} />
+        <RobotMascot 
+          size="md" 
+          emotion="excited"
+          color={equippedItems.color?.hex || null}
+          hat={equippedItems.hat}
+          costume={equippedItems.costume}
+          dance={equippedItems.dance}
+          animate={!isOpen} 
+        />
       </button>
     </>
   )
