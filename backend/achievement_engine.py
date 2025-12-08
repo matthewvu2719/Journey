@@ -281,32 +281,26 @@ class AchievementEngine:
         return reward_data
     
     def _unlock_hat_costume(self, user_id: str) -> Optional[Dict]:
-        """Unlock an AI-generated hat, costume, and random color"""
+        """Unlock an AI-generated hat and costume"""
         from bobo_customization_agent import customization_agent
-        import random
         
         # Generate COMPLETELY NEW hat and costume using AI!
         hat = customization_agent.generate_hat()
         costume = customization_agent.generate_costume()
         
-        # Pick a random color
-        color = random.choice(self.COLORS)
-        
         # Save individual items to bobo_items table
         self._save_bobo_item(user_id, 'hat', hat, 'weekly_perfect')
         self._save_bobo_item(user_id, 'costume', costume, 'weekly_perfect')
-        self._save_bobo_item(user_id, 'color', color, 'weekly_perfect')
         
         reward_data = {
             'achievement_type': 'weekly_perfect',
             'achievement_name': 'Perfect Week',
-            'reward_type': 'hat_costume_color',
+            'reward_type': 'hat_costume',
             'reward': {
                 'hat': hat,
-                'costume': costume,
-                'color': color
+                'costume': costume
             },
-            'message': f'🏆 Perfect Week! Bobo got a {hat["name"]}, {costume["name"]}, and {color["name"]} color!'
+            'message': f'🏆 Perfect Week! Bobo got a {hat["name"]} and {costume["name"]}!'
         }
         
         # Also save to unlocked_rewards for history
@@ -314,14 +308,21 @@ class AchievementEngine:
         return reward_data
     
     def _unlock_theme(self, user_id: str) -> Optional[Dict]:
-        """Unlock a random theme"""
-        theme = random.choice(self.THEMES)
+        """Unlock a random color"""
+        import random
+        
+        # Pick a random color
+        color = random.choice(self.COLORS)
+        
+        # Save color to bobo_items table
+        self._save_bobo_item(user_id, 'color', color, 'monthly_perfect')
+        
         reward_data = {
             'achievement_type': 'monthly_perfect',
             'achievement_name': 'Perfect Month',
-            'reward_type': 'theme',
-            'reward': theme,
-            'message': f'👑 Perfect Month! New theme unlocked: {theme["name"]}!'
+            'reward_type': 'color',
+            'reward': color,
+            'message': f'👑 Perfect Month! New color unlocked: {color["name"]}!'
         }
         
         # Save to database

@@ -26,7 +26,7 @@ export const BoboProvider = ({ children }) => {
   useEffect(() => {
     const loadEquippedItems = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('habit_coach_token');
         if (!token) {
           setLoading(false);
           return;

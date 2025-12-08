@@ -869,25 +869,35 @@ class SupabaseClient:
         if self.mock_mode:
             if not hasattr(self, 'mock_equipped'):
                 self.mock_equipped = {}
-            return self.mock_equipped.get(user_id)
+            equipped = self.mock_equipped.get(user_id)
+            print(f"[MOCK] Retrieved equipped customizations for {user_id}: {equipped}")
+            return equipped
         
         try:
+            print(f"[DB] Fetching equipped customizations for {user_id}")
             result = self.client.table('bobo_equipped')\
                 .select('*')\
                 .eq('user_id', user_id)\
                 .limit(1)\
                 .execute()
             
+            print(f"[DB] Query result: {result.data}")
+            
             if result.data and len(result.data) > 0:
-                return {
+                equipped = {
                     'hat': result.data[0].get('hat'),
                     'costume': result.data[0].get('costume'),
                     'dance': result.data[0].get('dance'),
                     'color': result.data[0].get('color')
                 }
+                print(f"[DB] Returning equipped: {equipped}")
+                return equipped
+            print(f"[DB] No equipped customizations found for {user_id}")
             return None
         except Exception as e:
-            print(f"Error getting equipped customizations: {e}")
+            print(f"[DB] Error getting equipped customizations: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def save_equipped_customizations(self, user_id: str, customizations: Dict[str, Any]) -> Dict[str, Any]:
@@ -896,6 +906,7 @@ class SupabaseClient:
             if not hasattr(self, 'mock_equipped'):
                 self.mock_equipped = {}
             self.mock_equipped[user_id] = customizations
+            print(f"[MOCK] Saved equipped customizations for {user_id}: {customizations}")
             return customizations
         
         try:
@@ -908,10 +919,14 @@ class SupabaseClient:
                 'color': customizations.get('color')
             }
             
+            print(f"[DB] Saving equipped customizations for {user_id}: {data}")
             result = self.client.table('bobo_equipped').upsert(data).execute()
+            print(f"[DB] Save result: {result.data}")
             return result.data[0] if result.data else customizations
         except Exception as e:
-            print(f"Error saving equipped customizations: {e}")
+            print(f"[DB] Error saving equipped customizations: {e}")
+            import traceback
+            traceback.print_exc()
             return customizations
 
 

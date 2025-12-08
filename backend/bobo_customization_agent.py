@@ -34,22 +34,24 @@ class BoboCustomizationAgent:
         
         theme = random.choice(hat_themes)
         
-        prompt = f"""Generate a creative SVG code for a {theme}-themed hat for a cute robot mascot.
+        prompt = f"""Generate a creative SVG code for a {theme}-themed hat for a cute robot mascot. The hat needs to be cute.
 
 Requirements:
-- SVG should be positioned at transform="translate(50, 10)" to sit on top of the robot's head
+- The hat will be positioned at translate(50, 10) - this is already handled, so use coordinates relative to (0, 0)
+- Center the hat horizontally around x=0 (it will be translated to x=50)
+- Position the hat above y=0 (negative y values) so it sits on top of the head
 - Use simple, clean shapes (paths, circles, rectangles, polygons)
 - Use vibrant, appealing colors with hex codes
-- Keep it small and proportional (max 40x40 units)
+- Keep it small and proportional (width: -20 to 20, height: -15 to 5)
 - Make it whimsical and fun
 - Include 2-3 decorative elements
 
-Return ONLY the SVG <g> element content (without the outer <g> tag), ready to be inserted.
+Return ONLY the SVG elements (paths, circles, etc.) WITHOUT any <g> wrapper tags.
 Example format:
-<path d="..." fill="#color"/>
-<circle cx="..." cy="..." r="..." fill="#color"/>
+<path d="M -10 0 L 0 -15 L 10 0 Z" fill="#FF6B9D"/>
+<circle cx="0" cy="-17" r="3" fill="#FFD700"/>
 
-Do not include any explanations, just the SVG code."""
+Do not include any explanations, markdown, or wrapper tags - just the raw SVG elements."""
 
         if self.client:
             try:
@@ -87,22 +89,24 @@ Do not include any explanations, just the SVG code."""
         
         theme = random.choice(costume_themes)
         
-        prompt = f"""Generate creative SVG code for a {theme}-themed costume accessory for a cute robot mascot.
+        prompt = f"""Generate creative SVG code for a {theme}-themed costume accessory for a cute robot mascot. costume must be cute.
 
 Requirements:
-- SVG should be positioned at transform="translate(50, 55)" to attach to the robot's body
-- Can be a cape, badge, emblem, tool, or accessory
+- The costume will be positioned at translate(50, 55) - this is already handled, so use coordinates relative to (0, 0)
+- Center the costume horizontally around x=0 (it will be translated to x=50)
+- Position elements starting from y=0 and going downward (positive y)
+- Can be a cape, badge, emblem, scarf, wings, or accessory
 - Use simple, clean shapes
 - Use vibrant colors with hex codes
-- Keep it proportional (max 50x50 units)
+- Keep it proportional (width: -25 to 25, height: 0 to 40)
 - Make it recognizable and fun
 
-Return ONLY the SVG <g> element content (without the outer <g> tag).
+Return ONLY the SVG elements (paths, rects, etc.) WITHOUT any <g> wrapper tags.
 Example format:
-<path d="..." fill="#color"/>
-<rect x="..." y="..." width="..." height="..." fill="#color"/>
+<path d="M -8 0 Q -15 20 -12 40 L -8 40 Z" fill="#F44336"/>
+<rect x="-3" y="-2" width="6" height="4" fill="#1976D2" rx="1"/>
 
-Do not include any explanations, just the SVG code."""
+Do not include any explanations, markdown, or wrapper tags - just the raw SVG elements."""
 
         if self.client:
             try:
@@ -197,8 +201,8 @@ Make it creative and fun! Return ONLY valid JSON."""
             'name': f'{theme.title()} Hat',
             'description': f'A stylish {theme} hat',
             'svg': f'''<g transform="translate(50, 10)">
-                <path d="M -15 5 L 0 -10 L 15 5 Z" fill="{color}" stroke="#000" stroke-width="1"/>
-                <circle cx="0" cy="-12" r="3" fill="#FFD700"/>
+                <path d="M -15 0 L 0 -15 L 15 0 Z" fill="{color}" stroke="#000" stroke-width="1"/>
+                <circle cx="0" cy="-17" r="3" fill="#FFD700"/>
             </g>'''
         }
     

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useBobo } from '../contexts/BoboContext';
 import RobotMascot from './RobotMascot';
+import { themes, applyTheme, getCurrentTheme } from '../themes';
 
 const BoboCustomization = () => {
   const { equippedItems, equipItem } = useBobo();
@@ -8,49 +9,98 @@ const BoboCustomization = () => {
     hats: [],
     costumes: [],
     colors: [],
-    dances: []
+    dances: [],
+    themes: []
   });
   const [preview, setPreview] = useState({
     hat: equippedItems.hat,
     costume: equippedItems.costume,
     color: equippedItems.color,
-    dance: equippedItems.dance
+    dance: equippedItems.dance,
+    theme: null
   });
   const [activeTab, setActiveTab] = useState('hats');
+  const [currentTheme, setCurrentTheme] = useState(getCurrentTheme());
   const [loading, setLoading] = useState(true);
 
   // Fetch unlocked items
-  useEffect(() => {
-    const fetchUnlockedItems = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/bobo/items', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          const items = await response.json();
-          
-          // Group items by type
-          const grouped = {
-            hats: items.filter(i => i.item_type === 'hat'),
-            costumes: items.filter(i => i.item_type === 'costume'),
-            colors: items.filter(i => i.item_type === 'color'),
-            dances: items.filter(i => i.item_type === 'dance')
-          };
-          
-          setUnlockedItems(grouped);
+  const fetchUnlockedItems = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('habit_coach_token');
+      const response = await fetch('http://localhost:8000/api/bobo/items', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error('Error fetching unlocked items:', error);
-      } finally {
-        setLoading(false);
+      });
+      
+      if (response.ok) {
+        const items = await response.json();
+        
+        // Default items that are always available
+        const defaultItems = {
+          defaultHat: {
+            item_id: 'default_hat',
+            item_type: 'hat',
+            item_name: 'Default',
+            item_description: 'Classic antenna',
+            svg_data: null // null means show antenna
+          },
+          noneCostume: {
+            item_id: 'none_costume',
+            item_type: 'costume',
+            item_name: 'None',
+            item_description: 'No costume',
+            svg_data: null
+          },
+          noneDance: {
+            item_id: 'none_dance',
+            item_type: 'dance',
+            item_name: 'None',
+            item_description: 'No dancing',
+            animation_data: false // No dance
+          }
+        };
+        
+        // Default themes (always available)
+        const defaultThemes = [
+          { item_id: 'wesanderson', item_type: 'theme', item_name: 'Wes Anderson', item_description: 'Vibrant pastels' },
+          { item_id: 'wongkarwai', item_type: 'theme', item_name: 'Wong Kar-wai', item_description: 'Dark with neon' },
+          { item_id: 'light', item_type: 'theme', item_name: 'Light', item_description: 'Clean and bright' },
+          { item_id: 'dark', item_type: 'theme', item_name: 'Dark', item_description: 'Classic dark mode' }
+        ];
+        
+        // Group items by type and prepend defaults
+        const grouped = {
+          hats: [defaultItems.defaultHat, ...items.filter(i => i.item_type === 'hat')],
+          costumes: [defaultItems.noneCostume, ...items.filter(i => i.item_type === 'costume')],
+          colors: items.filter(i => i.item_type === 'color'), // No default color
+          dances: [defaultItems.noneDance, ...items.filter(i => i.item_type === 'dance')],
+          themes: defaultThemes // Always available
+        };
+        
+        setUnlockedItems(grouped);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching unlocked items:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchUnlockedItems();
+    
+    // Listen for achievement unlock events to refresh wardrobe
+    const handleAchievementUnlock = () => {
+      fetchUnlockedItems();
+    };
+    
+    window.addEventListener('achievementUnlocked', handleAchievementUnlock);
+    
+    return () => {
+      window.removeEventListener('achievementUnlocked', handleAchievementUnlock);
+    };
   }, []);
 
   // Update preview when equipped items change
@@ -64,6 +114,12 @@ const BoboCustomization = () => {
   }, [equippedItems]);
 
   const handlePreview = (itemType, item) => {
+    // If it's a theme, apply it immediately
+    if (itemType === 'theme') {
+      applyTheme(item.item_id);
+      setCurrentTheme(item.item_id);
+    }
+    
     setPreview(prev => ({
       ...prev,
       [itemType]: item
@@ -76,13 +132,20 @@ const BoboCustomization = () => {
       preview.hat?.item_id !== equippedItems.hat?.item_id ||
       preview.costume?.item_id !== equippedItems.costume?.item_id ||
       preview.color?.item_id !== equippedItems.color?.item_id ||
-      preview.dance?.item_id !== equippedItems.dance?.item_id
+      preview.dance?.item_id !== equippedItems.dance?.item_id ||
+      (preview.theme && preview.theme.item_id !== currentTheme)
     );
   };
 
   const handleEquip = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('habit_coach_token');
+      
+      // Convert "none" and "default" items to null for backend
+      const getItemId = (item) => {
+        if (!item || item.item_id?.startsWith('none_') || item.item_id === 'default_hat') return null;
+        return item.item_id;
+      };
       
       // Save to backend
       const response = await fetch('http://localhost:8000/api/bobo/equip', {
@@ -92,18 +155,26 @@ const BoboCustomization = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          hat: preview.hat?.item_id || null,
-          costume: preview.costume?.item_id || null,
-          color: preview.color?.item_id || null,
-          dance: preview.dance?.item_id || null
+          hat: getItemId(preview.hat),
+          costume: getItemId(preview.costume),
+          color: getItemId(preview.color),
+          dance: getItemId(preview.dance)
         })
       });
 
       if (response.ok) {
-        // Update context
+        // Update context - convert "none" and "default" items to null
         Object.entries(preview).forEach(([type, item]) => {
-          equipItem(type, item);
+          if (type === 'theme') return; // Skip theme, handled separately
+          const itemToEquip = (item?.item_id?.startsWith('none_') || item?.item_id === 'default_hat') ? null : item;
+          equipItem(type, itemToEquip);
         });
+        
+        // Save theme to localStorage (persists across login/logout)
+        if (preview.theme) {
+          applyTheme(preview.theme.item_id);
+          setCurrentTheme(preview.theme.item_id);
+        }
         
         alert('✨ Bobo\'s look has been updated!');
       }
@@ -117,7 +188,8 @@ const BoboCustomization = () => {
     { id: 'hats', label: '🎩 Hats', items: unlockedItems.hats },
     { id: 'costumes', label: '👔 Costumes', items: unlockedItems.costumes },
     { id: 'colors', label: '🎨 Colors', items: unlockedItems.colors },
-    { id: 'dances', label: '💃 Dances', items: unlockedItems.dances }
+    { id: 'dances', label: '💃 Dances', items: unlockedItems.dances },
+    { id: 'themes', label: '🌈 Themes', items: unlockedItems.themes }
   ];
 
   const renderItem = (item, itemType) => {
@@ -129,10 +201,10 @@ const BoboCustomization = () => {
         key={item.item_id}
         onClick={() => handlePreview(itemType, item)}
         className={`
-          relative p-4 rounded-lg border-2 cursor-pointer transition-all
+          relative p-4 rounded-2xl border-2 cursor-pointer transition-all backdrop-blur-sm
           ${isSelected 
-            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 scale-105' 
-            : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/50'
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/20 scale-105 shadow-lg' 
+            : 'glass border-[var(--color-border)] hover:border-[var(--color-accent)]/50 hover:shadow-md'
           }
         `}
       >
@@ -142,7 +214,25 @@ const BoboCustomization = () => {
           </div>
         )}
         
-        {itemType === 'color' ? (
+        {itemType === 'theme' ? (
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex gap-1">
+              {themes[item.item_id] && (
+                <>
+                  <div className="w-6 h-12 rounded" style={{ backgroundColor: themes[item.item_id].colors.background }} />
+                  <div className="w-6 h-12 rounded" style={{ backgroundColor: themes[item.item_id].colors.accent }} />
+                  <div className="w-6 h-12 rounded" style={{ backgroundColor: themes[item.item_id].colors.foreground }} />
+                </>
+              )}
+            </div>
+            <span className="text-sm font-medium text-[var(--color-foreground)]">
+              {item.item_name}
+            </span>
+            {currentTheme === item.item_id && (
+              <span className="text-xs text-green-500">Active</span>
+            )}
+          </div>
+        ) : itemType === 'color' ? (
           <div className="flex flex-col items-center gap-2">
             <div 
               className="w-16 h-16 rounded-full border-2 border-[var(--color-border)]"
@@ -164,11 +254,30 @@ const BoboCustomization = () => {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <div className="w-20 h-20 flex items-center justify-center">
-              <svg viewBox="0 0 100 140" className="w-full h-full">
-                <g dangerouslySetInnerHTML={{ __html: item.svg_data }} />
-              </svg>
-            </div>
+            {item.item_id === 'default_hat' ? (
+              // Show "Default" hat with antenna icon
+              <div className="w-20 h-20 flex items-center justify-center">
+                <svg viewBox="0 0 100 140" className="w-full h-full">
+                  {/* Bobo head outline */}
+                  <rect x="25" y="15" width="50" height="40" rx="6" fill="var(--color-accent)" opacity="0.3" stroke="var(--color-border)" strokeWidth="1"/>
+                  {/* Antenna */}
+                  <line x1="50" y1="15" x2="50" y2="8" stroke="var(--color-accent)" strokeWidth="2"/>
+                  <circle cx="50" cy="6" r="3" fill="var(--color-accent)" className="animate-pulse"/>
+                </svg>
+              </div>
+            ) : item.item_id.startsWith('none_') ? (
+              // Show "None" option with X icon
+              <div className="w-20 h-20 flex items-center justify-center text-4xl text-[var(--color-foreground-secondary)]">
+                ✕
+              </div>
+            ) : (
+              // Show SVG preview
+              <div className="w-20 h-20 flex items-center justify-center">
+                <svg viewBox="0 0 100 140" className="w-full h-full">
+                  <g dangerouslySetInnerHTML={{ __html: item.svg_data }} />
+                </svg>
+              </div>
+            )}
             <span className="text-sm font-medium text-[var(--color-foreground)]">
               {item.item_name}
             </span>
@@ -190,20 +299,34 @@ const BoboCustomization = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-[var(--color-foreground)] mb-2">
-          🎨 Bobo's Wardrobe
-        </h2>
-        <p className="text-[var(--color-foreground-secondary)]">
-          Customize Bobo's appearance with items you've unlocked through achievements!
-        </p>
+    <div className="min-h-screen bg-[var(--color-background)]">
+      <div className="max-w-7xl mx-auto p-6">
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-[var(--color-foreground)] mb-2">
+            🎨 Bobo's Wardrobe
+          </h2>
+          <p className="text-[var(--color-foreground-secondary)]">
+            Customize Bobo's appearance with items you've unlocked through achievements!
+          </p>
+        </div>
+        <button
+          onClick={fetchUnlockedItems}
+          disabled={loading}
+          className="px-4 py-2 rounded-xl bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+          title="Refresh items"
+        >
+          <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Preview Section */}
         <div className="lg:col-span-1">
-          <div className="bg-[var(--color-surface)] rounded-xl p-6 border border-[var(--color-border)] sticky top-6">
+          <div className="glass rounded-3xl p-6 border border-[var(--color-border)] sticky top-6">
             <h3 className="text-xl font-semibold text-[var(--color-foreground)] mb-4 text-center">
               Preview
             </h3>
@@ -213,9 +336,9 @@ const BoboCustomization = () => {
                 size="xl"
                 emotion="excited"
                 animate={true}
-                dance={preview.dance?.animation_data || false}
-                hat={preview.hat ? { svg: preview.hat.svg_data } : null}
-                costume={preview.costume ? { svg: preview.costume.svg_data } : null}
+                dance={preview.dance?.item_id === 'none_dance' ? false : (preview.dance?.animation_data || false)}
+                hat={preview.hat?.item_id === 'default_hat' ? null : (preview.hat ? { svg: preview.hat.svg_data } : null)}
+                costume={preview.costume?.item_id === 'none_costume' ? null : (preview.costume ? { svg: preview.costume.svg_data } : null)}
                 color={preview.color?.svg_data || null}
               />
             </div>
@@ -250,7 +373,7 @@ const BoboCustomization = () => {
             {hasChanges() && (
               <button
                 onClick={handleEquip}
-                className="w-full px-4 py-3 rounded-lg bg-[var(--color-accent)] text-white hover:opacity-90 transition-all font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="w-full px-4 py-3 rounded-xl bg-[var(--color-accent)] text-white hover:opacity-90 transition-all font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 ✨ Equip This Look
               </button>
@@ -260,7 +383,7 @@ const BoboCustomization = () => {
 
         {/* Items Section */}
         <div className="lg:col-span-2">
-          <div className="bg-[var(--color-surface)] rounded-xl p-6 border border-[var(--color-border)]">
+          <div className="glass rounded-3xl p-6 border border-[var(--color-border)]">
             {/* Tabs */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
               {tabs.map(tab => (
@@ -268,10 +391,10 @@ const BoboCustomization = () => {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    px-4 py-2 rounded-lg whitespace-nowrap transition-all
+                    px-4 py-2 rounded-xl whitespace-nowrap transition-all
                     ${activeTab === tab.id
-                      ? 'bg-[var(--color-accent)] text-white'
-                      : 'bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+                      ? 'bg-[var(--color-accent)] text-white shadow-lg'
+                      : 'glass text-[var(--color-foreground)] hover:bg-[var(--color-accent)]/10 border border-[var(--color-border)]'
                     }
                   `}
                 >
@@ -302,6 +425,7 @@ const BoboCustomization = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

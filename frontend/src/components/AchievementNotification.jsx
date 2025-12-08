@@ -4,22 +4,18 @@ import { Confetti } from './ui/Confetti'
 import { useBobo } from '../contexts/BoboContext'
 
 export default function AchievementNotification({ achievement, onClose }) {
-  const { getEquippedItems, items } = useBobo()
+  const { getEquippedItems } = useBobo()
   const [isVisible, setIsVisible] = useState(false)
   const [confettiTrigger, setConfettiTrigger] = useState(0)
-  const [celebrationDance, setCelebrationDance] = useState(null)
+  const [celebrationDance, setCelebrationDance] = useState(true) // Use default celebration dance
 
   useEffect(() => {
     if (achievement) {
       setIsVisible(true)
       setConfettiTrigger(Date.now())
       
-      // Pick random dance from unlocked dances, or use default
-      const unlockedDances = items.dances || []
-      const randomDance = unlockedDances.length > 0 
-        ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
-        : true // Default dance
-      setCelebrationDance(randomDance)
+      // Use default celebration dance
+      setCelebrationDance(true)
       
       // Auto-close after 5 seconds
       const timer = setTimeout(() => {
@@ -28,11 +24,13 @@ export default function AchievementNotification({ achievement, onClose }) {
       
       return () => clearTimeout(timer)
     }
-  }, [achievement, items.dances])
+  }, [achievement])
 
   const handleClose = () => {
     setIsVisible(false)
     setTimeout(() => {
+      // Dispatch event to refresh wardrobe
+      window.dispatchEvent(new CustomEvent('achievementUnlocked'));
       if (onClose) onClose()
     }, 300)
   }
