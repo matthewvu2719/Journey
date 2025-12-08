@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import PublicRoute from './components/PublicRoute'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
+import BoboTestPanel from './components/BoboTestPanel'
 
 /**
  * Root redirect component that checks authentication
@@ -62,6 +63,9 @@ function App() {
             {/* Catch all - redirect to dashboard */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          
+          {/* Test Panel - Available everywhere when authenticated */}
+          <BoboTestPanel />
         </BoboProvider>
       </AuthProvider>
     </BrowserRouter>

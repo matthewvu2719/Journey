@@ -98,7 +98,14 @@ export default function FloatingChat({ habits, logs, onAction }) {
           <div className="p-4 border-b border-light/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 flex items-center justify-center">
-                <RobotMascot size="sm" emotion="excited" animate={true} color={equippedItems.color?.hex || null} />
+                <RobotMascot 
+                  size="sm" 
+                  emotion="excited" 
+                  animate={true} 
+                  color={equippedItems.color?.svg_data || null}
+                  hat={equippedItems.hat ? { svg: equippedItems.hat.svg_data } : null}
+                  costume={equippedItems.costume ? { svg: equippedItems.costume.svg_data } : null}
+                />
               </div>
               <div>
                 <h3 className="font-bold">Bobo</h3>
@@ -128,9 +135,9 @@ export default function FloatingChat({ habits, logs, onAction }) {
                       <RobotMascot 
                         size="sm" 
                         emotion="excited"
-                        color={equippedItems.color?.hex || null}
-                        hat={equippedItems.hat}
-                        costume={equippedItems.costume}
+                        color={equippedItems.color?.svg_data || null}
+                        hat={equippedItems.hat ? { svg: equippedItems.hat.svg_data } : null}
+                        costume={equippedItems.costume ? { svg: equippedItems.costume.svg_data } : null}
                         animate={false}
                       />
                     </div>
@@ -269,10 +276,10 @@ export default function FloatingChat({ habits, logs, onAction }) {
         <RobotMascot 
           size="md" 
           emotion="excited"
-          color={equippedItems.color?.hex || null}
-          hat={equippedItems.hat}
-          costume={equippedItems.costume}
-          dance={equippedItems.dance}
+          color={equippedItems.color?.svg_data || null}
+          hat={equippedItems.hat ? { svg: equippedItems.hat.svg_data } : null}
+          costume={equippedItems.costume ? { svg: equippedItems.costume.svg_data } : null}
+          dance={equippedItems.dance?.animation_data || false}
           animate={!isOpen} 
         />
       </button>

@@ -183,11 +183,11 @@ export default function AchievementNotification({ achievement, onClose }) {
                 <RobotMascot 
                   size="lg" 
                   emotion="celebrating"
-                  color={equippedItems.color?.hex || null}
-                  hat={equippedItems.hat}
-                  costume={equippedItems.costume}
+                  color={equippedItems.color?.svg_data || null}
+                  hat={equippedItems.hat ? { svg: equippedItems.hat.svg_data } : null}
+                  costume={equippedItems.costume ? { svg: equippedItems.costume.svg_data } : null}
                   animate={true} 
-                  dance={celebrationDance}
+                  dance={celebrationDance?.animation_data || celebrationDance}
                 />
               )
             })()}

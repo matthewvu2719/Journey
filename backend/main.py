@@ -920,3 +920,33 @@ async def trigger_test_achievement(
         return []
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to trigger achievement: {str(e)}")
+
+
+@app.get("/api/test/generate-item")
+async def test_generate_item(item_type: str = "hat"):
+    """
+    TEST ONLY: Test AI generation of customization items
+    
+    item_type: 'hat', 'costume', or 'dance'
+    """
+    try:
+        from bobo_customization_agent import customization_agent
+        
+        if item_type == 'hat':
+            item = customization_agent.generate_hat()
+        elif item_type == 'costume':
+            item = customization_agent.generate_costume()
+        elif item_type == 'dance':
+            item = customization_agent.generate_dance()
+        else:
+            raise HTTPException(status_code=400, detail="Invalid item_type. Use 'hat', 'costume', or 'dance'")
+        
+        return {
+            "success": True,
+            "item_type": item_type,
+            "generated_item": item
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to generate item: {str(e)}")

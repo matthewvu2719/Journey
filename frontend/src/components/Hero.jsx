@@ -35,10 +35,10 @@ export default function Hero({ onExplore }) {
             <RobotMascot 
               size="lg" 
               emotion="excited"
-              color={equippedItems.color?.hex || null}
-              hat={equippedItems.hat}
-              costume={equippedItems.costume}
-              dance={equippedItems.dance}
+              color={equippedItems.color?.svg_data || null}
+              hat={equippedItems.hat ? { svg: equippedItems.hat.svg_data } : null}
+              costume={equippedItems.costume ? { svg: equippedItems.costume.svg_data } : null}
+              dance={equippedItems.dance?.animation_data || false}
               animate={true} 
             />
           </div>

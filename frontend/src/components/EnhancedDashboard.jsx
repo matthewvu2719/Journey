@@ -12,7 +12,7 @@ import AchievementNotification from './AchievementNotification'
 import { useBobo } from '../contexts/BoboContext'
 
 export default function EnhancedDashboard({ habits, logs, onRefresh }) {
-  const { getEquippedItems, items } = useBobo()
+  const { getEquippedItems } = useBobo()
   const [stats, setStats] = useState(null)
   const [showHabitForm, setShowHabitForm] = useState(false)
   const [completingHabit, setCompletingHabit] = useState(null)
@@ -41,6 +41,14 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
   useEffect(() => {
     loadDashboardData()
   }, [habits, logs])
+
+  // Close completion form if the habit becomes completed
+  useEffect(() => {
+    if (completingHabit && completingTimeOfDay && isCompleted(completingHabit.id, completingTimeOfDay)) {
+      setCompletingHabit(null)
+      setCompletingTimeOfDay(null)
+    }
+  }, [logs, completingHabit, completingTimeOfDay])
 
   const loadDashboardData = async () => {
     try {
@@ -133,7 +141,8 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
       
       // Pick random dance from unlocked dances, or use default
-      const unlockedDances = items.dances || []
+      const equippedItems = getEquippedItems()
+      const unlockedDances = equippedItems?.dances || []
       const randomDance = unlockedDances.length > 0 
         ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
         : true // Default dance
@@ -152,6 +161,15 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
 
   const handleSubmitCompletion = async () => {
     try {
+      // Check if already completed before submitting
+      if (isCompleted(completingHabit.id, completingTimeOfDay)) {
+        alert('This habit is already completed for this time slot!')
+        setCompletingHabit(null)
+        setCompletingTimeOfDay(null)
+        onRefresh()
+        return
+      }
+      
       const today = new Date().toISOString().split('T')[0]
       const completionPayload = {
         habit_id: completingHabit.id,
@@ -183,7 +201,8 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
       
       // Pick random dance from unlocked dances, or use default
-      const unlockedDances = items.dances || []
+      const equippedItems = getEquippedItems()
+      const unlockedDances = equippedItems?.dances || []
       const randomDance = unlockedDances.length > 0 
         ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
         : true // Default dance
@@ -199,7 +218,16 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
     } catch (error) {
       console.error('Failed to log habit:', error)
       console.error('Error details:', error.response?.data)
-      alert('Failed to log habit. Please try again.')
+      
+      // Check if it's a duplicate completion error
+      if (error.response?.data?.detail?.includes('already exists')) {
+        alert('This habit is already completed for this time slot!')
+        setCompletingHabit(null)
+        setCompletingTimeOfDay(null)
+        onRefresh() // Refresh to show correct state
+      } else {
+        alert('Failed to log habit. Please try again.')
+      }
     }
   }
 
@@ -257,10 +285,10 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
                 size="lg" 
                 emotion="celebrating" 
                 animate={true} 
-                dance={celebrationDance}
-                color={equippedItems.color?.hex || null}
-                hat={equippedItems.hat}
-                costume={equippedItems.costume}
+                dance={celebrationDance?.animation_data || celebrationDance}
+                color={equippedItems.color?.svg_data || null}
+                hat={equippedItems.hat ? { svg: equippedItems.hat.svg_data } : null}
+                costume={equippedItems.costume ? { svg: equippedItems.costume.svg_data } : null}
               />
               <p 
                 className="text-2xl font-bold text-center max-w-md"
@@ -353,15 +381,22 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
               // Get today's day name (Mon, Tue, Wed, etc.)
               const today = new Date().toLocaleDateString('en-US', { weekday: 'short' })
               
+              // Debug: log what we're checking
+              console.log('Today is:', today)
+              console.log('Checking time:', timeOfDay)
+              console.log('All habits:', habits.map(h => ({ name: h.name, days: h.days, times: h.times_of_day })))
+              
               // Filter habits for today AND this time of day
               const timeHabits = habits.filter(h => 
                 h.times_of_day && h.times_of_day.includes(timeOfDay) && 
                 h.days && h.days.includes(today)
               )
+              
+              // FALLBACK: Show ALL habits without proper days/times in morning slot
               const noTimeHabits = timeOfDay === 'morning' ? habits.filter(h => 
-                (!h.times_of_day || h.times_of_day.length === 0) && 
-                h.days && h.days.includes(today)
+                !h.days || h.days.length === 0 || !h.times_of_day || h.times_of_day.length === 0
               ) : []
+              
               const allHabits = [...timeHabits, ...noTimeHabits]
               
               return (
@@ -387,8 +422,8 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
                         const difficultyColor = difficultyColors[habit.difficulty] || difficultyColors.medium
                         
                         return (
-                        <div key={habit.id} className={`bg-light/10 rounded-lg overflow-hidden transition-all ${
-                          completingHabit?.id === habit.id ? 'bg-light/15' : ''
+                        <div key={`${habit.id}-${timeOfDay}`} className={`bg-light/10 rounded-lg overflow-hidden transition-all ${
+                          completingHabit?.id === habit.id && completingTimeOfDay === timeOfDay ? 'bg-light/15' : ''
                         }`}>
                           <div className="p-3">
                             <div className="flex items-center justify-between mb-2">
@@ -427,7 +462,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
                           </div>
                           
                           {/* Completion Form - Only for Big Habits */}
-                          {completingHabit?.id === habit.id && habit.habit_type === 'big' && (
+                          {completingHabit?.id === habit.id && completingTimeOfDay === timeOfDay && habit.habit_type === 'big' && (
                           <div className="px-3 pb-3 space-y-2 border-t border-light/10 pt-3">
                             <h4 className="font-semibold text-light text-xs mb-2">Log Completion</h4>
                             
