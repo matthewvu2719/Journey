@@ -109,9 +109,9 @@ export const themes = {
     }
   },
 
-  // Wes Anderson theme - Vibrant pastels and symmetrical colors
-  wesanderson: {
-    name: 'Wes Anderson',
+  // Light 2 theme - Vibrant pastels and symmetrical colors
+  light2: {
+    name: 'Light 2',
     colors: {
       background: '#FFF4E6',
       backgroundDarker: '#FFE8CC',
@@ -126,9 +126,9 @@ export const themes = {
     }
   },
 
-  // Wong Kar-wai theme - Dark moody with light neon green
-  wongkarwai: {
-    name: 'Wong Kar-wai',
+  // Dark 2 theme - Dark moody with light neon green
+  dark2: {
+    name: 'Dark 2',
     colors: {
       background: '#1A1A1A',
       backgroundDarker: '#0F0F0F',

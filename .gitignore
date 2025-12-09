@@ -110,6 +110,20 @@ models/*.pth
 *.model
 *.weights
 
+# Hugging Face cache (voice models)
+.cache/
+huggingface/
+transformers_cache/
+**/pytorch_model.bin
+**/config.json
+**/vocab.json
+**/tokenizer.json
+
+# Voice service test outputs
+test_tts_output.wav
+test_*.wav
+test_*.mp3
+
 # Database
 *.db
 *.sqlite

@@ -64,8 +64,8 @@ const BoboCustomization = () => {
         
         // Default themes (always available)
         const defaultThemes = [
-          { item_id: 'wesanderson', item_type: 'theme', item_name: 'Wes Anderson', item_description: 'Vibrant pastels' },
-          { item_id: 'wongkarwai', item_type: 'theme', item_name: 'Wong Kar-wai', item_description: 'Dark with neon' },
+          { item_id: 'light2', item_type: 'theme', item_name: 'Light 2', item_description: 'Vibrant pastels' },
+          { item_id: 'dark2', item_type: 'theme', item_name: 'Dark 2', item_description: 'Dark with neon' },
           { item_id: 'light', item_type: 'theme', item_name: 'Light', item_description: 'Clean and bright' },
           { item_id: 'dark', item_type: 'theme', item_name: 'Dark', item_description: 'Classic dark mode' }
         ];

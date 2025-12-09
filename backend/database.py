@@ -1006,3 +1006,163 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error checking bobo item: {e}")
             return False
+
+
+    # ========================================================================
+    # VOICE CALL PREFERENCES
+    # ========================================================================
+    
+    def get_call_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user's call preferences"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_call_prefs'):
+                self.mock_call_prefs = {}
+            return self.mock_call_prefs.get(user_id)
+        
+        try:
+            result = self.client.table('call_preferences')\
+                .select('*')\
+                .eq('user_id', user_id)\
+                .limit(1)\
+                .execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting call preferences: {e}")
+            return None
+    
+    def save_call_preferences(self, user_id: str, preferences: Dict[str, Any]) -> Dict[str, Any]:
+        """Save user's call preferences"""
+        pref_data = {
+            'user_id': user_id,
+            'call_method': preferences.get('call_method', 'webrtc'),
+            'phone_number': preferences.get('phone_number'),
+            'allow_calls': preferences.get('allow_calls', True),
+            'preferred_times': preferences.get('preferred_times', [])
+        }
+        
+        if self.mock_mode:
+            if not hasattr(self, 'mock_call_prefs'):
+                self.mock_call_prefs = {}
+            self.mock_call_prefs[user_id] = pref_data
+            return pref_data
+        
+        try:
+            result = self.client.table('call_preferences').upsert(pref_data).execute()
+            return result.data[0] if result.data else pref_data
+        except Exception as e:
+            print(f"Error saving call preferences: {e}")
+            return pref_data
+    
+    # ========================================================================
+    # SCHEDULED CALLS
+    # ========================================================================
+    
+    def create_scheduled_call(self, call_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a scheduled call"""
+        if self.mock_mode:
+            call = {**call_data, "id": self.next_id, "created_at": datetime.now().isoformat()}
+            if not hasattr(self, 'mock_scheduled_calls'):
+                self.mock_scheduled_calls = []
+            self.mock_scheduled_calls.append(call)
+            self.next_id += 1
+            return call
+        
+        try:
+            result = self.client.table('scheduled_calls').insert(call_data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error creating scheduled call: {e}")
+            return None
+    
+    def get_scheduled_call(self, call_id: int) -> Optional[Dict[str, Any]]:
+        """Get a specific scheduled call"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_scheduled_calls'):
+                return None
+            return next((c for c in self.mock_scheduled_calls if c['id'] == call_id), None)
+        
+        try:
+            result = self.client.table('scheduled_calls').select('*').eq('id', call_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting scheduled call: {e}")
+            return None
+    
+    def get_scheduled_calls(self, user_id: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get scheduled calls for a user"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_scheduled_calls'):
+                self.mock_scheduled_calls = []
+            calls = [c for c in self.mock_scheduled_calls if c.get('user_id') == user_id]
+            if status:
+                calls = [c for c in calls if c.get('status') == status]
+            return calls
+        
+        try:
+            query = self.client.table('scheduled_calls').select('*').eq('user_id', user_id)
+            if status:
+                query = query.eq('status', status)
+            result = query.order('scheduled_time', desc=False).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting scheduled calls: {e}")
+            return []
+    
+    def update_scheduled_call(self, call_id: int, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update a scheduled call"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_scheduled_calls'):
+                return None
+            for i, c in enumerate(self.mock_scheduled_calls):
+                if c['id'] == call_id:
+                    self.mock_scheduled_calls[i].update(update_data)
+                    return self.mock_scheduled_calls[i]
+            return None
+        
+        try:
+            result = self.client.table('scheduled_calls').update(update_data).eq('id', call_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error updating scheduled call: {e}")
+            return None
+    
+    # ========================================================================
+    # CALL LOGS
+    # ========================================================================
+    
+    def create_call_log(self, log_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a call log entry"""
+        if self.mock_mode:
+            log = {**log_data, "id": self.next_id, "created_at": datetime.now().isoformat()}
+            if not hasattr(self, 'mock_call_logs'):
+                self.mock_call_logs = []
+            self.mock_call_logs.append(log)
+            self.next_id += 1
+            return log
+        
+        try:
+            result = self.client.table('call_logs').insert(log_data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error creating call log: {e}")
+            return None
+    
+    def get_call_logs(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get call logs for a user"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_call_logs'):
+                self.mock_call_logs = []
+            logs = [l for l in self.mock_call_logs if l.get('user_id') == user_id]
+            return logs[:limit]
+        
+        try:
+            result = self.client.table('call_logs')\
+                .select('*')\
+                .eq('user_id', user_id)\
+                .order('created_at', desc=True)\
+                .limit(limit)\
+                .execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting call logs: {e}")
+            return []

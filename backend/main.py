@@ -512,6 +512,10 @@ async def delete_daily_capacity(
 from achievement_engine import AchievementEngine
 from models import AchievementProgress, AchievementUnlock
 
+# Import voice routes
+from voice_routes import router as voice_router
+app.include_router(voice_router)
+
 @app.post("/api/achievements/check", response_model=List[AchievementUnlock])
 async def check_achievements(
     completion_date: Optional[str] = None,
