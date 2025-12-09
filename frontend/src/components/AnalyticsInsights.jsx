@@ -76,58 +76,58 @@ export default function AnalyticsInsights({ habits, logs, onRefresh }) {
 
           {/* Performance Trends */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="glass rounded-xl p-6">
-              <h3 className="text-lg font-bold text-light mb-4">Performance Trends</h3>
+            <div className="glass rounded-xl p-6 border border-[var(--color-border)]">
+              <h3 className="text-lg font-bold text-[var(--color-foreground)] mb-4">Performance Trends</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-light/70">Completion Rate</span>
-                  <span className="font-semibold text-green-400">
+                  <span className="text-[var(--color-foreground-secondary)]">Completion Rate</span>
+                  <span className="font-semibold text-[var(--color-accent)]">
                     {habits.length > 0 ? Math.round((logs.length / (habits.length * 7)) * 100) : 0}%
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-light/70">Active Streak</span>
-                  <span className="font-semibold text-orange-400">
+                  <span className="text-[var(--color-foreground-secondary)]">Active Streak</span>
+                  <span className="font-semibold text-[var(--color-accent)]">
                     {stats?.current_streak || 0} days
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-light/70">Best Category</span>
-                  <span className="font-semibold text-indigo-400">
+                  <span className="text-[var(--color-foreground-secondary)]">Best Category</span>
+                  <span className="font-semibold text-[var(--color-accent)]">
                     {habits[0]?.category || 'N/A'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-light/70">Total Habits</span>
-                  <span className="font-semibold text-blue-400">
+                  <span className="text-[var(--color-foreground-secondary)]">Total Habits</span>
+                  <span className="font-semibold text-[var(--color-accent)]">
                     {habits.length}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="glass rounded-xl p-6">
-              <h3 className="text-lg font-bold text-light mb-4">Success Metrics</h3>
+            <div className="glass rounded-xl p-6 border border-[var(--color-border)]">
+              <h3 className="text-lg font-bold text-[var(--color-foreground)] mb-4">Success Metrics</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-light/70">Total Completions</span>
-                  <span className="font-semibold text-green-400">{logs.length}</span>
+                  <span className="text-[var(--color-foreground-secondary)]">Total Completions</span>
+                  <span className="font-semibold text-[var(--color-accent)]">{logs.length}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-light/70">This Week</span>
-                  <span className="font-semibold text-blue-400">
+                  <span className="text-[var(--color-foreground-secondary)]">This Week</span>
+                  <span className="font-semibold text-[var(--color-accent)]">
                     {stats?.logs_this_week || 0}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-light/70">Longest Streak</span>
-                  <span className="font-semibold text-purple-400">
+                  <span className="text-[var(--color-foreground-secondary)]">Longest Streak</span>
+                  <span className="font-semibold text-[var(--color-accent)]">
                     {stats?.longest_streak || 0} days
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-light/70">Average per Day</span>
-                  <span className="font-semibold text-indigo-400">
+                  <span className="text-[var(--color-foreground-secondary)]">Average per Day</span>
+                  <span className="font-semibold text-[var(--color-accent)]">
                     {habits.length > 0 ? Math.round(logs.length / 7) : 0}
                   </span>
                 </div>
@@ -136,27 +136,27 @@ export default function AnalyticsInsights({ habits, logs, onRefresh }) {
           </div>
 
           {/* ML Model Info */}
-          <div className="glass rounded-xl p-6 border border-light/20">
-            <h3 className="text-lg font-bold text-light mb-2">Machine Learning Models</h3>
-            <p className="text-sm text-light/70 mb-4">
+          <div className="glass rounded-xl p-6 border border-[var(--color-border)]">
+            <h3 className="text-lg font-bold text-[var(--color-foreground)] mb-2">Machine Learning Models</h3>
+            <p className="text-sm text-[var(--color-foreground-secondary)] mb-4">
               Our AI uses 4 machine learning models to provide personalized insights:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-light/10 rounded-lg p-4">
-                <div className="font-semibold text-purple-400">Duration Predictor</div>
-                <div className="text-xs text-light/60">Random Forest - 85% accuracy</div>
+              <div className="bg-[var(--color-glass)] rounded-lg p-4 border border-[var(--color-border)]">
+                <div className="font-semibold text-[var(--color-accent)]">Duration Predictor</div>
+                <div className="text-xs text-[var(--color-foreground-secondary)]">Random Forest - 85% accuracy</div>
               </div>
-              <div className="bg-light/10 rounded-lg p-4">
-                <div className="font-semibold text-indigo-400">Difficulty Estimator</div>
-                <div className="text-xs text-light/60">Gradient Boosting - 78% accuracy</div>
+              <div className="bg-[var(--color-glass)] rounded-lg p-4 border border-[var(--color-border)]">
+                <div className="font-semibold text-[var(--color-accent)]">Difficulty Estimator</div>
+                <div className="text-xs text-[var(--color-foreground-secondary)]">Gradient Boosting - 78% accuracy</div>
               </div>
-              <div className="bg-light/10 rounded-lg p-4">
-                <div className="font-semibold text-blue-400">Time Budget Analyzer</div>
-                <div className="text-xs text-light/60">Pattern Analysis</div>
+              <div className="bg-[var(--color-glass)] rounded-lg p-4 border border-[var(--color-border)]">
+                <div className="font-semibold text-[var(--color-accent)]">Time Budget Analyzer</div>
+                <div className="text-xs text-[var(--color-foreground-secondary)]">Pattern Analysis</div>
               </div>
-              <div className="bg-light/10 rounded-lg p-4">
-                <div className="font-semibold text-green-400">Recommendation Engine</div>
-                <div className="text-xs text-light/60">Content-Based Filtering</div>
+              <div className="bg-[var(--color-glass)] rounded-lg p-4 border border-[var(--color-border)]">
+                <div className="font-semibold text-[var(--color-accent)]">Recommendation Engine</div>
+                <div className="text-xs text-[var(--color-foreground-secondary)]">Content-Based Filtering</div>
               </div>
             </div>
           </div>

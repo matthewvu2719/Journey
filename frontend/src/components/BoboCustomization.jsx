@@ -64,6 +64,24 @@ const BoboCustomization = () => {
         
         // Default themes (always available)
         const defaultThemes = [
+          { item_id: 'retroArcade', item_type: 'theme', item_name: 'Retro Arcade', item_description: 'Vibrant retro colors' },
+          { item_id: 'retroArcadeDark', item_type: 'theme', item_name: 'Retro Arcade Dark', item_description: 'Dark arcade vibes' },
+          { item_id: 'bubblegum', item_type: 'theme', item_name: 'Bubblegum', item_description: 'Sweet pink & blue' },
+          { item_id: 'bubblegumDark', item_type: 'theme', item_name: 'Bubblegum Dark', item_description: 'Dark bubblegum' },
+          { item_id: 'haven', item_type: 'theme', item_name: 'Haven', item_description: 'Calm & sophisticated' },
+          { item_id: 'havenDark', item_type: 'theme', item_name: 'Haven Dark', item_description: 'Dark haven' },
+          { item_id: 'vintage', item_type: 'theme', item_name: 'Vintage Paper', item_description: 'Aged paper & sepia' },
+          { item_id: 'vintageDark', item_type: 'theme', item_name: 'Vintage Paper Dark', item_description: 'Dark vintage tones' },
+          { item_id: 'mocha', item_type: 'theme', item_name: 'Mocha Mouse', item_description: 'Warm coffee tones' },
+          { item_id: 'mochaDark', item_type: 'theme', item_name: 'Mocha Mouse Dark', item_description: 'Dark coffee & cream' },
+          { item_id: 'notebook', item_type: 'theme', item_name: 'Notebook', item_description: 'Clean grayscale' },
+          { item_id: 'notebookDark', item_type: 'theme', item_name: 'Notebook Dark', item_description: 'Dark grayscale' },
+          { item_id: 'kodama', item_type: 'theme', item_name: 'Kodama Grove', item_description: 'Earthy forest tones' },
+          { item_id: 'kodamaDark', item_type: 'theme', item_name: 'Kodama Grove Dark', item_description: 'Dark forest spirits' },
+          { item_id: 'candyland', item_type: 'theme', item_name: 'CandyLand', item_description: 'Sweet & playful' },
+          { item_id: 'candylandDark', item_type: 'theme', item_name: 'CandyLand Dark', item_description: 'Dark candy colors' },
+          { item_id: 'amethyst', item_type: 'theme', item_name: 'Amethyst Haze', item_description: 'Soft purple & pink' },
+          { item_id: 'amethystDark', item_type: 'theme', item_name: 'Amethyst Haze Dark', item_description: 'Dark purple & pink' },
           { item_id: 'light2', item_type: 'theme', item_name: 'Light 2', item_description: 'Vibrant pastels' },
           { item_id: 'dark2', item_type: 'theme', item_name: 'Dark 2', item_description: 'Dark with neon' },
           { item_id: 'light', item_type: 'theme', item_name: 'Light', item_description: 'Clean and bright' },
@@ -201,10 +219,10 @@ const BoboCustomization = () => {
         key={item.item_id}
         onClick={() => handlePreview(itemType, item)}
         className={`
-          relative p-4 rounded-2xl border-2 cursor-pointer transition-all backdrop-blur-sm
+          relative p-4 rounded-2xl border-2 cursor-pointer transition-all
           ${isSelected 
             ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/20 scale-105 shadow-lg' 
-            : 'glass border-[var(--color-border)] hover:border-[var(--color-accent)]/50 hover:shadow-md'
+            : 'bg-light/5 border-light/10 hover:border-[var(--color-accent)]/50 hover:bg-light/10'
           }
         `}
       >
@@ -326,12 +344,8 @@ const BoboCustomization = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Preview Section */}
         <div className="lg:col-span-1">
-          <div className="glass rounded-3xl p-6 border border-[var(--color-border)] sticky top-6">
-            <h3 className="text-xl font-semibold text-[var(--color-foreground)] mb-4 text-center">
-              Preview
-            </h3>
-            
-            <div className="flex justify-center mb-6 bg-gradient-to-b from-[var(--color-accent)]/10 to-transparent rounded-lg p-8">
+          <div className="glass rounded-3xl p-6 border border-[var(--color-border)] h-full flex flex-col">
+            <div className="flex justify-center flex-1 bg-gradient-to-b from-[var(--color-accent)]/10 to-transparent rounded-lg p-8 mb-6">
               <RobotMascot
                 size="xl"
                 emotion="excited"
@@ -383,7 +397,7 @@ const BoboCustomization = () => {
 
         {/* Items Section */}
         <div className="lg:col-span-2">
-          <div className="glass rounded-3xl p-6 border border-[var(--color-border)]">
+          <div className="glass rounded-3xl p-6 border border-[var(--color-border)] h-full flex flex-col">
             {/* Tabs */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
               {tabs.map(tab => (
@@ -394,7 +408,7 @@ const BoboCustomization = () => {
                     px-4 py-2 rounded-xl whitespace-nowrap transition-all
                     ${activeTab === tab.id
                       ? 'bg-[var(--color-accent)] text-white shadow-lg'
-                      : 'glass text-[var(--color-foreground)] hover:bg-[var(--color-accent)]/10 border border-[var(--color-border)]'
+                      : 'bg-light/5 text-[var(--color-foreground)] hover:bg-light/10 border border-light/10'
                     }
                   `}
                 >
@@ -404,7 +418,7 @@ const BoboCustomization = () => {
             </div>
 
             {/* Items Grid */}
-            <div className="min-h-[400px]">
+            <div className="flex-1 min-h-[400px]">
               {tabs.find(t => t.id === activeTab)?.items.length === 0 ? (
                 <div className="text-center py-20">
                   <div className="text-6xl mb-4">🔒</div>

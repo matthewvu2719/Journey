@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Globe, Clock, Bell } from 'lucide-react';
+import voiceApi from '../services/voiceApi';
 
 const VoiceCallSettings = ({ userId }) => {
   const [preferences, setPreferences] = useState({
@@ -18,8 +19,7 @@ const VoiceCallSettings = ({ userId }) => {
 
   const loadPreferences = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/voice/preferences/${userId}`);
-      const data = await response.json();
+      const data = await voiceApi.getPreferences(userId);
       setPreferences(data);
     } catch (error) {
       console.error('Error loading preferences:', error);
@@ -29,20 +29,19 @@ const VoiceCallSettings = ({ userId }) => {
   };
 
   const savePreferences = async () => {
+    // Validate phone number if Twilio is selected
+    if (preferences.call_method === 'twilio' && !preferences.phone_number) {
+      alert('Please enter a phone number for phone calls');
+      return;
+    }
+
     setSaving(true);
     try {
-      const response = await fetch(`http://localhost:8000/voice/preferences/${userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(preferences)
-      });
-      
-      if (response.ok) {
-        alert('Preferences saved!');
-      }
+      await voiceApi.savePreferences(userId, preferences);
+      alert('✓ Preferences saved successfully!');
     } catch (error) {
       console.error('Error saving preferences:', error);
-      alert('Failed to save preferences');
+      alert(`Failed to save: ${error.message}`);
     } finally {
       setSaving(false);
     }

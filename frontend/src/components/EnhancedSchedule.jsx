@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import WeeklyScheduleView from './WeeklyScheduleView'
 
-export default function WeeklySchedule({ habits = [], completions = [] }) {
+export default function EnhancedSchedule({ habits = [], completions = [] }) {
   const [view, setView] = useState('weekly')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [touchStart, setTouchStart] = useState(null)
@@ -177,57 +178,7 @@ export default function WeeklySchedule({ habits = [], completions = [] }) {
   }
 
   const renderWeeklyView = () => {
-    const weekDays = getWeekDays(currentDate)
-    
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-7 gap-2">
-          {weekDays.map((day, idx) => (
-            <div key={idx} className="text-center">
-              <div className="text-xs font-medium text-light/60">
-                {day.toLocaleDateString('en-US', { weekday: 'short' })}
-              </div>
-              <div className="text-sm font-bold text-light">
-                {day.getDate()}
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        <div className="space-y-3">
-          {timesOfDay.map(timeSlot => (
-            <div key={timeSlot.id} className="glass rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{timeSlot.icon}</span>
-                <span className="font-medium text-sm text-light">{timeSlot.label}</span>
-              </div>
-              
-              <div className="space-y-2">
-                {habits
-                  .filter(h => h.time_of_day === timeSlot.id)
-                  .map(habit => (
-                    <div key={habit.id} className="bg-light/5 rounded p-2">
-                      <div className="text-sm font-medium mb-1 text-light">{habit.name}</div>
-                      <div className="grid grid-cols-7 gap-1">
-                        {weekDays.map((day, idx) => (
-                          <div
-                            key={idx}
-                            className={`h-6 rounded ${
-                              isCompleted(habit.id, day)
-                                ? 'bg-green-500'
-                                : 'bg-light/10'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
+    return <WeeklyScheduleView habits={habits} completions={completions} currentDate={currentDate} />
   }
 
   const renderMonthlyView = () => {
@@ -237,7 +188,7 @@ export default function WeeklySchedule({ habits = [], completions = [] }) {
       <div className="space-y-4">
         <div className="grid grid-cols-7 gap-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="text-center text-xs font-medium text-light/60">
+            <div key={day} className="text-center text-xs font-medium text-gray-500">
               {day}
             </div>
           ))}
@@ -245,16 +196,16 @@ export default function WeeklySchedule({ habits = [], completions = [] }) {
         
         <div className="grid grid-cols-7 gap-2">
           {monthDays.map((day, idx) => (
-            <div key={idx} className="glass rounded-lg p-2 min-h-[100px]">
-              <div className="text-xs font-bold mb-1 text-light">{day.getDate()}</div>
+            <div key={idx} className="bg-white rounded-lg p-2 shadow-sm min-h-[100px]">
+              <div className="text-xs font-bold mb-1">{day.getDate()}</div>
               <div className="space-y-1">
                 {habits.map(habit => (
                   <div
                     key={habit.id}
                     className={`text-xs px-1 py-0.5 rounded truncate ${
                       isCompleted(habit.id, day)
-                        ? 'bg-green-500/20 text-green-300'
-                        : 'bg-red-500/20 text-red-300'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
                     }`}
                     title={habit.name}
                   >
@@ -280,20 +231,20 @@ export default function WeeklySchedule({ habits = [], completions = [] }) {
           const monthName = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'short' })
           
           return (
-            <div key={month} className="glass rounded-lg p-4">
-              <div className="text-sm font-medium mb-2 text-light">{monthName}</div>
+            <div key={month} className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-sm font-medium mb-2">{monthName}</div>
               <div className="relative pt-1">
                 <div className="flex mb-2 items-center justify-between">
                   <div>
-                    <span className="text-xs font-semibold inline-block text-[var(--color-accent)]">
+                    <span className="text-xs font-semibold inline-block text-blue-600">
                       {completionRate}%
                     </span>
                   </div>
                 </div>
-                <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-light/10">
+                <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
                   <div
                     style={{ width: `${completionRate}%` }}
-                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[var(--color-accent)]"
+                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
                   />
                 </div>
               </div>
