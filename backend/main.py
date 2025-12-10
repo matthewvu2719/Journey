@@ -13,7 +13,8 @@ from models import (
     CompletionCreate, Completion, CompleteHabitRequest,
     UserAvailability, UserAvailabilityCreate,
     ChatMessage, ChatResponse, AnalyticsResponse,
-    DailyCapacity, DailyCapacityCreate, DailyCapacityUpdate, DailyCapacityBulkUpdate, DayOfWeek
+    DailyCapacity, DailyCapacityCreate, DailyCapacityUpdate, DailyCapacityBulkUpdate, DayOfWeek,
+    DailySuccessRate, DailySuccessRateCreate, MonthlySuccessRateResponse
 )
 from database import SupabaseClient
 from ml_engine import MLEngine
@@ -21,6 +22,7 @@ from ml_trainer import get_ml_trainer
 from ml_scheduler import get_ml_scheduler
 from intelligent_chatbot import intelligent_chatbot
 from timetable_engine import TimetableEngine
+from daily_success_scheduler import AsyncDailySuccessScheduler
 from auth import (
     auth_service, get_current_user, get_user_id, get_user_id_optional,
     SignUpRequest, SignInRequest, GuestLoginRequest, AuthResponse, UserInfo
@@ -47,6 +49,7 @@ db = SupabaseClient()
 ml_engine = MLEngine()
 ml_trainer = get_ml_trainer(db)  # Initialize ML trainer with database
 ml_scheduler = get_ml_scheduler(db)  # Initialize ML scheduler
+daily_success_scheduler = AsyncDailySuccessScheduler(db)  # Initialize daily success scheduler
 # intelligent_chatbot is imported as a singleton from intelligent_chatbot.py
 timetable_engine = TimetableEngine()
 
@@ -57,6 +60,8 @@ async def startup_event():
     """Start background tasks on app startup"""
     print("🚀 Starting ML Scheduler...")
     await ml_scheduler.start()
+    print("🚀 Starting Daily Success Rate Scheduler...")
+    await daily_success_scheduler.start()
 
 
 @app.on_event("shutdown")
@@ -64,6 +69,8 @@ async def shutdown_event():
     """Stop background tasks on app shutdown"""
     print("🛑 Stopping ML Scheduler...")
     await ml_scheduler.stop()
+    print("🛑 Stopping Daily Success Rate Scheduler...")
+    await daily_success_scheduler.stop()
 
 
 @app.get("/")
@@ -251,6 +258,115 @@ async def delete_habit(habit_id: int, user_id: str = Depends(get_user_id_optiona
         return {"message": "Habit deleted successfully"}
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/habits/today")
+async def get_habits_for_today(
+    time_of_day: Optional[str] = None,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get habits scheduled for today, optionally filtered by time of day"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        habits = db.get_habits_for_today(query_user_id, time_of_day)
+        return habits
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/habits/today/count")
+async def get_habits_count_for_today(
+    time_of_day: Optional[str] = None,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get count of habits scheduled for today, optionally filtered by time of day"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        count = db.get_habits_count_for_today(query_user_id, time_of_day)
+        return {"count": count, "time_of_day": time_of_day, "user_id": query_user_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/stats/today")
+async def get_today_stats(user_id: str = Depends(get_user_id_optional)):
+    """Get comprehensive stats for today"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        stats = db.get_today_stats(query_user_id)
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/stats/daily-success-rate")
+async def store_daily_success_rate(
+    target_date: str,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Calculate and store final success rate for a completed day"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        result = db.calculate_and_store_daily_success_rate(query_user_id, target_date)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/stats/monthly/{year}/{month}", response_model=MonthlySuccessRateResponse)
+async def get_monthly_success_rates(
+    year: int,
+    month: int,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get daily success rates for a specific month with current date real-time stats"""
+    try:
+        from datetime import date as date_type
+        
+        query_user_id = user_id if user_id else "default_user"
+        
+        # Get stored daily success rates for the month
+        daily_rates = db.get_monthly_success_rates(query_user_id, year, month)
+        
+        # Check if current date is in this month
+        today = date_type.today()
+        current_date_stats = None
+        
+        if today.year == year and today.month == month:
+            # Get real-time stats for current date
+            current_stats = db.get_today_stats(query_user_id)
+            current_date_stats = {
+                "date": today.isoformat(),
+                "total_habit_instances": current_stats.get('habits_today', 0),
+                "completed_instances": current_stats.get('completed_today', 0),
+                "success_rate": current_stats.get('success_rate_today', 0.0)
+            }
+        
+        return MonthlySuccessRateResponse(
+            year=year,
+            month=month,
+            daily_rates=daily_rates,
+            current_date_stats=current_date_stats
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/stats/calculate-daily-success/{target_date}")
+async def manual_calculate_daily_success(
+    target_date: str,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Manually trigger daily success rate calculation for a specific date (for testing)"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        result = db.calculate_and_store_daily_success_rate(query_user_id, target_date)
+        return {
+            "message": f"Daily success rate calculated for {target_date}",
+            "result": result
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

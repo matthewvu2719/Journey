@@ -158,6 +158,128 @@ class SupabaseClient:
         self.client.table("habits").delete().eq("id", habit_id).execute()
         return True
     
+    def get_habits_for_today(self, user_id: str, time_of_day: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get habits scheduled for today, optionally filtered by time of day"""
+        from datetime import datetime
+        
+        # Get today's day name (Mon, Tue, Wed, etc.)
+        today = datetime.now().strftime('%a')  # Returns 'Mon', 'Tue', etc.
+        
+        # Get all habits for the user
+        all_habits = self.get_habits(user_id)
+        
+        # Filter habits for today
+        today_habits = []
+        for habit in all_habits:
+            # Check if habit is scheduled for today
+            habit_days = habit.get('days', [])
+            habit_times = habit.get('times_of_day', [])
+            
+            # If no days specified, assume it's for all days (backward compatibility)
+            if not habit_days:
+                is_today = True
+            else:
+                is_today = today in habit_days
+            
+            # If filtering by time of day
+            if time_of_day:
+                # If no times specified, assume it's for all times (backward compatibility)
+                if not habit_times:
+                    is_time_match = True
+                else:
+                    is_time_match = time_of_day in habit_times
+            else:
+                is_time_match = True
+            
+            if is_today and is_time_match:
+                today_habits.append(habit)
+        
+        return today_habits
+    
+    def get_habits_count_for_today(self, user_id: str, time_of_day: Optional[str] = None) -> int:
+        """Get count of habits scheduled for today, optionally filtered by time of day"""
+        return len(self.get_habits_for_today(user_id, time_of_day))
+    
+    def get_today_stats(self, user_id: str) -> Dict[str, Any]:
+        """Get comprehensive stats for today"""
+        from datetime import datetime, date as date_type
+        
+        today_date = date_type.today().isoformat()
+        today_day = datetime.now().strftime('%a')  # 'Mon', 'Tue', etc.
+        
+        # Get all user habits
+        all_habits = self.get_habits(user_id)
+        
+        # Get today's completions
+        today_completions = self.get_completions(
+            user_id=user_id,
+            start_date=today_date,
+            end_date=today_date
+        )
+        
+        # Build list of habit instances (habit × time_of_day combinations) for today
+        habit_instances = []
+        completed_instances = set()
+        time_remaining = 0
+        
+        for habit in all_habits:
+            habit_days = habit.get('days', [])
+            habit_times = habit.get('times_of_day', [])
+            
+            # Check if habit is scheduled for today
+            if not habit_days or today_day in habit_days:
+                # If no times specified, default to one instance
+                if not habit_times:
+                    habit_times = ['default']
+                
+                # Create an instance for each time of day
+                for time_of_day in habit_times:
+                    instance_key = f"{habit['id']}_{time_of_day}"
+                    habit_instances.append({
+                        'habit_id': habit['id'],
+                        'time_of_day': time_of_day,
+                        'instance_key': instance_key,
+                        'estimated_duration': habit.get('estimated_duration', 0)
+                    })
+                    
+                    # Check if this instance is completed
+                    is_completed = False
+                    for completion in today_completions:
+                        if completion['habit_id'] == habit['id']:
+                            # Map time_of_day_id to time names for comparison
+                            completion_time = self._get_time_name_from_id(completion.get('time_of_day_id'))
+                            if completion_time == time_of_day or (time_of_day == 'default' and completion_time):
+                                is_completed = True
+                                completed_instances.add(instance_key)
+                                break
+                    
+                    # Add to time remaining if not completed
+                    if not is_completed:
+                        # Only add duration for big habits with estimated_duration set
+                        if habit.get('habit_type') == 'big' and habit.get('estimated_duration'):
+                            time_remaining += habit.get('estimated_duration')
+        
+        # Calculate success rate
+        total_instances = len(habit_instances)
+        completed_count = len(completed_instances)
+        success_rate = round((completed_count / total_instances) * 100) if total_instances > 0 else 0
+        
+        return {
+            'habits_today': total_instances,  # Total habit instances (habit × time combinations)
+            'completed_today': completed_count,
+            'success_rate_today': success_rate,
+            'time_remaining': time_remaining,
+            'completions_today': len(today_completions)
+        }
+    
+    def _get_time_name_from_id(self, time_id: Optional[int]) -> Optional[str]:
+        """Convert time_of_day_id to time name"""
+        if not time_id:
+            return None
+        
+        time_map = {1: 'morning', 2: 'noon', 3: 'afternoon', 4: 'night'}
+        return time_map.get(time_id)
+    
     # ========================================================================
     # HABIT COMPLETIONS
     # ========================================================================
@@ -1166,3 +1288,164 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error getting call logs: {e}")
             return []
+    
+    # ========================================================================
+    # DAILY SUCCESS RATES
+    # ========================================================================
+    
+    def create_daily_success_rate(self, rate_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create or update daily success rate record"""
+        from datetime import datetime
+        
+        if self.mock_mode:
+            # Check if record already exists
+            if not hasattr(self, 'mock_daily_success_rates'):
+                self.mock_daily_success_rates = []
+            
+            existing_idx = None
+            for i, rate in enumerate(self.mock_daily_success_rates):
+                if rate['user_id'] == rate_data['user_id'] and rate['date'] == rate_data['date']:
+                    existing_idx = i
+                    break
+            
+            if existing_idx is not None:
+                # Update existing record
+                self.mock_daily_success_rates[existing_idx].update(rate_data)
+                self.mock_daily_success_rates[existing_idx]['updated_at'] = datetime.now().isoformat()
+                return self.mock_daily_success_rates[existing_idx]
+            else:
+                # Create new record
+                rate = {
+                    **rate_data,
+                    "id": self.next_id,
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat()
+                }
+                self.mock_daily_success_rates.append(rate)
+                self.next_id += 1
+                return rate
+        
+        # Upsert (insert or update) using Supabase
+        try:
+            result = self.client.table('daily_success_rates').upsert(
+                rate_data,
+                on_conflict='user_id,date'
+            ).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error creating/updating daily success rate: {e}")
+            return None
+    
+    def get_daily_success_rates(self, user_id: str, start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
+        """Get daily success rates for a user within date range"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_daily_success_rates'):
+                return []
+            
+            rates = [r for r in self.mock_daily_success_rates if r['user_id'] == user_id]
+            
+            if start_date:
+                rates = [r for r in rates if r['date'] >= start_date]
+            if end_date:
+                rates = [r for r in rates if r['date'] <= end_date]
+            
+            return sorted(rates, key=lambda x: x['date'])
+        
+        try:
+            query = self.client.table('daily_success_rates').select('*').eq('user_id', user_id)
+            
+            if start_date:
+                query = query.gte('date', start_date)
+            if end_date:
+                query = query.lte('date', end_date)
+            
+            result = query.order('date').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting daily success rates: {e}")
+            return []
+    
+    def get_monthly_success_rates(self, user_id: str, year: int, month: int) -> List[Dict[str, Any]]:
+        """Get daily success rates for a specific month"""
+        from datetime import date
+        
+        # Calculate start and end dates for the month
+        start_date = date(year, month, 1).isoformat()
+        
+        # Calculate last day of month
+        if month == 12:
+            next_month = date(year + 1, 1, 1)
+        else:
+            next_month = date(year, month + 1, 1)
+        
+        from datetime import timedelta
+        end_date = (next_month - timedelta(days=1)).isoformat()
+        
+        return self.get_daily_success_rates(user_id, start_date, end_date)
+    
+    def calculate_and_store_daily_success_rate(self, user_id: str, target_date: str) -> Dict[str, Any]:
+        """Calculate and store the final success rate for a completed day"""
+        from datetime import datetime, date as date_type
+        
+        # Parse the target date
+        if isinstance(target_date, str):
+            target_date_obj = date_type.fromisoformat(target_date)
+        else:
+            target_date_obj = target_date
+            target_date = target_date.isoformat()
+        
+        # Get today's day name for filtering
+        today_day = target_date_obj.strftime('%a')  # 'Mon', 'Tue', etc.
+        
+        # Get all user habits
+        all_habits = self.get_habits(user_id)
+        
+        # Get completions for the target date
+        completions = self.get_completions(
+            user_id=user_id,
+            start_date=target_date,
+            end_date=target_date
+        )
+        
+        # Calculate habit instances and completions (same logic as get_today_stats)
+        total_instances = 0
+        completed_instances = set()
+        
+        for habit in all_habits:
+            habit_days = habit.get('days', [])
+            habit_times = habit.get('times_of_day', [])
+            
+            # Check if habit was scheduled for this day
+            if not habit_days or today_day in habit_days:
+                # If no times specified, default to one instance
+                if not habit_times:
+                    habit_times = ['default']
+                
+                # Create an instance for each time of day
+                for time_of_day in habit_times:
+                    total_instances += 1
+                    instance_key = f"{habit['id']}_{time_of_day}"
+                    
+                    # Check if this instance was completed
+                    for completion in completions:
+                        if completion['habit_id'] == habit['id']:
+                            # Map time_of_day_id to time names for comparison
+                            completion_time = self._get_time_name_from_id(completion.get('time_of_day_id'))
+                            if completion_time == time_of_day or (time_of_day == 'default' and completion_time):
+                                completed_instances.add(instance_key)
+                                break
+        
+        # Calculate success rate
+        completed_count = len(completed_instances)
+        success_rate = round((completed_count / total_instances) * 100, 2) if total_instances > 0 else 0.0
+        
+        # Store the daily success rate
+        rate_data = {
+            'user_id': user_id,
+            'date': target_date,
+            'total_habit_instances': total_instances,
+            'completed_instances': completed_count,
+            'success_rate': success_rate
+        }
+        
+        return self.create_daily_success_rate(rate_data)

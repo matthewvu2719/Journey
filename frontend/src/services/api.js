@@ -177,6 +177,21 @@ export const api = {
     const { data } = await client.get('/api/analytics')
     return data
   },
+
+  getTodayStats: async () => {
+    const { data } = await client.get('/api/stats/today')
+    return data
+  },
+
+  getMonthlySuccessRates: async (year, month) => {
+    const { data } = await client.get(`/api/stats/monthly/${year}/${month}`)
+    return data
+  },
+
+  calculateDailySuccess: async (targetDate) => {
+    const { data } = await client.post(`/api/stats/calculate-daily-success/${targetDate}`)
+    return data
+  },
   
   chat: async (message, userId = 'default_user') => {
     const { data } = await client.post('/api/chat', { message, user_id: userId })

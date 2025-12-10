@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../services/api'
 import HabitForm from './HabitForm'
+import HabitCompletionModal from './HabitCompletionModal'
 import { NumberTicker } from './ui/NumberTicker'
 import { Confetti } from './ui/Confetti'
 import { ShimmerButton } from './ui/ShimmerButton'
@@ -22,13 +23,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
   const [celebrationMessage, setCelebrationMessage] = useState('')
   const [celebrationDance, setCelebrationDance] = useState(null)
   const [achievementToShow, setAchievementToShow] = useState(null)
-  const [completionData, setCompletionData] = useState({
-    mood_before: 'good',
-    mood_after: 'great',
-    energy_level_before: 'high',
-    energy_level_after: 'high',
-    actual_duration: 0
-  })
+
 
   // Map time names to IDs
   const timeOfDayMap = {
@@ -52,10 +47,61 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
 
   const loadDashboardData = async () => {
     try {
+      // Try to use the backend API for better performance
+      try {
+        const todayStats = await api.getTodayStats()
+        setStats(todayStats)
+        return
+      } catch (apiError) {
+        console.log('Backend stats API not available, calculating client-side:', apiError.message)
+      }
+      
+      // Fallback: Calculate stats client-side
+      const today = new Date().toLocaleDateString('en-US', { weekday: 'short' })
+      
+      // Build list of habit instances (habit × time_of_day combinations) for today
+      const habitInstances = []
+      let completedInstances = 0
+      let timeRemaining = 0
+      
+      habits.forEach(habit => {
+        const habitDays = habit.days || []
+        const habitTimes = habit.times_of_day || []
+        
+        // Check if habit is scheduled for today
+        if (habitDays.length === 0 || habitDays.includes(today)) {
+          // If no times specified, default to one instance
+          const timesToCheck = habitTimes.length > 0 ? habitTimes : ['morning']
+          
+          // Create an instance for each time of day
+          timesToCheck.forEach(timeOfDay => {
+            habitInstances.push({
+              habitId: habit.id,
+              timeOfDay: timeOfDay,
+              estimatedDuration: habit.estimated_duration || 0
+            })
+            
+            // Check if this instance is completed
+            if (isCompleted(habit.id, timeOfDay)) {
+              completedInstances++
+            } else {
+              // Only add duration for big habits with estimated_duration set
+              if (habit.habit_type === 'big' && habit.estimated_duration) {
+                timeRemaining += habit.estimated_duration
+              }
+            }
+          })
+        }
+      })
+      
+      const totalInstances = habitInstances.length
+      const successRate = totalInstances > 0 ? Math.round((completedInstances / totalInstances) * 100) : 0
+      
       setStats({
-        total_logs: logs.length,
-        total_habits: habits.length,
-        logs_this_week: logs.length  // Simplified - logs are today's completions
+        habits_today: totalInstances,  // Total habit instances (habit × time combinations)
+        completed_today: completedInstances,
+        success_rate_today: successRate,
+        time_remaining: timeRemaining
       })
     } catch (error) {
       console.error('Failed to load dashboard:', error)
@@ -84,16 +130,9 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       return
     }
     
-    // For big habits, show the form
+    // For big habits, show the modal
     setCompletingHabit(habit)
     setCompletingTimeOfDay(timeOfDay)
-    setCompletionData({
-      mood_before: 'good',
-      mood_after: 'great',
-      energy_level_before: 'high',
-      energy_level_after: 'high',
-      actual_duration: habit?.estimated_duration || 0
-    })
   }
 
   const handleUndoCompletion = async (habitId, timeOfDay) => {
@@ -159,7 +198,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
     }
   }
 
-  const handleSubmitCompletion = async () => {
+  const handleSubmitCompletion = async (completionData) => {
     try {
       // Check if already completed before submitting
       if (isCompleted(completingHabit.id, completingTimeOfDay)) {
@@ -359,47 +398,60 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
         </div>
       )}
 
+      {/* Habit Completion Modal */}
+      <HabitCompletionModal
+        habit={completingHabit}
+        timeOfDay={completingTimeOfDay}
+        onSubmit={handleSubmitCompletion}
+        onCancel={() => {
+          setCompletingHabit(null)
+          setCompletingTimeOfDay(null)
+        }}
+        isVisible={completingHabit && completingTimeOfDay}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <BlurFade delay={0}>
           <div className="glass rounded-xl p-6">
             <div className="text-3xl font-bold text-light">
-              <NumberTicker value={habits.length} />
+              <NumberTicker value={stats?.habits_today || 0} />
             </div>
-            <div className="text-light/60 text-sm">Active Habits</div>
+            <div className="text-light/60 text-sm">Habits Today</div>
           </div>
         </BlurFade>
         
         <BlurFade delay={0.1}>
           <div className="glass rounded-xl p-6">
             <div className="text-3xl font-bold text-light">
-              <NumberTicker value={logs.length} />
+              <NumberTicker value={stats?.completed_today || 0} />
             </div>
-            <div className="text-light/60 text-sm">Total Completions</div>
+            <div className="text-light/60 text-sm">Completed Today</div>
           </div>
         </BlurFade>
         
         <BlurFade delay={0.2}>
-          <div className="glass rounded-xl p-6">
-            <div className="text-3xl font-bold text-light">
-              <NumberTicker value={stats?.logs_this_week || 0} />
+          <div className="glass rounded-xl p-6 flex items-center justify-between">
+            <div>
+              <div className="text-3xl font-bold text-light">
+                <NumberTicker value={stats?.success_rate_today || 0} />%
+              </div>
+              <div className="text-light/60 text-sm">Today's Success</div>
             </div>
-            <div className="text-light/60 text-sm">This Week</div>
+            <CircularProgress 
+              value={stats?.success_rate_today || 0} 
+              size={60}
+              strokeWidth={4}
+            />
           </div>
         </BlurFade>
 
         <BlurFade delay={0.3}>
-          <div className="glass rounded-xl p-6 flex items-center justify-between">
-            <div>
-              <div className="text-3xl font-bold text-light">
-                <NumberTicker value={habits.length > 0 ? Math.round((logs.length / (habits.length * 7)) * 100) : 0} />%
-              </div>
-              <div className="text-light/60 text-sm">Success Rate</div>
+          <div className="glass rounded-xl p-6">
+            <div className="text-3xl font-bold text-light">
+              <NumberTicker value={stats?.time_remaining || 0} />
+              <span className="text-lg text-light/60 ml-1">min</span>
             </div>
-            <CircularProgress 
-              value={habits.length > 0 ? (logs.length / (habits.length * 7)) * 100 : 0} 
-              size={60}
-              strokeWidth={4}
-            />
+            <div className="text-light/60 text-sm">Time Remaining</div>
           </div>
         </BlurFade>
       </div>
@@ -495,97 +547,6 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
                               {isCompleted(habit.id, timeOfDay) ? '✓ Done (click to undo)' : 'Complete'}
                             </ShimmerButton>
                           </div>
-                          
-                          {/* Completion Form - Only for Big Habits */}
-                          {completingHabit?.id === habit.id && completingTimeOfDay === timeOfDay && habit.habit_type === 'big' && (
-                          <div className="px-3 pb-3 space-y-2 border-t border-light/10 pt-3">
-                            <h4 className="font-semibold text-light text-xs mb-2">Log Completion</h4>
-                            
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-xs text-light/70 mb-1">Mood Before</label>
-                                <select
-                                  value={completionData.mood_before}
-                                  onChange={(e) => setCompletionData({...completionData, mood_before: e.target.value})}
-                                  className="w-full px-2 py-1 bg-light/10 border border-light/20 rounded text-light text-xs"
-                                >
-                                  <option value="poor">😞</option>
-                                  <option value="okay">😐</option>
-                                  <option value="good">🙂</option>
-                                  <option value="great">😄</option>
-                                </select>
-                              </div>
-                              
-                              <div>
-                                <label className="block text-xs text-light/70 mb-1">Mood After</label>
-                                <select
-                                  value={completionData.mood_after}
-                                  onChange={(e) => setCompletionData({...completionData, mood_after: e.target.value})}
-                                  className="w-full px-2 py-1 bg-light/10 border border-light/20 rounded text-light text-xs"
-                                >
-                                  <option value="poor">😞</option>
-                                  <option value="okay">😐</option>
-                                  <option value="good">🙂</option>
-                                  <option value="great">😄</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-xs text-light/70 mb-1">Energy Before</label>
-                                <select
-                                  value={completionData.energy_level_before}
-                                  onChange={(e) => setCompletionData({...completionData, energy_level_before: e.target.value})}
-                                  className="w-full px-2 py-1 bg-light/10 border border-light/20 rounded text-light text-xs"
-                                >
-                                  <option value="low">🔋</option>
-                                  <option value="medium">🔋🔋</option>
-                                  <option value="high">🔋🔋🔋</option>
-                                </select>
-                              </div>
-                              
-                              <div>
-                                <label className="block text-xs text-light/70 mb-1">Energy After</label>
-                                <select
-                                  value={completionData.energy_level_after}
-                                  onChange={(e) => setCompletionData({...completionData, energy_level_after: e.target.value})}
-                                  className="w-full px-2 py-1 bg-light/10 border border-light/20 rounded text-light text-xs"
-                                >
-                                  <option value="low">🔋</option>
-                                  <option value="medium">🔋🔋</option>
-                                  <option value="high">🔋🔋🔋</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs text-light/70 mb-1">Duration (min)</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={completionData.actual_duration}
-                                onChange={(e) => setCompletionData({...completionData, actual_duration: parseInt(e.target.value)})}
-                                className="w-full px-2 py-1 bg-light/10 border border-light/20 rounded text-light text-xs"
-                              />
-                            </div>
-
-                            <div className="flex gap-2 pt-1">
-                              <button
-                                onClick={handleSubmitCompletion}
-                                className="flex-1 py-1.5 bg-light text-dark rounded hover:bg-light/90 transition font-semibold text-xs"
-                              >
-                                Submit
-                              </button>
-                              <button
-                                onClick={() => setCompletingHabit(null)}
-                                className="py-1.5 px-3 bg-light/10 text-light rounded hover:bg-light/20 transition font-semibold text-xs"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                          )}
                         </div>
                         )
                       })

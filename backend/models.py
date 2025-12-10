@@ -287,3 +287,81 @@ class AchievementUnlock(BaseModel):
     reward_type: str
     reward: Dict
     message: str
+
+
+# ============================================================================
+# DAILY SUCCESS RATE MODELS
+# ============================================================================
+
+class DailySuccessRateBase(BaseModel):
+    """Base model for daily success rate"""
+    user_id: str
+    date: date
+    total_habit_instances: int = Field(ge=0, description="Total habit instances for the day")
+    completed_instances: int = Field(ge=0, description="Completed habit instances")
+    success_rate: float = Field(ge=0.0, le=100.0, description="Success rate percentage (0.00-100.00)")
+    
+    class Config:
+        validate_assignment = True
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Ensure completed_instances doesn't exceed total_habit_instances
+        if self.completed_instances > self.total_habit_instances:
+            raise ValueError("completed_instances cannot exceed total_habit_instances")
+
+
+class DailySuccessRateCreate(DailySuccessRateBase):
+    """Create daily success rate record"""
+    pass
+
+
+class DailySuccessRateUpdate(BaseModel):
+    """Update daily success rate record"""
+    total_habit_instances: Optional[int] = Field(None, ge=0)
+    completed_instances: Optional[int] = Field(None, ge=0)
+    success_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
+
+
+class DailySuccessRate(DailySuccessRateBase):
+    """Daily success rate response model"""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class MonthlySuccessRateResponse(BaseModel):
+    """Response model for monthly success rate data"""
+    year: int
+    month: int
+    daily_rates: List[DailySuccessRate]
+    current_date_stats: Optional[Dict] = Field(None, description="Real-time stats for current date")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "year": 2024,
+                "month": 12,
+                "daily_rates": [
+                    {
+                        "id": 1,
+                        "user_id": "user123",
+                        "date": "2024-12-01",
+                        "total_habit_instances": 8,
+                        "completed_instances": 6,
+                        "success_rate": 75.0,
+                        "created_at": "2024-12-02T00:05:00Z",
+                        "updated_at": "2024-12-02T00:05:00Z"
+                    }
+                ],
+                "current_date_stats": {
+                    "date": "2024-12-09",
+                    "total_habit_instances": 5,
+                    "completed_instances": 3,
+                    "success_rate": 60.0
+                }
+            }
+        }
