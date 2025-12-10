@@ -7,6 +7,12 @@ import pandas as pd
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import logging
+import sys
+import os
+
+# Add parent directory to path to import success_calculator
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from success_calculator import success_calculator
 
 logger = logging.getLogger(__name__)
 
@@ -154,9 +160,16 @@ class FeatureExtractor:
         # Basic counts
         features['log_count'] = float(len(logs))
         
-        # Success rate
-        successful_logs = [log for log in logs if log.get('is_successful', False)]
-        features['success_rate'] = len(successful_logs) / len(logs) if logs else 0.5
+        # Success rate (calculate using success calculator)
+        successful_count = sum(1 for log in logs if success_calculator.calculate_success(log))
+        features['success_rate'] = successful_count / len(logs) if logs else 0.5
+        
+        # Weighted success rate (utility-based)
+        total_utility = sum(success_calculator.calculate_success_utility(log) for log in logs)
+        features['weighted_success_rate'] = (total_utility / (len(logs) * 2.0)) if logs else 0.5
+        
+        # Average utility per completion
+        features['avg_utility'] = (total_utility / len(logs)) if logs else 1.0
         
         # Duration analysis
         durations = [log.get('actual_duration', 0) for log in logs if log.get('actual_duration')]
@@ -192,8 +205,12 @@ class FeatureExtractor:
         
         # Recent performance (last 7 logs)
         recent_logs = logs[-7:] if len(logs) > 7 else logs
-        recent_successful = [log for log in recent_logs if log.get('is_successful', False)]
-        features['recent_success_rate'] = len(recent_successful) / len(recent_logs) if recent_logs else 0.5
+        recent_successful = sum(1 for log in recent_logs if success_calculator.calculate_success(log))
+        features['recent_success_rate'] = recent_successful / len(recent_logs) if recent_logs else 0.5
+        
+        # Recent utility (quality of recent completions)
+        recent_utility = sum(success_calculator.calculate_success_utility(log) for log in recent_logs)
+        features['recent_avg_utility'] = (recent_utility / len(recent_logs)) if recent_logs else 1.0
         
         return features
     

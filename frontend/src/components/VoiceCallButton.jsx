@@ -68,17 +68,8 @@ const VoiceCallButton = ({ userId }) => {
 
   return (
     <>
-      {/* Call Button - Positioned next to Bobo mascot */}
-      <div className="fixed bottom-6 right-32 flex flex-col gap-2 z-40">
-        {/* Settings Button */}
-        <button
-          onClick={() => setShowSettings(true)}
-          className="p-3 bg-gray-600 text-white rounded-full shadow-lg hover:bg-gray-700 transition-colors"
-          title="Voice Call Settings"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
-
+      {/* Call Button - Stacked above Bobo mascot */}
+      <div className="fixed bottom-[140px] right-6 z-40">
         {/* Call Button */}
         <button
           onClick={handleCallButtonClick}

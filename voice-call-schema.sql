@@ -5,7 +5,7 @@
 -- CALL PREFERENCES
 -- ========================================================================
 CREATE TABLE IF NOT EXISTS call_preferences (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     call_method VARCHAR(20) DEFAULT 'webrtc' CHECK (call_method IN ('webrtc', 'twilio')),
     phone_number VARCHAR(20), -- Required for Twilio
     allow_calls BOOLEAN DEFAULT true,
@@ -21,7 +21,7 @@ CREATE INDEX idx_call_preferences_user ON call_preferences(user_id);
 -- ========================================================================
 CREATE TABLE IF NOT EXISTS scheduled_calls (
     id SERIAL PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     call_method VARCHAR(20) NOT NULL CHECK (call_method IN ('webrtc', 'twilio')),
     scheduled_time TIMESTAMP WITH TIME ZONE NOT NULL,
     call_purpose TEXT DEFAULT 'check_in', -- 'habit_reminder', 'check_in', 'motivation'
@@ -43,7 +43,7 @@ CREATE INDEX idx_scheduled_calls_status ON scheduled_calls(status);
 CREATE TABLE IF NOT EXISTS call_logs (
     id SERIAL PRIMARY KEY,
     scheduled_call_id INTEGER REFERENCES scheduled_calls(id) ON DELETE SET NULL,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     call_method VARCHAR(20) NOT NULL CHECK (call_method IN ('webrtc', 'twilio')),
     call_sid VARCHAR(100), -- Twilio call SID (null for WebRTC)
     session_id VARCHAR(100), -- WebRTC session ID (null for Twilio)

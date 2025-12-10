@@ -17,6 +17,8 @@ from models import (
 )
 from database import SupabaseClient
 from ml_engine import MLEngine
+from ml_trainer import get_ml_trainer
+from ml_scheduler import get_ml_scheduler
 from intelligent_chatbot import intelligent_chatbot
 from timetable_engine import TimetableEngine
 from auth import (
@@ -43,8 +45,25 @@ app.add_middleware(
 # Initialize services
 db = SupabaseClient()
 ml_engine = MLEngine()
+ml_trainer = get_ml_trainer(db)  # Initialize ML trainer with database
+ml_scheduler = get_ml_scheduler(db)  # Initialize ML scheduler
 # intelligent_chatbot is imported as a singleton from intelligent_chatbot.py
 timetable_engine = TimetableEngine()
+
+
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on app startup"""
+    print("🚀 Starting ML Scheduler...")
+    await ml_scheduler.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop background tasks on app shutdown"""
+    print("🛑 Stopping ML Scheduler...")
+    await ml_scheduler.stop()
 
 
 @app.get("/")
@@ -312,11 +331,13 @@ async def complete_habit_legacy(
     completion: CompleteHabitRequest,
     user_id: str = Depends(get_user_id_optional)
 ):
-    """Legacy endpoint - creates a completion record"""
+    """Legacy endpoint - creates a completion record and triggers ML training"""
     try:
+        user_id = user_id if user_id else "default_user"
+        
         completion_data = {
             "habit_id": habit_id,
-            "user_id": user_id if user_id else "default_user",
+            "user_id": user_id,
             "mood_before": completion.mood_before,
             "mood_after": completion.mood_after,
             "energy_level_before": completion.energy_level_before,
@@ -325,6 +346,15 @@ async def complete_habit_legacy(
             "notes": completion.notes
         }
         result = db.create_completion(completion_data)
+        
+        # Trigger ML training on completion
+        try:
+            training_status = ml_trainer.on_habit_completion(user_id, completion_data)
+            result['ml_training_status'] = training_status
+        except Exception as ml_error:
+            print(f"ML training error: {ml_error}")
+            # Don't fail the completion if ML training fails
+        
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -387,6 +417,103 @@ async def get_analytics(user_id: str = "default_user"):
         analytics = ml_engine.analyze_patterns(habits, logs)
         
         return analytics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ML TRAINING ENDPOINTS
+# ============================================================================
+
+@app.get("/api/ml/training-status")
+async def get_ml_training_status(user_id: str = Depends(get_user_id_optional)):
+    """Get ML training status for current user"""
+    try:
+        user_id = user_id if user_id else "default_user"
+        status = ml_trainer.get_training_status(user_id)
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ml/train")
+async def trigger_ml_training(user_id: str = Depends(get_user_id_optional)):
+    """Manually trigger ML model training"""
+    try:
+        user_id = user_id if user_id else "default_user"
+        results = ml_trainer.train_user_models(user_id)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ml/daily-check")
+async def daily_training_check(user_id: str = Depends(get_user_id_optional)):
+    """Run daily training check (can be called by cron job)"""
+    try:
+        user_id = user_id if user_id else "default_user"
+        results = ml_trainer.check_daily_training(user_id)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ml/predict-difficulty")
+async def predict_habit_difficulty(habit_data: Dict[str, Any], user_id: str = Depends(get_user_id_optional)):
+    """Predict difficulty for a new habit"""
+    try:
+        from ml.difficulty_estimator import difficulty_estimator
+        
+        user_id = user_id if user_id else "default_user"
+        
+        # Get user data for context
+        habits = db.get_habits(user_id)
+        logs = db.get_logs(user_id=user_id)
+        user_stats = ml_trainer._calculate_user_stats(user_id, habits, logs)
+        
+        # Predict difficulty
+        prediction = difficulty_estimator.estimate(habit_data, user_stats)
+        
+        return prediction
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ml/predict-duration")
+async def predict_habit_duration(habit_data: Dict[str, Any], user_id: str = Depends(get_user_id_optional)):
+    """Predict realistic duration for a habit"""
+    try:
+        from ml.duration_predictor import duration_predictor
+        
+        user_id = user_id if user_id else "default_user"
+        
+        # Predict duration
+        prediction = duration_predictor.predict(habit_data)
+        
+        return prediction
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ml/recommendations")
+async def get_ml_recommendations(user_id: str = Depends(get_user_id_optional), limit: int = 5):
+    """Get ML-powered habit recommendations"""
+    try:
+        from ml.recommendation_engine import recommendation_engine
+        
+        user_id = user_id if user_id else "default_user"
+        
+        # Get user data
+        habits = db.get_habits(user_id)
+        logs = db.get_logs(user_id=user_id)
+        user_stats = ml_trainer._calculate_user_stats(user_id, habits, logs)
+        
+        # Generate recommendations
+        recommendations = recommendation_engine.generate_recommendations(
+            user_stats, habits, logs, limit=limit
+        )
+        
+        return {"recommendations": recommendations}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

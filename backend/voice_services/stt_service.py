@@ -41,8 +41,55 @@ class STTService:
             Transcribed text
         """
         # Load audio from bytes
+        # Try to handle different audio formats (WebM, WAV, etc.)
         audio_buffer = io.BytesIO(audio_bytes)
-        audio_np, sr = sf.read(audio_buffer)
+        
+        try:
+            audio_np, sr = sf.read(audio_buffer)
+        except Exception as e:
+            # If soundfile fails, save to temp file and use ffmpeg to convert
+            print(f"soundfile failed, converting with ffmpeg: {e}")
+            import tempfile
+            import subprocess
+            
+            # Save WebM to temp file
+            with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_webm:
+                temp_webm.write(audio_bytes)
+                temp_webm_path = temp_webm.name
+            
+            # Convert to WAV using ffmpeg with better settings
+            temp_wav_path = temp_webm_path.replace('.webm', '.wav')
+            try:
+                result = subprocess.run([
+                    'ffmpeg', '-y',  # Overwrite output
+                    '-i', temp_webm_path,
+                    '-ar', '16000',  # 16kHz sample rate
+                    '-ac', '1',       # Mono
+                    '-acodec', 'pcm_s16le',  # PCM 16-bit
+                    temp_wav_path
+                ], check=True, capture_output=True, text=True)
+                
+                print(f"✓ FFmpeg conversion successful")
+                
+                # Load the converted WAV
+                audio_np, sr = sf.read(temp_wav_path)
+                
+                print(f"✓ Audio loaded: {len(audio_np)} samples at {sr}Hz")
+                
+                # Clean up temp files
+                import os
+                os.unlink(temp_webm_path)
+                os.unlink(temp_wav_path)
+            except subprocess.CalledProcessError as conv_error:
+                print(f"❌ FFmpeg conversion failed:")
+                print(f"   stdout: {conv_error.stdout}")
+                print(f"   stderr: {conv_error.stderr}")
+                import os
+                if os.path.exists(temp_webm_path):
+                    os.unlink(temp_webm_path)
+                if os.path.exists(temp_wav_path):
+                    os.unlink(temp_wav_path)
+                raise Exception("Could not process audio format. Please check microphone settings.")
         
         # Resample if needed
         if sr != 16000:
@@ -52,6 +99,13 @@ class STTService:
         # Ensure mono
         if len(audio_np.shape) > 1:
             audio_np = audio_np.mean(axis=1)
+        
+        # Check audio duration
+        duration = len(audio_np) / 16000
+        print(f"Audio duration: {duration:.2f} seconds")
+        
+        if duration < 0.5:
+            print("⚠️  Audio too short (< 0.5s), may not transcribe well")
         
         # Process audio
         inputs = self.processor(

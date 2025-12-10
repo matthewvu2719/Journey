@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Phone, Globe, Clock, Bell } from 'lucide-react';
 import voiceApi from '../services/voiceApi';
 
@@ -78,42 +78,45 @@ const VoiceCallSettings = ({ userId }) => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+    <div className="max-w-2xl mx-auto p-8 glass rounded-2xl">
+      <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 text-light">
         <Phone className="w-6 h-6" />
         Voice Call Settings
       </h2>
+      <p className="text-light/60 mb-8 text-sm">
+        Configure how Bobo can reach you for check-ins
+      </p>
 
       {/* Call Method Selection */}
       <div className="mb-6">
-        <label className="block text-sm font-medium mb-3">Call Method</label>
+        <label className="block text-sm font-medium mb-3 text-light/80">Call Method</label>
         <div className="grid grid-cols-2 gap-4">
           {/* WebRTC Option */}
           <button
             onClick={() => setPreferences(prev => ({ ...prev, call_method: 'webrtc' }))}
-            className={`p-4 border-2 rounded-lg transition-all ${
+            className={`p-6 border-2 rounded-xl transition-all duration-200 ${
               preferences.call_method === 'webrtc'
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
+                ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 shadow-lg'
+                : 'border-[var(--color-border)] bg-[var(--color-glass)] hover:border-[var(--color-accent)]/50'
             }`}
           >
-            <Globe className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-            <div className="font-semibold">Web Call</div>
-            <div className="text-xs text-gray-600 mt-1">Free • In-app</div>
+            <Globe className={`w-8 h-8 mx-auto mb-2 ${preferences.call_method === 'webrtc' ? 'text-[var(--color-accent)]' : 'text-[var(--color-foreground-secondary)]'}`} />
+            <div className="font-semibold text-[var(--color-foreground)]">Web Call</div>
+            <div className="text-xs text-[var(--color-foreground-secondary)] mt-1">Free • In-app</div>
           </button>
 
           {/* Twilio Option */}
           <button
             onClick={() => setPreferences(prev => ({ ...prev, call_method: 'twilio' }))}
-            className={`p-4 border-2 rounded-lg transition-all ${
+            className={`p-6 border-2 rounded-xl transition-all duration-200 ${
               preferences.call_method === 'twilio'
-                ? 'border-purple-500 bg-purple-50'
-                : 'border-gray-200 hover:border-gray-300'
+                ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 shadow-lg'
+                : 'border-[var(--color-border)] bg-[var(--color-glass)] hover:border-[var(--color-accent)]/50'
             }`}
           >
-            <Phone className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-            <div className="font-semibold">Phone Call</div>
-            <div className="text-xs text-gray-600 mt-1">Premium • Real phone</div>
+            <Phone className={`w-8 h-8 mx-auto mb-2 ${preferences.call_method === 'twilio' ? 'text-[var(--color-accent)]' : 'text-[var(--color-foreground-secondary)]'}`} />
+            <div className="font-semibold text-[var(--color-foreground)]">Phone Call</div>
+            <div className="text-xs text-[var(--color-foreground-secondary)] mt-1">Premium • Real phone</div>
           </button>
         </div>
       </div>
@@ -121,32 +124,35 @@ const VoiceCallSettings = ({ userId }) => {
       {/* Phone Number (for Twilio) */}
       {preferences.call_method === 'twilio' && (
         <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Phone Number</label>
+          <label className="block text-sm font-medium mb-2 text-[var(--color-foreground)]/80">Phone Number</label>
           <input
             type="tel"
             value={preferences.phone_number}
             onChange={(e) => setPreferences(prev => ({ ...prev, phone_number: e.target.value }))}
             placeholder="+1234567890"
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+            className="w-full px-4 py-3 bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg 
+              transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50 
+              focus:border-[var(--color-accent)]/40 text-[var(--color-foreground)] 
+              placeholder-[var(--color-foreground-secondary)]"
           />
-          <p className="text-xs text-gray-500 mt-1">Include country code (e.g., +1 for US)</p>
+          <p className="text-xs text-[var(--color-foreground-secondary)] mt-2">Include country code (e.g., +1 for US)</p>
         </div>
       )}
 
       {/* Allow Calls Toggle */}
-      <div className="mb-6 flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+      <div className="mb-6 flex items-center justify-between p-4 bg-[var(--color-glass)] border border-[var(--color-border)] rounded-xl">
         <div className="flex items-center gap-2">
-          <Bell className="w-5 h-5 text-gray-600" />
-          <span className="font-medium">Allow Bobo to call me</span>
+          <Bell className="w-5 h-5 text-[var(--color-foreground-secondary)]" />
+          <span className="font-medium text-[var(--color-foreground)]">Allow Bobo to call me</span>
         </div>
         <button
           onClick={() => setPreferences(prev => ({ ...prev, allow_calls: !prev.allow_calls }))}
-          className={`relative w-12 h-6 rounded-full transition-colors ${
-            preferences.allow_calls ? 'bg-green-500' : 'bg-gray-300'
+          className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+            preferences.allow_calls ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-foreground-secondary)]/30'
           }`}
         >
           <div
-            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${
               preferences.allow_calls ? 'transform translate-x-6' : ''
             }`}
           />
@@ -156,30 +162,32 @@ const VoiceCallSettings = ({ userId }) => {
       {/* Preferred Times */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <label className="block text-sm font-medium flex items-center gap-2">
+          <label className="block text-sm font-medium flex items-center gap-2 text-[var(--color-foreground)]/80">
             <Clock className="w-4 h-4" />
             Preferred Call Times
           </label>
           <button
             onClick={addPreferredTime}
-            className="text-sm text-blue-600 hover:text-blue-700"
+            className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent)]/80 font-medium transition-colors"
           >
             + Add Time
           </button>
         </div>
 
         {preferences.preferred_times.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">
+          <p className="text-sm text-[var(--color-foreground-secondary)] text-center py-6 bg-[var(--color-glass)] rounded-lg border border-[var(--color-border)]">
             No preferred times set. Bobo can call anytime.
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {preferences.preferred_times.map((time, index) => (
               <div key={index} className="flex gap-2 items-center">
                 <select
                   value={time.day}
                   onChange={(e) => updatePreferredTime(index, 'day', e.target.value)}
-                  className="flex-1 px-3 py-2 border rounded-lg"
+                  className="flex-1 px-4 py-3 bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg 
+                    transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50 
+                    focus:border-[var(--color-accent)]/40 text-[var(--color-foreground)]"
                 >
                   <option value="monday">Monday</option>
                   <option value="tuesday">Tuesday</option>
@@ -193,11 +201,13 @@ const VoiceCallSettings = ({ userId }) => {
                   type="time"
                   value={time.time}
                   onChange={(e) => updatePreferredTime(index, 'time', e.target.value)}
-                  className="flex-1 px-3 py-2 border rounded-lg"
+                  className="flex-1 px-4 py-3 bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg 
+                    transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50 
+                    focus:border-[var(--color-accent)]/40 text-[var(--color-foreground)]"
                 />
                 <button
                   onClick={() => removePreferredTime(index)}
-                  className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                  className="px-3 py-3 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors border border-[var(--color-border)]"
                 >
                   ✕
                 </button>
@@ -211,14 +221,16 @@ const VoiceCallSettings = ({ userId }) => {
       <button
         onClick={savePreferences}
         disabled={saving}
-        className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium"
+        className="w-full py-3 bg-[var(--color-accent)] text-white rounded-lg hover:opacity-90 
+          disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl 
+          transition-all duration-200"
       >
         {saving ? 'Saving...' : 'Save Preferences'}
       </button>
 
       {/* Info Box */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-800">
+      <div className="mt-6 p-4 bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 rounded-xl">
+        <p className="text-sm text-[var(--color-foreground)]">
           <strong>How it works:</strong> Bobo will {preferences.call_method === 'webrtc' ? 'send you a notification' : 'call your phone'} at your preferred times to check in on your habits and provide motivation.
         </p>
       </div>

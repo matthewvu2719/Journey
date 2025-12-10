@@ -310,18 +310,53 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
           <p className="text-light/60">Manage and track your habits</p>
         </div>
         <button
-          onClick={() => setShowHabitForm(!showHabitForm)}
+          onClick={() => setShowHabitForm(true)}
           className="px-6 py-2 bg-light text-dark rounded-lg hover:bg-light/90 transition font-semibold"
         >
-          {showHabitForm ? 'Cancel' : 'Add Habit'}
+          Add Habit
         </button>
       </div>
 
       {showHabitForm && (
-        <HabitForm
-          onSubmit={handleCreateHabit}
-          onCancel={() => setShowHabitForm(false)}
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="relative max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
+            <button
+              onClick={() => setShowHabitForm(false)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-light/10 hover:bg-light/20 transition-colors"
+              aria-label="Close"
+            >
+              <svg className="w-6 h-6 text-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <HabitForm
+              onSubmit={handleCreateHabit}
+              onCancel={() => setShowHabitForm(false)}
+            />
+          </div>
+          <style jsx>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes scaleIn {
+              from {
+                opacity: 0;
+                transform: scale(0.95);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .animate-fade-in {
+              animation: fadeIn 0.2s ease-out;
+            }
+            .animate-scale-in {
+              animation: scaleIn 0.3s ease-out;
+            }
+          `}</style>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

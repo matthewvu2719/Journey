@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import Hero from '../components/Hero'
 import Journey from '../components/Journey'
-import WeeklySchedule from '../components/WeeklySchedule'
-import ScheduleCalls from '../components/ScheduleCalls'
+import EnhancedSchedule from '../components/EnhancedSchedule'
 import AnalyticsInsights from '../components/AnalyticsInsights'
 import FloatingChat from '../components/FloatingChat'
 import GuestModeBanner from '../components/GuestModeBanner'
@@ -10,9 +9,13 @@ import EnhancedDashboard from '../components/EnhancedDashboard'
 import AchievementProgress from '../components/AchievementProgress'
 import AchievementNotification from '../components/AchievementNotification'
 import BoboCustomization from '../components/BoboCustomization'
+import VoiceCallSettings from '../components/VoiceCallSettings'
+import VoiceCallButton from '../components/VoiceCallButton'
 import { api } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 
 function Dashboard() {
+  const { user } = useAuth()
   const [currentSection, setCurrentSection] = useState('habits')
   const [showMainApp, setShowMainApp] = useState(true)
   const [habits, setHabits] = useState([])
@@ -92,7 +95,12 @@ function Dashboard() {
 
       {/* Hero Section */}
       <section className="min-h-screen">
-        <Hero onExplore={handleExplore} />
+        <Hero 
+          onExplore={handleExplore}
+          habits={habits}
+          completions={logs}
+          achievements={[]} 
+        />
       </section>
 
       {/* Journey Section */}
@@ -176,11 +184,56 @@ function Dashboard() {
             )}
 
             {currentSection === 'schedule' && (
-              <WeeklySchedule habits={habits} completions={logs} />
+              <EnhancedSchedule habits={habits} completions={logs} />
             )}
 
             {currentSection === 'calls' && (
-              <ScheduleCalls />
+              <div className="space-y-6">
+                {/* Header */}
+                <div>
+                  <h2 className="text-3xl font-bold text-light">AI Voice Call Schedule</h2>
+                  <p className="text-light/60 mt-1">Set up automated check-in calls from your AI habit coach</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left: Voice Call Settings */}
+                  <div>
+                    <VoiceCallSettings userId={user?.id || 'guest'} />
+                  </div>
+
+                  {/* Right: Info & Call History */}
+                  <div className="space-y-6">
+                    {/* How It Works */}
+                    <div className="glass rounded-xl p-6 border border-light/20">
+                      <h3 className="text-lg font-bold text-light mb-3">How It Works</h3>
+                      <ol className="space-y-2 text-sm text-light/80">
+                        <li className="flex items-start">
+                          <span className="font-semibold mr-2">1.</span>
+                          <span>Choose Web Call (free) or Phone Call (premium)</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-semibold mr-2">2.</span>
+                          <span>Set your preferred call times</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-semibold mr-2">3.</span>
+                          <span>Bobo calls you for natural voice conversations</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-semibold mr-2">4.</span>
+                          <span>Get personalized encouragement and habit tracking</span>
+                        </li>
+                      </ol>
+                    </div>
+
+                    {/* Call History */}
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-bold text-light mb-4">Recent Calls</h3>
+                      <p className="text-light/50 text-sm">Call history will appear here after your first call.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {currentSection === 'insights' && (
@@ -210,6 +263,9 @@ function Dashboard() {
               </p>
             </div>
           </footer>
+
+          {/* Floating Voice Call Button */}
+          <VoiceCallButton userId={user?.id || 'guest'} />
         </section>
       )}
     </div>

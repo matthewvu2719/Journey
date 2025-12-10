@@ -8,6 +8,7 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
 import json
+import base64
 
 from database import SupabaseClient
 from voice_services.tts_service import get_tts_service
@@ -146,9 +147,13 @@ async def start_webrtc_call(user_id: str):
     # Get greeting
     greeting = voice_agent.get_greeting(user_id)
     
+    # Generate greeting audio with consistent voice
+    greeting_audio = tts_service.text_to_speech(greeting)
+    
     return {
         "session_id": session_id,
-        "greeting": greeting
+        "greeting": greeting,
+        "greeting_audio": base64.b64encode(greeting_audio).decode()
     }
 
 @router.websocket("/webrtc/ws/{session_id}")
@@ -169,12 +174,33 @@ async def webrtc_websocket(websocket: WebSocket, session_id: str):
             
             if msg_type == "audio":
                 # User spoke - transcribe and respond
-                audio_hex = data.get("audio")
-                audio_bytes = bytes.fromhex(audio_hex)
+                audio_data = data.get("audio")
+                audio_format = data.get("format", "audio/webm")
+                
+                # Decode base64 audio
+                audio_bytes = base64.b64decode(audio_data)
+                
+                print(f"Received audio: {len(audio_bytes)} bytes, format: {audio_format}")
                 
                 # Transcribe
-                user_text = stt_service.speech_to_text(audio_bytes)
-                session.add_transcript("user", user_text)
+                try:
+                    user_text = stt_service.speech_to_text(audio_bytes)
+                    print(f"📝 Transcribed: '{user_text}' (length: {len(user_text)})")
+                    
+                    # Check if transcription is too short or empty
+                    if not user_text or len(user_text.strip()) < 2:
+                        print("⚠️  Transcription too short or empty")
+                        print(f"   Audio size: {len(audio_bytes)} bytes")
+                        print(f"   Format: {audio_format}")
+                        user_text = "[Audio unclear - please speak louder or check microphone]"
+                    
+                    session.add_transcript("user", user_text)
+                except Exception as e:
+                    print(f"❌ Transcription error: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    user_text = "[Audio processing failed - please try again]"
+                    session.add_transcript("user", user_text)
                 
                 # Get AI response
                 bobo_text = voice_agent.process_user_speech(
@@ -187,11 +213,12 @@ async def webrtc_websocket(websocket: WebSocket, session_id: str):
                 # Convert to speech
                 bobo_audio = tts_service.text_to_speech(bobo_text)
                 
-                # Send back
+                # Send back (base64 encoded) with user's transcribed text
                 await websocket.send_json({
                     "type": "response",
+                    "user_text": user_text,
                     "text": bobo_text,
-                    "audio": bobo_audio.hex()
+                    "audio": base64.b64encode(bobo_audio).decode()
                 })
                 
                 # Check if should end
@@ -202,7 +229,7 @@ async def webrtc_websocket(websocket: WebSocket, session_id: str):
                     await websocket.send_json({
                         "type": "goodbye",
                         "text": goodbye,
-                        "audio": goodbye_audio.hex()
+                        "audio": base64.b64encode(goodbye_audio).decode()
                     })
                     break
             

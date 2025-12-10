@@ -418,7 +418,7 @@ const BoboCustomization = () => {
             </div>
 
             {/* Items Grid */}
-            <div className="flex-1 min-h-[400px]">
+            <div className="flex-1 overflow-y-auto max-h-[340px] pr-2 custom-scrollbar">
               {tabs.find(t => t.id === activeTab)?.items.length === 0 ? (
                 <div className="text-center py-20">
                   <div className="text-6xl mb-4">🔒</div>
@@ -430,13 +430,30 @@ const BoboCustomization = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-4">
                   {tabs.find(t => t.id === activeTab)?.items.map(item => 
                     renderItem(item, activeTab.slice(0, -1)) // Remove 's' from tab id
                   )}
                 </div>
               )}
             </div>
+            
+            <style jsx>{`
+              .custom-scrollbar::-webkit-scrollbar {
+                width: 8px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-track {
+                background: var(--color-glass);
+                border-radius: 10px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: var(--color-accent);
+                border-radius: 10px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: var(--color-accent-hover);
+              }
+            `}</style>
           </div>
         </div>
       </div>

@@ -22,20 +22,22 @@ class TTSService:
         self.model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts").to(self.device)
         self.vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan").to(self.device)
         
-        # Load speaker embeddings (default voice)
+        # Load speaker embeddings (kid-like voice)
         from datasets import load_dataset
         embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-        self.speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0).to(self.device)
+        # Speaker 3000 provides a lighter tone that works well for kid voice with pitch shifting
+        self.speaker_embeddings = torch.tensor(embeddings_dataset[3000]["xvector"]).unsqueeze(0).to(self.device)
         
         print("✓ TTS initialized")
     
-    def text_to_speech(self, text: str, output_format: str = "wav") -> bytes:
+    def text_to_speech(self, text: str, output_format: str = "wav", robot_voice: bool = False) -> bytes:
         """
-        Convert text to speech audio
+        Convert text to speech audio with kid-like voice
         
         Args:
             text: Text to convert
             output_format: Audio format (wav, mp3)
+            robot_voice: Apply robotic effect to voice (deprecated, kept for compatibility)
         
         Returns:
             Audio bytes
@@ -53,6 +55,13 @@ class TTSService:
         
         # Convert to numpy
         audio_np = speech.cpu().numpy()
+        
+        # Apply kid-like voice effect (higher pitch, energetic)
+        import librosa
+        # Shift up by 5 semitones for cute, child-like voice
+        audio_np = librosa.effects.pitch_shift(audio_np, sr=16000, n_steps=5)
+        # Slightly speed up for more energetic, kid-like sound
+        audio_np = librosa.effects.time_stretch(audio_np, rate=1.15)
         
         # Convert to bytes
         audio_buffer = io.BytesIO()

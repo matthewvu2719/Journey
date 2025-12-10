@@ -42,9 +42,9 @@ class VoiceAgent:
         habit_count = len(habits)
         
         greetings = {
-            "check_in": f"Hi there! It's Bobo. I wanted to check in on your {habit_count} habits today. How are things going?",
-            "habit_reminder": f"Hey! Just a friendly reminder about your habits. Ready to tackle them?",
-            "motivation": f"Hello! I'm calling to give you some motivation. You've got {habit_count} habits to work on. Let's make today great!"
+            "check_in": f"Hi! It's me, Bobo! I'm so excited to check on your {habit_count} habits today! How's it going?",
+            "habit_reminder": f"Hey hey! It's Bobo! Time for your habits! Are you ready? This is gonna be awesome!",
+            "motivation": f"Woohoo! It's Bobo! You've got {habit_count} habits today and I know you can do it! Let's go!"
         }
         
         return greetings.get(call_purpose, greetings["check_in"])
@@ -99,9 +99,9 @@ class VoiceAgent:
         })
         
         try:
-            # Get response from Groq
+            # Get response from Groq (using updated model)
             response = self.groq_client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.3-70b-versatile",  # Updated model
                 messages=messages,
                 temperature=0.7,
                 max_tokens=150  # Keep responses concise for voice
@@ -120,29 +120,60 @@ class VoiceAgent:
     
     def _get_system_prompt(self, context: str) -> str:
         """Get system prompt for voice conversation"""
-        return f"""You are Bobo, a friendly and encouraging habit-tracking companion robot. 
-You're having a VOICE conversation with a user, so keep responses:
-- SHORT (1-3 sentences max)
-- CONVERSATIONAL (like talking to a friend)
-- ENCOURAGING and POSITIVE
+        return f"""You are Bobo, an adorable and enthusiastic kid robot companion! You're about 8 years old and LOVE helping people with their habits!
+
+Personality traits:
+- Talk like an excited, cheerful kid (use words like "awesome!", "wow!", "yay!", "cool!")
+- Be super encouraging and positive (celebrate everything!)
+- Keep it simple and fun (short sentences, easy words)
+- Show genuine excitement about their progress
+- Sometimes use kid-like expressions ("That's so cool!", "You're doing amazing!", "Woohoo!")
+- Be playful but still helpful
+
+Voice conversation rules:
+- SUPER SHORT responses (1-2 sentences max - kids don't talk long!)
 - NO markdown, bullet points, or formatting
-- Ask ONE question at a time
+- Ask ONE simple question at a time
+- Use lots of enthusiasm and emojis in your tone (but don't actually say "emoji")
 
 User Context:
 {context}
 
-Your goal: Help them stay motivated and track their habit progress through natural conversation."""
+Your goal: Be their cheerful kid buddy who makes habits fun and celebrates every win!"""
     
     def _build_context(self, habits: List[Dict], completions: List[Dict]) -> str:
         """Build context about user's habits"""
         if not habits:
             return "User has no habits yet."
         
-        habit_names = [h['name'] for h in habits[:5]]
+        # Get habit details with schedules
+        habit_details = []
+        for h in habits[:5]:
+            name = h.get('name', 'Unknown')
+            frequency = h.get('frequency', 'daily')
+            time_of_day = h.get('time_of_day', '')
+            
+            detail = f"{name} ({frequency}"
+            if time_of_day:
+                detail += f", {time_of_day}"
+            detail += ")"
+            habit_details.append(detail)
+        
+        # Count completions today
         completed_today = len([c for c in completions if self._is_today(c.get('completed_at'))])
         
-        context = f"User has {len(habits)} habits: {', '.join(habit_names)}. "
-        context += f"Completed {completed_today} habits today."
+        # Build context string
+        context = f"User has {len(habits)} habits:\n"
+        for detail in habit_details:
+            context += f"- {detail}\n"
+        
+        context += f"\nCompleted {completed_today} out of {len(habits)} habits today."
+        
+        # Add streak info if available
+        if habits:
+            max_streak = max([h.get('current_streak', 0) for h in habits])
+            if max_streak > 0:
+                context += f" Best current streak: {max_streak} days."
         
         return context
     
@@ -175,16 +206,16 @@ Your goal: Help them stay motivated and track their habit progress through natur
         user_lower = user_text.lower()
         
         if any(word in user_lower for word in ['good', 'great', 'well', 'fine']):
-            return "That's wonderful to hear! Keep up the great work with your habits."
+            return "Yay! That's so awesome! You're doing amazing with your habits!"
         
         elif any(word in user_lower for word in ['bad', 'not good', 'struggling', 'hard']):
-            return "I understand it can be challenging. Remember, every small step counts. What's one habit you can focus on today?"
+            return "Oh no! But hey, you're trying and that's super cool! What habit should we work on together?"
         
         elif any(word in user_lower for word in ['done', 'completed', 'finished']):
-            return "Awesome! I'm so proud of you. Which habit did you complete?"
+            return "Woohoo! You did it! That's so cool! Which habit was it?"
         
         else:
-            return "I hear you. Tell me more about how your habits are going today."
+            return "Ooh, tell me more! How are your habits going today?"
     
     def should_end_conversation(self, user_text: str, turn_count: int) -> bool:
         """
@@ -210,7 +241,7 @@ Your goal: Help them stay motivated and track their habit progress through natur
     
     def get_goodbye(self) -> str:
         """Get goodbye message"""
-        return "Great talking with you! Keep up the amazing work on your habits. Talk to you soon!"
+        return "Yay! That was so fun! You're doing super awesome! Keep being amazing! Bye bye!"
 
 
 # Singleton instance

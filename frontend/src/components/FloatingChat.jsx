@@ -10,7 +10,7 @@ export default function FloatingChat({ habits, logs, onAction }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hi there! I'm Bobo, your personal habit companion! 🤖 I'm here to help you build amazing habits, celebrate your wins, and keep you on track. What would you like to work on today?"
+      content: "Hi! I'm Bobo! 🤖 I'm so excited to help you with your habits! This is gonna be so much fun! What do you wanna work on today?"
     }
   ])
   const [input, setInput] = useState('')

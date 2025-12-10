@@ -185,36 +185,38 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
     const monthDays = getMonthDays(currentDate)
     
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-7 gap-2">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-500">
-              {day}
-            </div>
-          ))}
-        </div>
-        
-        <div className="grid grid-cols-7 gap-2">
-          {monthDays.map((day, idx) => (
-            <div key={idx} className="bg-white rounded-lg p-2 shadow-sm min-h-[100px]">
-              <div className="text-xs font-bold mb-1">{day.getDate()}</div>
-              <div className="space-y-1">
-                {habits.map(habit => (
-                  <div
-                    key={habit.id}
-                    className={`text-xs px-1 py-0.5 rounded truncate ${
-                      isCompleted(habit.id, day)
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                    title={habit.name}
-                  >
-                    {habit.name}
-                  </div>
-                ))}
+      <div className="glass rounded-2xl p-6">
+        <div className="space-y-4">
+          <div className="grid grid-cols-7 gap-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="text-center text-xs font-medium text-light/60">
+                {day}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          
+          <div className="grid grid-cols-7 gap-2">
+            {monthDays.map((day, idx) => (
+              <div key={idx} className="bg-light/5 rounded-lg p-2 min-h-[100px]">
+                <div className="text-xs font-bold mb-1 text-light">{day.getDate()}</div>
+                <div className="space-y-1">
+                  {habits.map(habit => (
+                    <div
+                      key={habit.id}
+                      className={`text-xs px-1 py-0.5 rounded truncate ${
+                        isCompleted(habit.id, day)
+                          ? 'bg-green-500/20 text-green-300'
+                          : 'bg-red-500/20 text-red-300'
+                      }`}
+                      title={habit.name}
+                    >
+                      {habit.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -225,32 +227,34 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
     const months = Array.from({ length: 12 }, (_, i) => i)
     
     return (
-      <div className="grid grid-cols-3 gap-4">
-        {months.map(month => {
-          const completionRate = getMonthCompletionRate(month, year)
-          const monthName = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'short' })
-          
-          return (
-            <div key={month} className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-sm font-medium mb-2">{monthName}</div>
-              <div className="relative pt-1">
-                <div className="flex mb-2 items-center justify-between">
-                  <div>
-                    <span className="text-xs font-semibold inline-block text-blue-600">
-                      {completionRate}%
-                    </span>
+      <div className="glass rounded-2xl p-6">
+        <div className="grid grid-cols-3 gap-4">
+          {months.map(month => {
+            const completionRate = getMonthCompletionRate(month, year)
+            const monthName = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'short' })
+            
+            return (
+              <div key={month} className="bg-light/5 rounded-lg p-4">
+                <div className="text-sm font-medium mb-2 text-light">{monthName}</div>
+                <div className="relative pt-1">
+                  <div className="flex mb-2 items-center justify-between">
+                    <div>
+                      <span className="text-xs font-semibold inline-block text-light">
+                        {completionRate}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-light/10">
+                    <div
+                      style={{ width: `${completionRate}%` }}
+                      className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-light"
+                    />
                   </div>
                 </div>
-                <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
-                  <div
-                    style={{ width: `${completionRate}%` }}
-                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
-                  />
-                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     )
   }
