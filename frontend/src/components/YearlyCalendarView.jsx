@@ -4,9 +4,30 @@ export default function YearlyCalendarView({
   habits, 
   completions = [], 
   viewDate,
+  journeyStartDate,
   onMonthClick 
 }) {
   const yearMonths = dateUtils.getYearMonths(viewDate)
+
+  // Check if a month should be disabled (before journey start)
+  const isMonthDisabled = (monthInfo) => {
+    if (!journeyStartDate) return false
+    
+    const monthDate = new Date(monthInfo.year, monthInfo.month, 1)
+    const journeyMonthStart = dateUtils.getMonthStart(journeyStartDate)
+    
+    return monthDate < journeyMonthStart
+  }
+
+  // Check if this is the journey start month
+  const isJourneyStartMonth = (monthInfo) => {
+    if (!journeyStartDate) return false
+    
+    const monthDate = new Date(monthInfo.year, monthInfo.month, 1)
+    const journeyMonthStart = dateUtils.getMonthStart(journeyStartDate)
+    
+    return monthDate.getTime() === journeyMonthStart.getTime()
+  }
   
   const getMonthCompletionRate = (month, year) => {
     const monthStart = new Date(year, month, 1)
@@ -119,27 +140,34 @@ export default function YearlyCalendarView({
             const completionRate = getMonthCompletionRate(monthInfo.month, monthInfo.year)
             const status = getMonthStatus(monthInfo)
             const monthName = monthInfo.date.toLocaleDateString('en-US', { month: 'short' })
+            const disabled = isMonthDisabled(monthInfo)
+            const isJourneyStart = isJourneyStartMonth(monthInfo)
             
             return (
               <div 
                 key={monthInfo.month} 
                 className={`
-                  p-4 rounded-lg transition-all cursor-pointer hover:scale-105
-                  ${monthInfo.isCurrentMonth ? 'border-2 border-light ring-2 ring-light/20' : ''}
+                  p-4 rounded-lg transition-all 
+                  ${disabled 
+                    ? 'opacity-30 cursor-not-allowed' 
+                    : 'cursor-pointer hover:scale-105'
+                  }
+                  ${monthInfo.isCurrentMonth ? 'border-2 border-light ring-2 ring-light/30 bg-light/10' : ''}
                   ${getStatusColor(status)}
                 `}
-                onClick={() => onMonthClick && onMonthClick(monthInfo.date)}
+                onClick={() => !disabled && onMonthClick && onMonthClick(monthInfo.date)}
               >
                 {/* Month header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className={`text-sm font-medium ${
-                    monthInfo.isCurrentMonth ? 'text-light font-bold' : 'text-current'
+                    monthInfo.isCurrentMonth ? 'text-light font-bold text-base' : 'text-current'
                   }`}>
                     {monthName}
                   </div>
                   {monthInfo.isCurrentMonth && (
-                    <div className="w-2 h-2 bg-light rounded-full"></div>
+                    <div className="w-3 h-3 bg-light rounded-full shadow-lg"></div>
                   )}
+
                 </div>
                 
                 {/* Completion rate */}

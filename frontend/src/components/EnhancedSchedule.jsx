@@ -4,10 +4,11 @@ import MonthlyCalendarView from './MonthlyCalendarView'
 import YearlyCalendarView from './YearlyCalendarView'
 import { dateUtils } from '../utils/dateUtils'
 
-export default function EnhancedSchedule({ habits = [], completions = [] }) {
+export default function EnhancedSchedule({ habits = [], completions = [], onSectionChange }) {
   const [view, setView] = useState('weekly')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewDate, setViewDate] = useState(new Date()) // What period user is viewing
+  const [selectedDate, setSelectedDate] = useState(null) // Date selected from monthly calendar
   const [touchStart, setTouchStart] = useState(null)
   const [touchEnd, setTouchEnd] = useState(null)
 
@@ -16,6 +17,23 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
     { id: 'monthly', label: 'Monthly', icon: '📆' },
     { id: 'yearly', label: 'Yearly', icon: '🗓️' }
   ]
+
+  // Calculate the user's habit journey start date
+  const getJourneyStartDate = () => {
+    if (!habits || habits.length === 0) {
+      return new Date() // If no habits, use today as start
+    }
+    
+    const earliestHabit = habits.reduce((earliest, habit) => {
+      if (!habit.created_at) return earliest
+      const habitDate = new Date(habit.created_at)
+      return !earliest || habitDate < earliest ? habitDate : earliest
+    }, null)
+    
+    return earliestHabit || new Date()
+  }
+
+  const journeyStartDate = getJourneyStartDate()
 
   // Auto-advance logic - check for date changes
   useEffect(() => {
@@ -34,6 +52,15 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
     const interval = setInterval(checkDateChange, 60 * 60 * 1000)
     return () => clearInterval(interval)
   }, [currentDate])
+
+  // Expose reset function for parent component
+  useEffect(() => {
+    if (onSectionChange) {
+      onSectionChange(() => {
+        setSelectedDate(null) // Reset selected date when section changes
+      })
+    }
+  }, [onSectionChange])
 
   // Check if user is viewing the current period
   const isViewingCurrentPeriod = () => {
@@ -80,8 +107,10 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
   }
 
   const navigatePrevious = () => {
-    const newDate = dateUtils.getPreviousPeriod(viewDate, view)
-    setViewDate(newDate)
+    if (canNavigatePrevious()) {
+      const newDate = dateUtils.getPreviousPeriod(viewDate, view)
+      setViewDate(newDate)
+    }
   }
 
   const navigateNext = () => {
@@ -94,11 +123,38 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
   const navigateToToday = () => {
     const today = new Date()
     setViewDate(today)
+    setSelectedDate(null) // Reset selected date to show current date highlighting
   }
 
   const canNavigatePrevious = () => {
-    // Allow navigation to any past period
-    return true
+    if (!journeyStartDate) return true
+    
+    const previousPeriod = dateUtils.getPreviousPeriod(viewDate, view)
+    
+    switch (view) {
+      case 'weekly':
+        const journeyWeekStart = dateUtils.getWeekStart(journeyStartDate)
+        const previousWeekStart = dateUtils.getWeekStart(previousPeriod)
+        
+        // Normalize dates to avoid timezone issues
+        journeyWeekStart.setHours(0, 0, 0, 0)
+        previousWeekStart.setHours(0, 0, 0, 0)
+        
+        // Allow navigation if the previous week is at or after the journey start week
+        return previousWeekStart.getTime() >= journeyWeekStart.getTime()
+        
+      case 'monthly':
+        const journeyMonthStart = dateUtils.getMonthStart(journeyStartDate)
+        const previousMonthStart = dateUtils.getMonthStart(previousPeriod)
+        // Allow navigation if the previous month is at or after the journey start month
+        return previousMonthStart.getTime() >= journeyMonthStart.getTime()
+        
+      case 'yearly':
+        return previousPeriod.getFullYear() >= journeyStartDate.getFullYear()
+        
+      default:
+        return true
+    }
   }
 
   const canNavigateNext = () => {
@@ -109,6 +165,7 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
     // Navigate to weekly view and show the week containing the clicked date
     setView('weekly')
     setViewDate(new Date(date))
+    setSelectedDate(new Date(date)) // Set the selected date for highlighting
   }
 
   const handleMonthClick = (monthDate) => {
@@ -123,6 +180,7 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
         habits={habits} 
         completions={completions} 
         viewDate={viewDate}
+        selectedDate={selectedDate}
         onDateClick={handleDateClick}
       />
     )
@@ -134,6 +192,7 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
         habits={habits} 
         completions={completions} 
         viewDate={viewDate}
+        journeyStartDate={journeyStartDate}
         onDateClick={handleDateClick}
       />
     )
@@ -145,6 +204,7 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
         habits={habits} 
         completions={completions} 
         viewDate={viewDate}
+        journeyStartDate={journeyStartDate}
         onMonthClick={handleMonthClick}
       />
     )

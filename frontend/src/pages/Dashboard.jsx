@@ -4,13 +4,14 @@ import Journey from '../components/Journey'
 import EnhancedSchedule from '../components/EnhancedSchedule'
 import AnalyticsInsights from '../components/AnalyticsInsights'
 import FloatingChat from '../components/FloatingChat'
-import GuestModeBanner from '../components/GuestModeBanner'
+
 import EnhancedDashboard from '../components/EnhancedDashboard'
 import AchievementProgress from '../components/AchievementProgress'
 import AchievementNotification from '../components/AchievementNotification'
 import BoboCustomization from '../components/BoboCustomization'
 import VoiceCallSettings from '../components/VoiceCallSettings'
 import VoiceCallButton from '../components/VoiceCallButton'
+
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -21,6 +22,7 @@ function Dashboard() {
   const [habits, setHabits] = useState([])
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [scheduleResetFn, setScheduleResetFn] = useState(null)
   const [testAchievement, setTestAchievement] = useState(null)
 
   useEffect(() => {
@@ -146,6 +148,14 @@ function Dashboard() {
     'night': 4
   }
 
+  // Handle section changes and reset schedule selection
+  const handleSectionChange = (section) => {
+    if (currentSection === 'schedule' && section !== 'schedule' && scheduleResetFn) {
+      scheduleResetFn() // Reset selected date when leaving schedule section
+    }
+    setCurrentSection(section)
+  }
+
   const handleExplore = () => {
     // Smooth scroll to journey section
     setTimeout(() => {
@@ -171,8 +181,7 @@ function Dashboard() {
         />
       )}
 
-      {/* Guest Mode Banner */}
-      <GuestModeBanner />
+
 
       {/* Floating AI Agent Chat Widget */}
       <FloatingChat habits={habits} logs={logs} onAction={handleAgentAction} />
@@ -204,7 +213,7 @@ function Dashboard() {
             <div className="max-w-[1600px] mx-auto px-6">
               <div className="flex items-center justify-center gap-2 h-16">
                 <button
-                  onClick={() => setCurrentSection('habits')}
+                  onClick={() => handleSectionChange('habits')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'habits'
                       ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
@@ -214,7 +223,7 @@ function Dashboard() {
                   Habits
                 </button>
                 <button
-                  onClick={() => setCurrentSection('schedule')}
+                  onClick={() => handleSectionChange('schedule')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'schedule'
                       ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
@@ -224,7 +233,7 @@ function Dashboard() {
                   Schedule
                 </button>
                 <button
-                  onClick={() => setCurrentSection('calls')}
+                  onClick={() => handleSectionChange('calls')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'calls'
                       ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
@@ -234,7 +243,7 @@ function Dashboard() {
                   Calls
                 </button>
                 <button
-                  onClick={() => setCurrentSection('insights')}
+                  onClick={() => handleSectionChange('insights')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'insights'
                       ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
@@ -244,7 +253,7 @@ function Dashboard() {
                   Insights
                 </button>
                 <button
-                  onClick={() => setCurrentSection('bobo')}
+                  onClick={() => handleSectionChange('bobo')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'bobo'
                       ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
@@ -271,7 +280,11 @@ function Dashboard() {
             )}
 
             {currentSection === 'schedule' && (
-              <EnhancedSchedule habits={habits} completions={logs} />
+              <EnhancedSchedule 
+                habits={habits} 
+                completions={logs} 
+                onSectionChange={setScheduleResetFn}
+              />
             )}
 
             {currentSection === 'calls' && (

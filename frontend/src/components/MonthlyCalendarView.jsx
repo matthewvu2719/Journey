@@ -6,6 +6,7 @@ export default function MonthlyCalendarView({
   habits, 
   completions = [], 
   viewDate,
+  journeyStartDate,
   onDateClick 
 }) {
   const [successRates, setSuccessRates] = useState({})
@@ -104,6 +105,34 @@ export default function MonthlyCalendarView({
     }
   }
 
+  // Check if a date should be disabled (before journey start)
+  const isDateDisabled = (date) => {
+    if (!journeyStartDate) return false
+    
+    const dateToCheck = new Date(date)
+    const journeyStart = new Date(journeyStartDate)
+    
+    // Normalize dates to avoid timezone issues
+    dateToCheck.setHours(0, 0, 0, 0)
+    journeyStart.setHours(0, 0, 0, 0)
+    
+    return dateToCheck < journeyStart
+  }
+
+  // Check if this is the journey start date
+  const isJourneyStartDate = (date) => {
+    if (!journeyStartDate) return false
+    
+    const dateToCheck = new Date(date)
+    const journeyStart = new Date(journeyStartDate)
+    
+    // Normalize dates to avoid timezone issues
+    dateToCheck.setHours(0, 0, 0, 0)
+    journeyStart.setHours(0, 0, 0, 0)
+    
+    return dateToCheck.getTime() === journeyStart.getTime()
+  }
+
   if (loading) {
     return (
       <div className="glass rounded-2xl p-6">
@@ -132,21 +161,27 @@ export default function MonthlyCalendarView({
             const { date, isCurrentMonth, isToday } = dayInfo
             const completionStatus = getDayCompletionStatus(date)
             const completionRate = getDayCompletionRate(date)
+            const disabled = isDateDisabled(date)
+            const isJourneyStart = isJourneyStartDate(date)
             
             return (
               <div 
                 key={idx} 
                 className={`
-                  relative min-h-[80px] p-2 rounded-lg transition-all cursor-pointer hover:scale-105
+                  relative min-h-[80px] p-2 rounded-lg transition-all 
+                  ${disabled 
+                    ? 'opacity-30 cursor-not-allowed' 
+                    : 'cursor-pointer hover:scale-105'
+                  }
                   ${isCurrentMonth ? 'bg-light/5' : 'bg-light/2'}
-                  ${isToday ? 'border-2 border-light ring-2 ring-light/20' : ''}
+                  ${isToday ? 'border-2 border-light ring-2 ring-light/30 bg-light/10' : ''}
                   ${getStatusColor(completionStatus)}
                 `}
-                onClick={() => onDateClick && onDateClick(date)}
+                onClick={() => !disabled && onDateClick && onDateClick(date)}
               >
                 {/* Date number */}
                 <div className={`text-sm font-bold mb-1 ${
-                  isToday ? 'text-light' : 
+                  isToday ? 'text-light text-lg' : 
                   isCurrentMonth ? 'text-light' : 'text-light/30'
                 }`}>
                   {date.getDate()}
@@ -154,8 +189,10 @@ export default function MonthlyCalendarView({
                 
                 {/* Today indicator */}
                 {isToday && (
-                  <div className="absolute top-1 right-1 w-2 h-2 bg-light rounded-full"></div>
+                  <div className="absolute top-1 right-1 w-3 h-3 bg-light rounded-full shadow-lg"></div>
                 )}
+                
+
                 
                 {/* Completion indicator */}
                 {isCurrentMonth && habits.length > 0 && !dateUtils.isFuture(date) && (
@@ -224,6 +261,7 @@ export default function MonthlyCalendarView({
             <div className="w-3 h-3 rounded bg-light/5"></div>
             <span className="text-light/60">Future</span>
           </div>
+
         </div>
       </div>
     </div>

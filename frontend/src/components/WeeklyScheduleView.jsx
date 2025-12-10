@@ -39,17 +39,29 @@ export default function WeeklyScheduleView({ habits, completions = [], currentDa
     const isPast = date < today
     const completed = isInstanceCompleted(habit.id, dayShort, timeOfDayId, weekStart)
     
-    const habitCreatedDate = habit.created_at ? habit.created_at.split('T')[0] : null
-    const isAfterCreation = !habitCreatedDate || date >= habitCreatedDate
-    
-    return isPast && !completed && isAfterCreation
+    // Since we only show habits from today onwards, 
+    // overdue is simply: past date + not completed
+    return isPast && !completed
   }
 
-  const getHabitsForDayAndTime = (dayShort, timeName) => {
+  const getHabitsForDayAndTime = (dayShort, timeName, weekStart) => {
+    const dayDate = getDateForDay(dayShort, weekStart)
+    const today = new Date().toISOString().split('T')[0]
+    
     return habits.filter(habit => {
       const hasDay = habit.days && habit.days.includes(dayShort)
       const hasTime = habit.times_of_day && habit.times_of_day.includes(timeName)
-      return hasDay && hasTime
+      
+      // Only show habits from today onwards (not in the past)
+      const habitCreatedDate = habit.created_at ? habit.created_at.split('T')[0] : today
+      
+      // Show habit if:
+      // 1. It matches the day and time
+      // 2. The day is today or in the future, OR
+      // 3. The day is in the past but after the habit was created
+      const isValidDate = dayDate >= today || dayDate >= habitCreatedDate
+      
+      return hasDay && hasTime && isValidDate
     }).sort((a, b) => (b.priority || 5) - (a.priority || 5))
   }
 
@@ -75,7 +87,7 @@ export default function WeeklyScheduleView({ habits, completions = [], currentDa
                 
                 <div className="space-y-3">
                   {timesOfDay.map((time) => {
-                    const timeHabits = getHabitsForDayAndTime(day.short, time.name)
+                    const timeHabits = getHabitsForDayAndTime(day.short, time.name, weekStart)
                     
                     if (timeHabits.length === 0) return null
                     
@@ -136,7 +148,7 @@ export default function WeeklyScheduleView({ habits, completions = [], currentDa
                     )
                   })}
                   
-                  {timesOfDay.every(time => getHabitsForDayAndTime(day.short, time.name).length === 0) && (
+                  {timesOfDay.every(time => getHabitsForDayAndTime(day.short, time.name, weekStart).length === 0) && (
                     <div className="text-center py-6 text-light/30 text-sm">
                       Rest day
                     </div>

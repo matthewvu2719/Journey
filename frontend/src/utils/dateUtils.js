@@ -147,21 +147,10 @@ export const dateUtils = {
     return newDate
   },
 
-  // Check if can navigate to next period (not future)
+  // Check if can navigate to next period (allow future navigation)
   canNavigateNext: (date, view) => {
-    const nextPeriod = dateUtils.getNextPeriod(date, view)
-    const today = new Date()
-    
-    switch (view) {
-      case 'weekly':
-        return dateUtils.getWeekStart(nextPeriod) <= dateUtils.getWeekStart(today)
-      case 'monthly':
-        return dateUtils.getMonthStart(nextPeriod) <= dateUtils.getMonthStart(today)
-      case 'yearly':
-        return nextPeriod.getFullYear() <= today.getFullYear()
-    }
-    
-    return false
+    // Always allow navigation to future periods
+    return true
   },
 
   // Format date for display
@@ -205,5 +194,11 @@ export const dateUtils = {
       default:
         return dateUtils.formatDate(date)
     }
+  },
+
+  // Check if two dates are the same day
+  isSameDay: (date1, date2) => {
+    if (!date1 || !date2) return false
+    return date1.toDateString() === date2.toDateString()
   }
 }
