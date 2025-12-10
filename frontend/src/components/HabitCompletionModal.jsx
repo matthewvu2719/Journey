@@ -12,7 +12,7 @@ export default function HabitCompletionModal({
     mood_after: 'great',
     energy_level_before: 'high',
     energy_level_after: 'high',
-    actual_duration: habit?.estimated_duration || 0
+    actual_duration: habit?.habit_type === 'atomic' ? 0 : (habit?.estimated_duration || 0)
   })
 
   const handleSubmit = () => {
@@ -154,7 +154,7 @@ export default function HabitCompletionModal({
         </div>
       </div>
 
-      <style jsx>{`
+      <style jsx="true">{`
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }

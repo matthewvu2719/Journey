@@ -183,13 +183,9 @@ export const api = {
     return data
   },
 
-  getMonthlySuccessRates: async (year, month) => {
-    const { data } = await client.get(`/api/stats/monthly/${year}/${month}`)
-    return data
-  },
-
-  calculateDailySuccess: async (targetDate) => {
-    const { data } = await client.post(`/api/stats/calculate-daily-success/${targetDate}`)
+  // Batch endpoint for dashboard data
+  getDashboardData: async () => {
+    const { data } = await client.get('/api/dashboard/data')
     return data
   },
   

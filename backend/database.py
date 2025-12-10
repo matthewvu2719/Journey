@@ -106,28 +106,72 @@ class SupabaseClient:
             raise
     
     def get_habits(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get all habits for a user with their associated days and times_of_day"""
+        """Get all habits for a user with their associated days and times_of_day - optimized version"""
         if self.mock_mode:
             return [h for h in self.mock_habits if h.get("user_id") == user_id]
         
-        response = self.client.table("habits").select("*").eq("user_id", user_id).execute()
-        habits = response.data
-        
-        # Fetch days and times_of_day for each habit
-        for habit in habits:
-            try:
-                habit['days'] = self._get_habit_days(habit['id'])
-            except Exception as e:
-                print(f"Warning: Could not fetch days for habit {habit['id']}: {e}")
-                habit['days'] = []  # Return empty array if days table doesn't exist
+        # Use regular Supabase queries for better reliability
+        try:
+            response = self.client.table("habits").select("*").eq("user_id", user_id).execute()
+            habits = response.data
+            
+            if not habits:
+                return []
+            
+            # Batch fetch days for all habits
+            habit_ids = [h['id'] for h in habits]
             
             try:
-                habit['times_of_day'] = self._get_habit_times_of_day(habit['id'])
+                # Fetch all days relationships in one query
+                days_response = self.client.table("days_habits").select("habit_id, day_id").in_("habit_id", habit_ids).execute()
+                days_map = {}
+                day_id_to_name = {1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun'}
+                
+                for item in days_response.data:
+                    habit_id = item['habit_id']
+                    day_name = day_id_to_name.get(item['day_id'])
+                    if day_name:
+                        if habit_id not in days_map:
+                            days_map[habit_id] = []
+                        days_map[habit_id].append(day_name)
+                
+                # Assign days to habits
+                for habit in habits:
+                    habit['days'] = days_map.get(habit['id'], [])
+                    
             except Exception as e:
-                print(f"Warning: Could not fetch times of day for habit {habit['id']}: {e}")
-                habit['times_of_day'] = []  # Return empty array if times_of_day table doesn't exist
-        
-        return habits
+                print(f"Warning: Could not batch fetch days: {e}")
+                for habit in habits:
+                    habit['days'] = []
+            
+            try:
+                # Fetch all times_of_day relationships in one query
+                times_response = self.client.table("times_of_day_habits").select("habit_id, time_of_day_id").in_("habit_id", habit_ids).execute()
+                times_map = {}
+                time_id_to_name = {1: 'morning', 2: 'noon', 3: 'afternoon', 4: 'night'}
+                
+                for item in times_response.data:
+                    habit_id = item['habit_id']
+                    time_name = time_id_to_name.get(item['time_of_day_id'])
+                    if time_name:
+                        if habit_id not in times_map:
+                            times_map[habit_id] = []
+                        times_map[habit_id].append(time_name)
+                
+                # Assign times_of_day to habits
+                for habit in habits:
+                    habit['times_of_day'] = times_map.get(habit['id'], [])
+                    
+            except Exception as e:
+                print(f"Warning: Could not batch fetch times of day: {e}")
+                for habit in habits:
+                    habit['times_of_day'] = []
+            
+            return habits
+            
+        except Exception as e:
+            print(f"Fallback get_habits also failed: {e}")
+            return []
     
     def get_habit(self, habit_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific habit"""
@@ -159,118 +203,399 @@ class SupabaseClient:
         return True
     
     def get_habits_for_today(self, user_id: str, time_of_day: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get habits scheduled for today, optionally filtered by time of day"""
+        """Get habits scheduled for today, optionally filtered by time of day - optimized version"""
         from datetime import datetime
         
-        # Get today's day name (Mon, Tue, Wed, etc.)
-        today = datetime.now().strftime('%a')  # Returns 'Mon', 'Tue', etc.
-        
-        # Get all habits for the user
-        all_habits = self.get_habits(user_id)
-        
-        # Filter habits for today
-        today_habits = []
-        for habit in all_habits:
-            # Check if habit is scheduled for today
-            habit_days = habit.get('days', [])
-            habit_times = habit.get('times_of_day', [])
+        if self.mock_mode:
+            # Use existing logic for mock mode
+            today = datetime.now().strftime('%a')
+            all_habits = self.get_habits(user_id)
             
-            # If no days specified, assume it's for all days (backward compatibility)
-            if not habit_days:
-                is_today = True
-            else:
-                is_today = today in habit_days
-            
-            # If filtering by time of day
-            if time_of_day:
-                # If no times specified, assume it's for all times (backward compatibility)
-                if not habit_times:
-                    is_time_match = True
+            today_habits = []
+            for habit in all_habits:
+                habit_days = habit.get('days', [])
+                habit_times = habit.get('times_of_day', [])
+                
+                # Check if habit is scheduled for today
+                if not habit_days:
+                    is_today = True
                 else:
-                    is_time_match = time_of_day in habit_times
-            else:
-                is_time_match = True
+                    is_today = today in habit_days
+                
+                # If filtering by time of day
+                if time_of_day:
+                    if not habit_times:
+                        is_time_match = True
+                    else:
+                        is_time_match = time_of_day in habit_times
+                else:
+                    is_time_match = True
+                
+                if is_today and is_time_match:
+                    today_habits.append(habit)
             
-            if is_today and is_time_match:
-                today_habits.append(habit)
+            return today_habits
         
-        return today_habits
+        # Use fallback method directly for better reliability
+            today = datetime.now().strftime('%a')
+            all_habits = self.get_habits(user_id)
+            
+            today_habits = []
+            for habit in all_habits:
+                habit_days = habit.get('days', [])
+                habit_times = habit.get('times_of_day', [])
+                
+                # Check if habit is scheduled for today
+                if not habit_days:
+                    is_today = True
+                else:
+                    is_today = today in habit_days
+                
+                # If filtering by time of day
+                if time_of_day:
+                    if not habit_times:
+                        is_time_match = True
+                    else:
+                        is_time_match = time_of_day in habit_times
+                else:
+                    is_time_match = True
+                
+                if is_today and is_time_match:
+                    today_habits.append(habit)
+            
+            return today_habits
     
     def get_habits_count_for_today(self, user_id: str, time_of_day: Optional[str] = None) -> int:
         """Get count of habits scheduled for today, optionally filtered by time of day"""
         return len(self.get_habits_for_today(user_id, time_of_day))
     
+    def get_time_remaining_today(self, user_id: str) -> int:
+        """Get remaining time for uncompleted big habits today - accounts for times_of_day"""
+        if self.mock_mode:
+            # Mock implementation - calculate from mock data
+            all_habits = self.get_habits(user_id)
+            today_completions = self.get_completions(
+                user_id=user_id,
+                start_date=date.today().isoformat(),
+                end_date=date.today().isoformat()
+            )
+            
+            # Count completions per habit
+            completions_per_habit = {}
+            for completion in today_completions:
+                habit_id = completion['habit_id']
+                completions_per_habit[habit_id] = completions_per_habit.get(habit_id, 0) + 1
+            
+            time_remaining = 0
+            today_day = datetime.now().strftime('%a')
+            
+            for habit in all_habits:
+                if (habit.get('habit_type') == 'big' and 
+                    habit.get('estimated_duration')):
+                    
+                    # Check if habit is scheduled for today
+                    habit_days = habit.get('days', [])
+                    if habit_days and today_day not in habit_days:
+                        continue
+                    
+                    # Count times per day for this habit
+                    habit_times = habit.get('times_of_day', [])
+                    times_per_day = len(habit_times) if habit_times else 1
+                    
+                    # Count completed instances
+                    completed_instances = completions_per_habit.get(habit['id'], 0)
+                    
+                    # Calculate remaining instances
+                    remaining_instances = max(0, times_per_day - completed_instances)
+                    
+                    # Add to time remaining
+                    time_remaining += remaining_instances * habit.get('estimated_duration', 0)
+            
+            return time_remaining
+        
+        try:
+            # Use regular Supabase queries for better compatibility  
+            from datetime import datetime
+            
+            # Get today's day of week (convert Python 0=Monday to schema 1=Monday, 7=Sunday)
+            python_dow = datetime.now().weekday()  # 0=Monday, 6=Sunday
+            schema_dow = python_dow + 1 if python_dow < 6 else 7  # 1=Monday, 7=Sunday
+            
+            # Step 1: Get big habits with duration for user
+            habits_response = self.client.table("habits").select("id, estimated_duration").eq("user_id", user_id).eq("habit_type", "big").eq("is_active", True).not_.is_("estimated_duration", "null").execute()
+            
+            if not habits_response.data:
+                return 0
+            
+            big_habit_ids = [h['id'] for h in habits_response.data]
+            habits_by_id = {h['id']: h for h in habits_response.data}
+            
+            # Step 2: Filter habits scheduled for today
+            # Get habits with no specific days (should happen every day)
+            habits_with_days_response = self.client.table("days_habits").select("habit_id").in_("habit_id", big_habit_ids).execute()
+            habits_with_days = {item['habit_id'] for item in habits_with_days_response.data} if habits_with_days_response.data else set()
+            habits_no_days = [h_id for h_id in big_habit_ids if h_id not in habits_with_days]
+            
+            # Get habits scheduled for today
+            habits_today_response = self.client.table("days_habits").select("habit_id").eq("day_id", schema_dow).in_("habit_id", big_habit_ids).execute()
+            habits_scheduled_today = {item['habit_id'] for item in habits_today_response.data} if habits_today_response.data else set()
+            
+            # Combine: habits with no days + habits scheduled for today
+            today_habit_ids = list(set(habits_no_days) | habits_scheduled_today)
+            
+            if not today_habit_ids:
+                return 0
+            
+            # Step 3: Count times per day for each habit
+            times_response = self.client.table("times_of_day_habits").select("habit_id").in_("habit_id", today_habit_ids).execute()
+            times_per_habit = {}
+            
+            for item in times_response.data if times_response.data else []:
+                habit_id = item['habit_id']
+                times_per_habit[habit_id] = times_per_habit.get(habit_id, 0) + 1
+            
+            # Step 4: Get today's completions
+            today_date = date.today().isoformat()
+            completions_response = self.client.table("habit_completions").select("habit_id").eq("user_id", user_id).eq("completed_date", today_date).in_("habit_id", today_habit_ids).execute()
+            
+            completions_per_habit = {}
+            for item in completions_response.data if completions_response.data else []:
+                habit_id = item['habit_id']
+                completions_per_habit[habit_id] = completions_per_habit.get(habit_id, 0) + 1
+            
+            # Step 5: Calculate time remaining
+            time_remaining = 0
+            
+            for habit_id in today_habit_ids:
+                habit = habits_by_id[habit_id]
+                estimated_duration = habit['estimated_duration']
+                
+                # Times per day for this habit
+                times_per_day = times_per_habit.get(habit_id, 1)  # Default to 1 if no times specified
+                
+                # Completed instances today
+                completed_instances = completions_per_habit.get(habit_id, 0)
+                
+                # Remaining instances (can't be negative)
+                remaining_instances = max(0, times_per_day - completed_instances)
+                
+                # Add to total time remaining
+                time_remaining += remaining_instances * estimated_duration
+            
+            return time_remaining
+            
+        except Exception as e:
+            print(f"Error in get_time_remaining_today: {e}")
+            import traceback
+            traceback.print_exc()
+            return 0
+
     def get_today_stats(self, user_id: str) -> Dict[str, Any]:
-        """Get comprehensive stats for today"""
+        """Get comprehensive stats for today - optimized version"""
         from datetime import datetime, date as date_type
         
         today_date = date_type.today().isoformat()
         today_day = datetime.now().strftime('%a')  # 'Mon', 'Tue', etc.
         
-        # Get all user habits
-        all_habits = self.get_habits(user_id)
-        
-        # Get today's completions
-        today_completions = self.get_completions(
-            user_id=user_id,
-            start_date=today_date,
-            end_date=today_date
-        )
-        
-        # Build list of habit instances (habit × time_of_day combinations) for today
-        habit_instances = []
-        completed_instances = set()
-        time_remaining = 0
-        
-        for habit in all_habits:
-            habit_days = habit.get('days', [])
-            habit_times = habit.get('times_of_day', [])
+        if self.mock_mode:
+            # Use existing logic for mock mode
+            all_habits = self.get_habits(user_id)
+            today_completions = self.get_completions(
+                user_id=user_id,
+                start_date=today_date,
+                end_date=today_date
+            )
             
-            # Check if habit is scheduled for today
-            if not habit_days or today_day in habit_days:
-                # If no times specified, default to one instance
-                if not habit_times:
-                    habit_times = ['default']
+            # Build list of habit instances (habit × time_of_day combinations) for today
+            habit_instances = []
+            completed_instances = set()
+            
+            for habit in all_habits:
+                habit_days = habit.get('days', [])
+                habit_times = habit.get('times_of_day', [])
                 
-                # Create an instance for each time of day
-                for time_of_day in habit_times:
-                    instance_key = f"{habit['id']}_{time_of_day}"
-                    habit_instances.append({
-                        'habit_id': habit['id'],
-                        'time_of_day': time_of_day,
-                        'instance_key': instance_key,
-                        'estimated_duration': habit.get('estimated_duration', 0)
-                    })
+                # Check if habit is scheduled for today
+                if not habit_days or today_day in habit_days:
+                    # If no times specified, default to one instance
+                    if not habit_times:
+                        habit_times = ['default']
                     
-                    # Check if this instance is completed
-                    is_completed = False
-                    for completion in today_completions:
-                        if completion['habit_id'] == habit['id']:
-                            # Map time_of_day_id to time names for comparison
-                            completion_time = self._get_time_name_from_id(completion.get('time_of_day_id'))
-                            if completion_time == time_of_day or (time_of_day == 'default' and completion_time):
-                                is_completed = True
-                                completed_instances.add(instance_key)
-                                break
-                    
-                    # Add to time remaining if not completed
-                    if not is_completed:
-                        # Only add duration for big habits with estimated_duration set
-                        if habit.get('habit_type') == 'big' and habit.get('estimated_duration'):
-                            time_remaining += habit.get('estimated_duration')
+                    # Create an instance for each time of day
+                    for time_of_day in habit_times:
+                        instance_key = f"{habit['id']}_{time_of_day}"
+                        habit_instances.append({
+                            'habit_id': habit['id'],
+                            'time_of_day': time_of_day,
+                            'instance_key': instance_key
+                        })
+                        
+                        # Check if this instance is completed
+                        is_completed = False
+                        for completion in today_completions:
+                            if completion['habit_id'] == habit['id']:
+                                completion_time = self._get_time_name_from_id(completion.get('time_of_day_id'))
+                                if completion_time == time_of_day or (time_of_day == 'default' and completion_time):
+                                    is_completed = True
+                                    completed_instances.add(instance_key)
+                                    break
+            
+            # Calculate success rate
+            total_instances = len(habit_instances)
+            completed_count = len(completed_instances)
+            success_rate = round((completed_count / total_instances) * 100) if total_instances > 0 else 0
+            
+            # Get time remaining using optimized function
+            time_remaining = self.get_time_remaining_today(user_id)
+            
+            return {
+                'habits_today': total_instances,
+                'completed_today': completed_count,
+                'success_rate_today': success_rate,
+                'time_remaining': time_remaining,
+                'completions_today': len(today_completions)
+            }
         
-        # Calculate success rate
-        total_instances = len(habit_instances)
-        completed_count = len(completed_instances)
-        success_rate = round((completed_count / total_instances) * 100) if total_instances > 0 else 0
-        
-        return {
-            'habits_today': total_instances,  # Total habit instances (habit × time combinations)
-            'completed_today': completed_count,
-            'success_rate_today': success_rate,
-            'time_remaining': time_remaining,
-            'completions_today': len(today_completions)
-        }
+        try:
+            # Use regular Supabase queries instead of execute_sql for better compatibility
+            from datetime import datetime
+            
+            # Get today's day of week (convert Python 0=Monday to schema 1=Monday, 7=Sunday)
+            python_dow = datetime.now().weekday()  # 0=Monday, 6=Sunday
+            schema_dow = python_dow + 1 if python_dow < 6 else 7  # 1=Monday, 7=Sunday
+            
+            print(f"[DEBUG] Today is day {schema_dow} (Python: {python_dow})")
+            
+            # Step 1: Get all active habits for user
+            habits_response = self.client.table("habits").select("id").eq("user_id", user_id).eq("is_active", True).execute()
+            all_habit_ids = [h['id'] for h in habits_response.data] if habits_response.data else []
+            
+            if not all_habit_ids:
+                print(f"[DEBUG] No active habits found for user {user_id}")
+                return {
+                    'habits_today': 0,
+                    'completed_today': 0,
+                    'success_rate_today': 0,
+                    'time_remaining': 0,
+                    'completions_today': 0
+                }
+            
+            print(f"[DEBUG] Found {len(all_habit_ids)} active habits")
+            
+            # Step 2: Filter habits scheduled for today
+            # Get habits with no specific days (should happen every day)
+            habits_no_days_response = self.client.table("habits").select("id").eq("user_id", user_id).eq("is_active", True).execute()
+            habits_with_days_response = self.client.table("days_habits").select("habit_id").in_("habit_id", all_habit_ids).execute()
+            
+            habits_with_days = {item['habit_id'] for item in habits_with_days_response.data} if habits_with_days_response.data else set()
+            habits_no_days = [h['id'] for h in habits_no_days_response.data if h['id'] not in habits_with_days] if habits_no_days_response.data else []
+            
+            # Get habits scheduled for today
+            habits_today_response = self.client.table("days_habits").select("habit_id").eq("day_id", schema_dow).in_("habit_id", all_habit_ids).execute()
+            habits_scheduled_today = {item['habit_id'] for item in habits_today_response.data} if habits_today_response.data else set()
+            
+            # Combine: habits with no days + habits scheduled for today
+            today_habit_ids = list(set(habits_no_days) | habits_scheduled_today)
+            
+            print(f"[DEBUG] Habits scheduled for today: {len(today_habit_ids)} (no days: {len(habits_no_days)}, scheduled: {len(habits_scheduled_today)})")
+            
+            if not today_habit_ids:
+                return {
+                    'habits_today': 0,
+                    'completed_today': 0,
+                    'success_rate_today': 0,
+                    'time_remaining': 0,
+                    'completions_today': 0
+                }
+            
+            # Step 3: Count times per day for each habit
+            times_response = self.client.table("times_of_day_habits").select("habit_id").in_("habit_id", today_habit_ids).execute()
+            times_per_habit = {}
+            
+            for item in times_response.data if times_response.data else []:
+                habit_id = item['habit_id']
+                times_per_habit[habit_id] = times_per_habit.get(habit_id, 0) + 1
+            
+            # Habits with no specific times = 1 time per day
+            total_instances = 0
+            for habit_id in today_habit_ids:
+                times_count = times_per_habit.get(habit_id, 1)  # Default to 1 if no times specified
+                total_instances += times_count
+            
+            print(f"[DEBUG] Total habit instances today: {total_instances}")
+            
+            # Step 4: Get today's completions
+            today_date = date_type.today().isoformat()
+            completions_response = self.client.table("habit_completions").select("habit_id").eq("user_id", user_id).eq("completed_date", today_date).in_("habit_id", today_habit_ids).execute()
+            
+            completions_per_habit = {}
+            total_completions = 0
+            
+            for item in completions_response.data if completions_response.data else []:
+                habit_id = item['habit_id']
+                completions_per_habit[habit_id] = completions_per_habit.get(habit_id, 0) + 1
+                total_completions += 1
+            
+            print(f"[DEBUG] Total completions today: {total_completions}")
+            
+            # Step 5: Calculate completed instances (capped at expected times per day)
+            completed_instances = 0
+            for habit_id in today_habit_ids:
+                expected_times = times_per_habit.get(habit_id, 1)
+                actual_completions = completions_per_habit.get(habit_id, 0)
+                completed_instances += min(actual_completions, expected_times)
+            
+            # Step 6: Calculate success rate
+            success_rate = round((completed_instances / total_instances) * 100) if total_instances > 0 else 0
+            
+            print(f"[DEBUG] Completed instances: {completed_instances}/{total_instances} = {success_rate}%")
+            
+            # Get time remaining using optimized function
+            time_remaining = self.get_time_remaining_today(user_id)
+            
+            return {
+                'habits_today': total_instances,
+                'completed_today': completed_instances,
+                'success_rate_today': success_rate,
+                'time_remaining': time_remaining,
+                'completions_today': total_completions
+            }
+                
+        except Exception as e:
+            print(f"Error in get_today_stats: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to simpler queries
+            try:
+                # Count today's completions
+                completions_response = self.client.table("habit_completions").select("id", count="exact").eq("user_id", user_id).eq("completed_date", today_date).execute()
+                completions_today = completions_response.count or 0
+                
+                # Get basic habit count (simplified)
+                habits_response = self.client.table("habits").select("id", count="exact").eq("user_id", user_id).execute()
+                habits_today = habits_response.count or 0
+                
+                # Calculate basic success rate
+                success_rate = round((completions_today / habits_today) * 100) if habits_today > 0 else 0
+                
+                # Get time remaining using optimized function
+                time_remaining = self.get_time_remaining_today(user_id)
+                
+                return {
+                    'habits_today': habits_today,
+                    'completed_today': completions_today,
+                    'success_rate_today': success_rate,
+                    'time_remaining': time_remaining,
+                    'completions_today': completions_today
+                }
+            except Exception as fallback_error:
+                print(f"Fallback query also failed: {fallback_error}")
+                return {
+                    'habits_today': 0,
+                    'completed_today': 0,
+                    'success_rate_today': 0,
+                    'time_remaining': 0,
+                    'completions_today': 0
+                }
     
     def _get_time_name_from_id(self, time_id: Optional[int]) -> Optional[str]:
         """Convert time_of_day_id to time name"""
@@ -337,7 +662,7 @@ class SupabaseClient:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None
     ) -> List[Dict[str, Any]]:
-        """Get habit completions with filters"""
+        """Get habit completions with filters - optimized version"""
         if self.mock_mode:
             if not hasattr(self, 'mock_completions'):
                 self.mock_completions = []
@@ -346,30 +671,47 @@ class SupabaseClient:
                 completions = [c for c in completions if c.get("user_id") == user_id]
             if habit_id:
                 completions = [c for c in completions if c.get("habit_id") == habit_id]
+            if start_date:
+                start_date_str = start_date.isoformat() if hasattr(start_date, 'isoformat') else str(start_date)
+                completions = [c for c in completions if c.get("completed_date", "") >= start_date_str]
+            if end_date:
+                end_date_str = end_date.isoformat() if hasattr(end_date, 'isoformat') else str(end_date)
+                completions = [c for c in completions if c.get("completed_date", "") <= end_date_str]
             return completions
         
-        query = self.client.table("habit_completions").select("*")
-        if user_id:
-            query = query.eq("user_id", user_id)
-        if habit_id:
-            query = query.eq("habit_id", habit_id)
-        if start_date:
-            query = query.gte("completed_date", start_date.isoformat())
-        if end_date:
-            query = query.lte("completed_date", end_date.isoformat())
-        
-        response = query.execute()
-        results = response.data
-        
-        # Ensure date fields are serialized as strings
-        from datetime import date as date_type, datetime
-        for result in results:
-            if 'completed_date' in result and isinstance(result['completed_date'], date_type):
-                result['completed_date'] = result['completed_date'].isoformat()
-            if 'completed_at' in result and isinstance(result['completed_at'], datetime):
-                result['completed_at'] = result['completed_at'].isoformat()
-        
-        return results
+        try:
+            # Build optimized query with proper indexing hints
+            query = self.client.table("habit_completions").select("*")
+            
+            # Apply filters in order of selectivity (most selective first)
+            if user_id:
+                query = query.eq("user_id", user_id)
+            if start_date:
+                query = query.gte("completed_date", start_date.isoformat())
+            if end_date:
+                query = query.lte("completed_date", end_date.isoformat())
+            if habit_id:
+                query = query.eq("habit_id", habit_id)
+            
+            # Add ordering for consistent results and better performance
+            query = query.order("completed_date", desc=True).order("id", desc=True)
+            
+            response = query.execute()
+            results = response.data or []
+            
+            # Ensure date fields are serialized as strings
+            from datetime import date as date_type, datetime
+            for result in results:
+                if 'completed_date' in result and isinstance(result['completed_date'], date_type):
+                    result['completed_date'] = result['completed_date'].isoformat()
+                if 'completed_at' in result and isinstance(result['completed_at'], datetime):
+                    result['completed_at'] = result['completed_at'].isoformat()
+            
+            return results
+            
+        except Exception as e:
+            print(f"Error in get_completions: {e}")
+            return []
     
     def get_completion(self, completion_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific completion"""
@@ -1288,164 +1630,3 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error getting call logs: {e}")
             return []
-    
-    # ========================================================================
-    # DAILY SUCCESS RATES
-    # ========================================================================
-    
-    def create_daily_success_rate(self, rate_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create or update daily success rate record"""
-        from datetime import datetime
-        
-        if self.mock_mode:
-            # Check if record already exists
-            if not hasattr(self, 'mock_daily_success_rates'):
-                self.mock_daily_success_rates = []
-            
-            existing_idx = None
-            for i, rate in enumerate(self.mock_daily_success_rates):
-                if rate['user_id'] == rate_data['user_id'] and rate['date'] == rate_data['date']:
-                    existing_idx = i
-                    break
-            
-            if existing_idx is not None:
-                # Update existing record
-                self.mock_daily_success_rates[existing_idx].update(rate_data)
-                self.mock_daily_success_rates[existing_idx]['updated_at'] = datetime.now().isoformat()
-                return self.mock_daily_success_rates[existing_idx]
-            else:
-                # Create new record
-                rate = {
-                    **rate_data,
-                    "id": self.next_id,
-                    "created_at": datetime.now().isoformat(),
-                    "updated_at": datetime.now().isoformat()
-                }
-                self.mock_daily_success_rates.append(rate)
-                self.next_id += 1
-                return rate
-        
-        # Upsert (insert or update) using Supabase
-        try:
-            result = self.client.table('daily_success_rates').upsert(
-                rate_data,
-                on_conflict='user_id,date'
-            ).execute()
-            return result.data[0] if result.data else None
-        except Exception as e:
-            print(f"Error creating/updating daily success rate: {e}")
-            return None
-    
-    def get_daily_success_rates(self, user_id: str, start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
-        """Get daily success rates for a user within date range"""
-        if self.mock_mode:
-            if not hasattr(self, 'mock_daily_success_rates'):
-                return []
-            
-            rates = [r for r in self.mock_daily_success_rates if r['user_id'] == user_id]
-            
-            if start_date:
-                rates = [r for r in rates if r['date'] >= start_date]
-            if end_date:
-                rates = [r for r in rates if r['date'] <= end_date]
-            
-            return sorted(rates, key=lambda x: x['date'])
-        
-        try:
-            query = self.client.table('daily_success_rates').select('*').eq('user_id', user_id)
-            
-            if start_date:
-                query = query.gte('date', start_date)
-            if end_date:
-                query = query.lte('date', end_date)
-            
-            result = query.order('date').execute()
-            return result.data if result.data else []
-        except Exception as e:
-            print(f"Error getting daily success rates: {e}")
-            return []
-    
-    def get_monthly_success_rates(self, user_id: str, year: int, month: int) -> List[Dict[str, Any]]:
-        """Get daily success rates for a specific month"""
-        from datetime import date
-        
-        # Calculate start and end dates for the month
-        start_date = date(year, month, 1).isoformat()
-        
-        # Calculate last day of month
-        if month == 12:
-            next_month = date(year + 1, 1, 1)
-        else:
-            next_month = date(year, month + 1, 1)
-        
-        from datetime import timedelta
-        end_date = (next_month - timedelta(days=1)).isoformat()
-        
-        return self.get_daily_success_rates(user_id, start_date, end_date)
-    
-    def calculate_and_store_daily_success_rate(self, user_id: str, target_date: str) -> Dict[str, Any]:
-        """Calculate and store the final success rate for a completed day"""
-        from datetime import datetime, date as date_type
-        
-        # Parse the target date
-        if isinstance(target_date, str):
-            target_date_obj = date_type.fromisoformat(target_date)
-        else:
-            target_date_obj = target_date
-            target_date = target_date.isoformat()
-        
-        # Get today's day name for filtering
-        today_day = target_date_obj.strftime('%a')  # 'Mon', 'Tue', etc.
-        
-        # Get all user habits
-        all_habits = self.get_habits(user_id)
-        
-        # Get completions for the target date
-        completions = self.get_completions(
-            user_id=user_id,
-            start_date=target_date,
-            end_date=target_date
-        )
-        
-        # Calculate habit instances and completions (same logic as get_today_stats)
-        total_instances = 0
-        completed_instances = set()
-        
-        for habit in all_habits:
-            habit_days = habit.get('days', [])
-            habit_times = habit.get('times_of_day', [])
-            
-            # Check if habit was scheduled for this day
-            if not habit_days or today_day in habit_days:
-                # If no times specified, default to one instance
-                if not habit_times:
-                    habit_times = ['default']
-                
-                # Create an instance for each time of day
-                for time_of_day in habit_times:
-                    total_instances += 1
-                    instance_key = f"{habit['id']}_{time_of_day}"
-                    
-                    # Check if this instance was completed
-                    for completion in completions:
-                        if completion['habit_id'] == habit['id']:
-                            # Map time_of_day_id to time names for comparison
-                            completion_time = self._get_time_name_from_id(completion.get('time_of_day_id'))
-                            if completion_time == time_of_day or (time_of_day == 'default' and completion_time):
-                                completed_instances.add(instance_key)
-                                break
-        
-        # Calculate success rate
-        completed_count = len(completed_instances)
-        success_rate = round((completed_count / total_instances) * 100, 2) if total_instances > 0 else 0.0
-        
-        # Store the daily success rate
-        rate_data = {
-            'user_id': user_id,
-            'date': target_date,
-            'total_habit_instances': total_instances,
-            'completed_instances': completed_count,
-            'success_rate': success_rate
-        }
-        
-        return self.create_daily_success_rate(rate_data)

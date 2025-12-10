@@ -32,20 +32,30 @@ export const BoboProvider = ({ children }) => {
           return;
         }
 
-        const response = await fetch('http://localhost:8000/api/bobo/customizations', {
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+        const response = await fetch(`${apiUrl}/api/bobo/customizations`, {
           headers: {
             'Authorization': `Bearer ${token}`
-          }
+          },
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
           
           // Fetch full item details for each equipped item
-          const itemsResponse = await fetch('http://localhost:8000/api/bobo/items', {
+          const itemsResponse = await fetch(`${apiUrl}/api/bobo/items`, {
             headers: {
               'Authorization': `Bearer ${token}`
-            }
+            },
+            signal: controller.signal
           });
 
           if (itemsResponse.ok) {
@@ -63,7 +73,11 @@ export const BoboProvider = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Error loading equipped items:', error);
+        if (error.name === 'AbortError') {
+          console.warn('Bobo API request timed out - continuing without customizations');
+        } else {
+          console.error('Error loading equipped items:', error);
+        }
       } finally {
         setLoading(false);
       }

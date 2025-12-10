@@ -47,17 +47,25 @@ export const AuthProvider = ({ children }) => {
         setTokenState(storedToken)
         setUserState(storedUser)
         
-        // Verify token is still valid by fetching user info
+        // Verify token is still valid by fetching user info with timeout
         try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+          
           const userData = await api.getMe()
+          clearTimeout(timeoutId)
           setUserState(userData)
           setUser(userData)
         } catch (err) {
-          // Token is invalid, clear auth data
-          handleError(err, 'initializeAuth')
-          clearAuthData()
-          setTokenState(null)
-          setUserState(null)
+          // Token is invalid or request timed out, clear auth data
+          if (err.name === 'AbortError') {
+            console.warn('Auth verification timed out - using stored user data')
+          } else {
+            handleError(err, 'initializeAuth')
+            clearAuthData()
+            setTokenState(null)
+            setUserState(null)
+          }
         }
       }
     } catch (err) {

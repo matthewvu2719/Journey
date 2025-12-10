@@ -106,8 +106,9 @@ export default function EnhancedSchedule({ habits = [], completions = [] }) {
   }
 
   const handleDateClick = (date) => {
-    // Handle date clicks - could navigate to that date or show details
-    console.log('Date clicked:', date)
+    // Navigate to weekly view and show the week containing the clicked date
+    setView('weekly')
+    setViewDate(new Date(date))
   }
 
   const handleMonthClick = (monthDate) => {

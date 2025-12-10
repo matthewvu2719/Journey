@@ -12,7 +12,7 @@ import RobotMascot from './RobotMascot'
 import AchievementNotification from './AchievementNotification'
 import { useBobo } from '../contexts/BoboContext'
 
-export default function EnhancedDashboard({ habits, logs, onRefresh }) {
+export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCreated, onCompletionCreated, onCompletionDeleted }) {
   const { getEquippedItems } = useBobo()
   const [stats, setStats] = useState(null)
   const [showHabitForm, setShowHabitForm] = useState(false)
@@ -47,7 +47,16 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
 
   const loadDashboardData = async () => {
     try {
-      // Try to use the backend API for better performance
+      // Try to use the optimized batch API first
+      try {
+        const dashboardData = await api.getDashboardData()
+        setStats(dashboardData.stats)
+        return
+      } catch (batchError) {
+        console.log('Batch dashboard API not available, trying individual API:', batchError.message)
+      }
+      
+      // Fallback: Try individual stats API
       try {
         const todayStats = await api.getTodayStats()
         setStats(todayStats)
@@ -56,7 +65,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
         console.log('Backend stats API not available, calculating client-side:', apiError.message)
       }
       
-      // Fallback: Calculate stats client-side
+      // Final fallback: Calculate stats client-side
       const today = new Date().toLocaleDateString('en-US', { weekday: 'short' })
       
       // Build list of habit instances (habit × time_of_day combinations) for today
@@ -120,7 +129,10 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
     
     // Check if already completed - if so, undo it
     if (isCompleted(habitId, timeOfDay)) {
-      await handleUndoCompletion(habitId, timeOfDay)
+      // Don't await - let it run in background for immediate UI response
+      handleUndoCompletion(habitId, timeOfDay).catch(error => {
+        console.error('Failed to undo completion:', error)
+      })
       return
     }
     
@@ -137,19 +149,25 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
 
   const handleUndoCompletion = async (habitId, timeOfDay) => {
     try {
-      const today = new Date().toISOString().split('T')[0]
-      const timeOfDayId = timeOfDayMap[timeOfDay]
-      
-      // Find the completion to delete
-      const completion = logs.find(c => 
-        c.habit_id === habitId && 
-        c.completed_date === today &&
-        c.time_of_day_id === timeOfDayId
-      )
-      
-      if (completion) {
-        await api.deleteCompletion(completion.id)
-        onRefresh()
+      if (onCompletionDeleted) {
+        // Use optimized handler from parent
+        await onCompletionDeleted(habitId, timeOfDay)
+      } else {
+        // Fallback to old method
+        const today = new Date().toISOString().split('T')[0]
+        const timeOfDayId = timeOfDayMap[timeOfDay]
+        
+        // Find the completion to delete
+        const completion = logs.find(c => 
+          c.habit_id === habitId && 
+          c.completed_date === today &&
+          c.time_of_day_id === timeOfDayId
+        )
+        
+        if (completion) {
+          await api.deleteCompletion(completion.id)
+          onRefresh()
+        }
       }
     } catch (error) {
       console.error('Failed to undo completion:', error)
@@ -160,16 +178,13 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
   const handleQuickComplete = async (habitId, timeOfDay) => {
     try {
       const today = new Date().toISOString().split('T')[0]
-      await api.createCompletion({
+      const completionData = {
         habit_id: habitId,
         completed_date: today,
         time_of_day_id: timeOfDayMap[timeOfDay]
-      })
+      }
       
-      // Check for achievements
-      await checkAchievements(today)
-      
-      // Show celebration with random dance
+      // Show celebration immediately for better UX
       const habit = habits.find(h => h.id === habitId)
       const messages = [
         `Amazing! You completed "${habit?.name}"! 🎉`,
@@ -179,13 +194,31 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       ]
       setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
       
-      // Pick random dance from unlocked dances, or use default
+      // Pick random dance and show immediately
       const equippedItems = getEquippedItems()
       const unlockedDances = equippedItems?.dances || []
       const randomDance = unlockedDances.length > 0 
         ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
         : true // Default dance
       setCelebrationDance(randomDance)
+      
+      // Create completion and check achievements in parallel (non-blocking)
+      if (onCompletionCreated) {
+        // Use optimized handler from parent
+        onCompletionCreated(completionData).catch(error => {
+          console.error('Failed to create completion:', error)
+        })
+      } else {
+        // Fallback: create completion in background
+        api.createCompletion(completionData).catch(error => {
+          console.error('Failed to create completion:', error)
+        })
+      }
+      
+      // Check achievements in background (non-blocking)
+      checkAchievements(today).catch(error => {
+        console.error('Failed to check achievements:', error)
+      })
       
       setShowCelebration(true)
       setTimeout(() => setShowCelebration(false), 3000)
@@ -225,12 +258,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
         completionPayload.actual_duration = duration
       }
       
-      await api.createCompletion(completionPayload)
-      
-      // Check for achievements
-      await checkAchievements(today)
-      
-      // Show celebration with random dance
+      // Show celebration immediately for better UX
       const messages = [
         `Incredible! You completed "${completingHabit.name}"! 🎉`,
         `You're crushing it! "${completingHabit.name}" is done! 💪`,
@@ -239,13 +267,31 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
       ]
       setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
       
-      // Pick random dance from unlocked dances, or use default
+      // Pick random dance and show immediately
       const equippedItems = getEquippedItems()
       const unlockedDances = equippedItems?.dances || []
       const randomDance = unlockedDances.length > 0 
         ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
         : true // Default dance
       setCelebrationDance(randomDance)
+      
+      // Create completion and check achievements in parallel (non-blocking)
+      if (onCompletionCreated) {
+        // Use optimized handler from parent
+        onCompletionCreated(completionPayload).catch(error => {
+          console.error('Failed to create completion:', error)
+        })
+      } else {
+        // Fallback: create completion in background
+        api.createCompletion(completionPayload).catch(error => {
+          console.error('Failed to create completion:', error)
+        })
+      }
+      
+      // Check achievements in background (non-blocking)
+      checkAchievements(today).catch(error => {
+        console.error('Failed to check achievements:', error)
+      })
       
       setShowCelebration(true)
       setTimeout(() => setShowCelebration(false), 3000)
@@ -284,9 +330,13 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
 
   const handleCreateHabit = async (habitData) => {
     try {
-      await api.createHabit({ ...habitData, user_id: 'default_user' })
+      if (onHabitCreated) {
+        await onHabitCreated(habitData)
+      } else {
+        await api.createHabit({ ...habitData, user_id: 'default_user' })
+        onRefresh()
+      }
       setShowHabitForm(false)
-      onRefresh()
     } catch (error) {
       console.error('Failed to create habit:', error)
     }
@@ -373,7 +423,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh }) {
               onCancel={() => setShowHabitForm(false)}
             />
           </div>
-          <style jsx>{`
+          <style jsx="true">{`
             @keyframes fadeIn {
               from { opacity: 0; }
               to { opacity: 1; }

@@ -46,7 +46,7 @@ export function SparklesText({ children, className = '' }) {
         </svg>
       ))}
       {children}
-      <style jsx>{`
+      <style jsx="true">{`
         @keyframes sparkle {
           0%, 100% {
             opacity: 0;

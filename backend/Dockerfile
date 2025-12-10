@@ -1,9 +1,13 @@
+# Use official slim Python image
 FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies for voice services
-RUN apt-get update && apt-get install -y \
+# -----------------------------
+# 1. Install system dependencies first
+# -----------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
     g++ \
@@ -19,13 +23,23 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# -----------------------------
+# 2. Copy only requirements first for caching
+# -----------------------------
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application
+# Upgrade pip & install dependencies
+RUN pip install --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir -r requirements.txt
+
+# -----------------------------
+# 3. Copy the rest of the application
+# -----------------------------
 COPY . .
 
+# -----------------------------
+# 4. Expose port & start server
+# -----------------------------
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -38,7 +38,15 @@ export default function HabitExplorer({ habits, onRefresh, loading, onNext }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await api.createHabit({ ...formData, user_id: 'default_user' })
+      // Prepare data for submission
+      const submitData = { ...formData, user_id: 'default_user' }
+      
+      // For atomic habits, set estimated_duration to null
+      if (submitData.habit_type === 'atomic') {
+        submitData.estimated_duration = null
+      }
+      
+      await api.createHabit(submitData)
       setShowForm(false)
       setFormData({
         name: '',

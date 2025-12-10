@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { dateUtils } from '../utils/dateUtils'
+import { api } from '../services/api'
 
 export default function MonthlyCalendarView({ 
   habits, 
@@ -6,7 +8,43 @@ export default function MonthlyCalendarView({
   viewDate,
   onDateClick 
 }) {
+  const [successRates, setSuccessRates] = useState({})
+  const [loading, setLoading] = useState(true)
   const monthDays = dateUtils.getMonthDays(viewDate)
+
+  // Load success rates for the month
+  useEffect(() => {
+    loadSuccessRates()
+  }, [viewDate])
+
+  const loadSuccessRates = async () => {
+    try {
+      setLoading(true)
+      
+      // Get first and last day of the month
+      const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
+      const lastDay = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0)
+      
+      const startDate = firstDay.toISOString().split('T')[0]
+      const endDate = lastDay.toISOString().split('T')[0]
+      
+      const response = await api.getSuccessRatesRange(startDate, endDate)
+      
+      // Convert array to map for easy lookup
+      const ratesMap = {}
+      response.rates.forEach(rate => {
+        ratesMap[rate.date] = rate
+      })
+      
+      setSuccessRates(ratesMap)
+    } catch (error) {
+      console.error('Failed to load success rates:', error)
+      // Fallback to old calculation method
+      setSuccessRates({})
+    } finally {
+      setLoading(false)
+    }
+  }
   
   const isCompleted = (habitId, date) => {
     const dateStr = date.toISOString().split('T')[0]
@@ -18,6 +56,14 @@ export default function MonthlyCalendarView({
   }
 
   const getDayCompletionRate = (date) => {
+    const dateStr = date.toISOString().split('T')[0]
+    const successRate = successRates[dateStr]
+    
+    if (successRate) {
+      return successRate.success_rate
+    }
+    
+    // Fallback to old calculation if no success rate data
     if (habits.length === 0) return 0
     
     const completedCount = habits.filter(habit => 
@@ -28,26 +74,44 @@ export default function MonthlyCalendarView({
   }
 
   const getDayCompletionStatus = (date) => {
+    const dateStr = date.toISOString().split('T')[0]
+    const successRate = successRates[dateStr]
+    
+    if (successRate) {
+      return successRate.status
+    }
+    
+    // Fallback to old calculation
     const rate = getDayCompletionRate(date)
-    if (rate === 100) return 'complete'
-    if (rate > 0) return 'partial'
-    if (dateUtils.isFuture(date)) return 'future'
-    return 'incomplete'
+    if (rate >= 80) return 'green'
+    if (rate > 0) return 'yellow'
+    if (dateUtils.isFuture(date)) return 'gray'
+    return 'red'
   }
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'complete':
+      case 'green':
         return 'bg-green-500/20 border-green-500/30 text-green-300'
-      case 'partial':
+      case 'yellow':
         return 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300'
-      case 'incomplete':
+      case 'red':
         return 'bg-red-500/20 border-red-500/30 text-red-300'
-      case 'future':
+      case 'gray':
         return 'bg-light/5 text-light/40'
       default:
         return 'bg-light/5 text-light/60'
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="glass rounded-2xl p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-light"></div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -146,15 +210,19 @@ export default function MonthlyCalendarView({
         <div className="flex items-center justify-center gap-4 pt-4 border-t border-light/10">
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded bg-green-500/20 border border-green-500/30"></div>
-            <span className="text-light/60">Complete</span>
+            <span className="text-light/60">80-100%</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded bg-yellow-500/20 border border-yellow-500/30"></div>
-            <span className="text-light/60">Partial</span>
+            <span className="text-light/60">1-79%</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded bg-red-500/20 border border-red-500/30"></div>
-            <span className="text-light/60">Incomplete</span>
+            <span className="text-light/60">0%</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-3 h-3 rounded bg-light/5"></div>
+            <span className="text-light/60">Future</span>
           </div>
         </div>
       </div>

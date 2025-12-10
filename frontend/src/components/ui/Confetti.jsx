@@ -42,7 +42,7 @@ export function Confetti({ trigger }) {
           }}
         />
       ))}
-      <style jsx>{`
+      <style jsx="true">{`
         @keyframes confetti-fall {
           to {
             transform: translateY(110vh) translateX(var(--drift)) rotate(720deg);

@@ -51,7 +51,16 @@ export default function HabitForm({ onSubmit, onCancel, initialData = null }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    await onSubmit(formData)
+    
+    // Prepare data for submission
+    const submitData = { ...formData }
+    
+    // For atomic habits, set estimated_duration to null
+    if (submitData.habit_type === 'atomic') {
+      submitData.estimated_duration = null
+    }
+    
+    await onSubmit(submitData)
   }
 
   return (

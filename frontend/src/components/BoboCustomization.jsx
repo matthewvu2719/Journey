@@ -438,7 +438,7 @@ const BoboCustomization = () => {
               )}
             </div>
             
-            <style jsx>{`
+            <style jsx="true">{`
               .custom-scrollbar::-webkit-scrollbar {
                 width: 8px;
               }
