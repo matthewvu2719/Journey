@@ -319,5 +319,26 @@ export const api = {
   unlockTestItems: async () => {
     const { data } = await client.post('/api/test/unlock-items')
     return data
+  },
+
+  // ============================================================================
+  // DAILY SUCCESS RATES
+  // ============================================================================
+  
+  getSuccessRateForDate: async (date) => {
+    const { data } = await client.get(`/api/success-rates/date/${date}`)
+    return data
+  },
+
+  getSuccessRatesRange: async (startDate, endDate) => {
+    const { data } = await client.get('/api/success-rates/range', {
+      params: { start_date: startDate, end_date: endDate }
+    })
+    return data
+  },
+
+  calculateDailySuccessRate: async (date) => {
+    const { data } = await client.post(`/api/success-rates/calculate/${date}`)
+    return data
   }
 }

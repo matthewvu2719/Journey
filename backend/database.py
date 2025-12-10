@@ -62,6 +62,11 @@ class SupabaseClient:
                 "days": days_list,
                 "times_of_day": times_of_day_list
             }
+            
+            # For atomic habits, set estimated_duration to null
+            if habit_data.get('habit_type') == 'atomic':
+                habit['estimated_duration'] = None
+                
             self.mock_habits.append(habit)
             self.next_id += 1
             return habit
@@ -77,28 +82,55 @@ class SupabaseClient:
         
         filtered_data = {k: v for k, v in habit_data.items() if k in allowed_fields and v is not None}
         
+        # For atomic habits, set estimated_duration to null
+        if habit_data.get('habit_type') == 'atomic':
+            filtered_data['estimated_duration'] = None
+        
         try:
             # Insert habit
             response = self.client.table("habits").insert(filtered_data).execute()
             habit = response.data[0]
             
-            # Insert days relationships if provided
-            if days_list:
+            # Batch the relationship insertions for better performance
+            if days_list or times_of_day_list:
                 try:
-                    self._link_habit_days(habit['id'], days_list)
-                    habit['days'] = days_list
+                    # Prepare all relationships at once
+                    all_operations = []
+                    
+                    # Days relationships
+                    if days_list:
+                        day_name_to_id = {
+                            'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4,
+                            'Fri': 5, 'Sat': 6, 'Sun': 7
+                        }
+                        day_relationships = [
+                            {"habit_id": habit['id'], "day_id": day_name_to_id[day]}
+                            for day in days_list if day in day_name_to_id
+                        ]
+                        if day_relationships:
+                            self.client.table("days_habits").insert(day_relationships).execute()
+                        habit['days'] = days_list
+                    
+                    # Times of day relationships
+                    if times_of_day_list:
+                        time_name_to_id = {
+                            'morning': 1, 'noon': 2, 'afternoon': 3, 'night': 4
+                        }
+                        time_relationships = [
+                            {"habit_id": habit['id'], "time_of_day_id": time_name_to_id[time]}
+                            for time in times_of_day_list if time in time_name_to_id
+                        ]
+                        if time_relationships:
+                            self.client.table("times_of_day_habits").insert(time_relationships).execute()
+                        habit['times_of_day'] = times_of_day_list
+                        
                 except Exception as e:
-                    print(f"Warning: Could not link days: {e}")
-                    habit['days'] = days_list  # Still return days in response
-            
-            # Insert times_of_day relationships if provided
-            if times_of_day_list:
-                try:
-                    self._link_habit_times_of_day(habit['id'], times_of_day_list)
-                    habit['times_of_day'] = times_of_day_list
-                except Exception as e:
-                    print(f"Warning: Could not link times of day: {e}")
-                    habit['times_of_day'] = times_of_day_list  # Still return times_of_day in response
+                    print(f"Warning: Could not link relationships: {e}")
+                    # Still return the data even if linking fails
+                    if days_list:
+                        habit['days'] = days_list
+                    if times_of_day_list:
+                        habit['times_of_day'] = times_of_day_list
             
             return habit
         except Exception as e:
@@ -1068,7 +1100,7 @@ class SupabaseClient:
             return []
     
     def _link_habit_days(self, habit_id: int, days_list: List[str]) -> None:
-        """Link a habit to specific days"""
+        """Link a habit to specific days - optimized for new habits"""
         if self.mock_mode:
             return
         
@@ -1079,10 +1111,7 @@ class SupabaseClient:
                 'Fri': 5, 'Sat': 6, 'Sun': 7
             }
             
-            # Delete existing relationships
-            self.client.table("days_habits").delete().eq("habit_id", habit_id).execute()
-            
-            # Insert new relationships
+            # For new habits, just insert (no need to delete first)
             if days_list:
                 relationships = [
                     {"habit_id": habit_id, "day_id": day_name_to_id[day]}
@@ -1126,7 +1155,7 @@ class SupabaseClient:
             return []
     
     def _link_habit_times_of_day(self, habit_id: int, times_of_day_list: List[str]) -> None:
-        """Link a habit to specific times of day"""
+        """Link a habit to specific times of day - optimized for new habits"""
         if self.mock_mode:
             return
         
@@ -1139,10 +1168,7 @@ class SupabaseClient:
                 'night': 4
             }
             
-            # Delete existing relationships
-            self.client.table("times_of_day_habits").delete().eq("habit_id", habit_id).execute()
-            
-            # Insert new relationships
+            # For new habits, just insert (no need to delete first)
             if times_of_day_list:
                 relationships = [
                     {"habit_id": habit_id, "time_of_day_id": time_name_to_id[time]}
@@ -1630,3 +1656,153 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error getting call logs: {e}")
             return []
+    # ========================================================================
+    # DAILY SUCCESS RATES
+    # ========================================================================
+    
+    def save_daily_success_rate(self, user_id: str, date: date, total_instances: int, completed_instances: int) -> Dict[str, Any]:
+        """Save or update daily success rate for a specific date"""
+        success_rate = (completed_instances / total_instances * 100) if total_instances > 0 else 0.0
+        
+        rate_data = {
+            'user_id': user_id,
+            'date': date.isoformat(),
+            'total_habit_instances': total_instances,
+            'completed_instances': completed_instances,
+            'success_rate': round(success_rate, 2),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        if self.mock_mode:
+            if not hasattr(self, 'mock_daily_rates'):
+                self.mock_daily_rates = []
+            
+            # Check if record exists
+            existing_idx = None
+            for i, rate in enumerate(self.mock_daily_rates):
+                if rate.get('user_id') == user_id and rate.get('date') == date.isoformat():
+                    existing_idx = i
+                    break
+            
+            if existing_idx is not None:
+                # Update existing
+                self.mock_daily_rates[existing_idx].update(rate_data)
+                return self.mock_daily_rates[existing_idx]
+            else:
+                # Create new
+                rate_data['id'] = self.next_id
+                rate_data['created_at'] = datetime.now().isoformat()
+                self.mock_daily_rates.append(rate_data)
+                self.next_id += 1
+                return rate_data
+        
+        try:
+            # Try to update first (upsert)
+            result = self.client.table('daily_success_rates')\
+                .upsert(rate_data, on_conflict='user_id,date')\
+                .execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error saving daily success rate: {e}")
+            return None
+    
+    def get_daily_success_rate(self, user_id: str, date: date) -> Optional[Dict[str, Any]]:
+        """Get daily success rate for a specific date"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_daily_rates'):
+                self.mock_daily_rates = []
+            
+            for rate in self.mock_daily_rates:
+                if rate.get('user_id') == user_id and rate.get('date') == date.isoformat():
+                    return rate
+            return None
+        
+        try:
+            result = self.client.table('daily_success_rates')\
+                .select('*')\
+                .eq('user_id', user_id)\
+                .eq('date', date.isoformat())\
+                .execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error getting daily success rate: {e}")
+            return None
+    
+    def get_daily_success_rates_range(self, user_id: str, start_date: date, end_date: date) -> List[Dict[str, Any]]:
+        """Get daily success rates for a date range"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_daily_rates'):
+                self.mock_daily_rates = []
+            
+            rates = []
+            for rate in self.mock_daily_rates:
+                if (rate.get('user_id') == user_id and 
+                    start_date.isoformat() <= rate.get('date', '') <= end_date.isoformat()):
+                    rates.append(rate)
+            return sorted(rates, key=lambda x: x.get('date', ''))
+        
+        try:
+            result = self.client.table('daily_success_rates')\
+                .select('*')\
+                .eq('user_id', user_id)\
+                .gte('date', start_date.isoformat())\
+                .lte('date', end_date.isoformat())\
+                .order('date')\
+                .execute()
+            return result.data if result.data else []
+        except Exception as e:
+            print(f"Error getting daily success rates range: {e}")
+            return []
+    
+    def calculate_and_save_daily_success_rate(self, user_id: str, target_date: date) -> Optional[Dict[str, Any]]:
+        """Calculate and save daily success rate for a specific date"""
+        try:
+            # Get all habits for the user that were active on the target date
+            habits = self.get_habits(user_id)
+            if not habits:
+                return self.save_daily_success_rate(user_id, target_date, 0, 0)
+            
+            # Filter habits that were active on the target date
+            active_habits = []
+            for habit in habits:
+                habit_start = datetime.fromisoformat(habit['created_at']).date()
+                if habit_start <= target_date:
+                    active_habits.append(habit)
+            
+            if not active_habits:
+                return self.save_daily_success_rate(user_id, target_date, 0, 0)
+            
+            # Get completions for the target date
+            completions = self.get_completions(
+                user_id=user_id,
+                start_date=target_date,
+                end_date=target_date
+            )
+            
+            # Count total instances and completed instances
+            total_instances = 0
+            completed_instances = 0
+            
+            for habit in active_habits:
+                # For each habit, check if it was scheduled for the target date
+                # This is a simplified version - you might want to add more complex scheduling logic
+                total_instances += 1
+                
+                # Check if this habit was completed on the target date
+                habit_completed = any(
+                    c.get('habit_id') == habit['id'] 
+                    for c in completions
+                )
+                
+                if habit_completed:
+                    completed_instances += 1
+            
+            return self.save_daily_success_rate(user_id, target_date, total_instances, completed_instances)
+            
+        except Exception as e:
+            print(f"Error calculating daily success rate: {e}")
+            return None
+
+
+# Global database instance
+db = SupabaseClient()

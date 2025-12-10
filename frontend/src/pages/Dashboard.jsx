@@ -53,13 +53,97 @@ function Dashboard() {
   const handleAgentAction = async (action) => {
     try {
       if (action.type === 'create_habit') {
-        await api.createHabit({ ...action.data, user_id: 'default_user' })
-        loadData()
+        const newHabit = await api.createHabit({ ...action.data, user_id: 'default_user' })
+        // Optimistically add the new habit instead of reloading all data
+        setHabits(prev => [...prev, newHabit])
       }
       // Add more action handlers as needed
     } catch (error) {
       console.error('Failed to execute action:', error)
+      // If creation fails, reload data to ensure consistency
+      loadData()
     }
+  }
+
+  // Optimized refresh function for habit creation
+  const handleHabitCreated = async (habitData) => {
+    try {
+      const newHabit = await api.createHabit({ ...habitData, user_id: 'default_user' })
+      setHabits(prev => [...prev, newHabit])
+      return newHabit
+    } catch (error) {
+      console.error('Failed to create habit:', error)
+      throw error
+    }
+  }
+
+  // Optimized refresh function for completion
+  const handleCompletionCreated = async (completionData) => {
+    // Optimistic update: add completion immediately with temporary ID
+    const optimisticCompletion = {
+      ...completionData,
+      id: `temp_${Date.now()}`, // Temporary ID
+      completed_at: new Date().toISOString()
+    }
+    
+    // Update UI immediately
+    setLogs(prev => [...prev, optimisticCompletion])
+    
+    try {
+      // Create completion in background
+      const newCompletion = await api.createCompletion(completionData)
+      
+      // Replace optimistic completion with real one
+      setLogs(prev => prev.map(log => 
+        log.id === optimisticCompletion.id ? newCompletion : log
+      ))
+      
+      return newCompletion
+    } catch (error) {
+      // Remove optimistic completion on error
+      setLogs(prev => prev.filter(log => log.id !== optimisticCompletion.id))
+      console.error('Failed to create completion:', error)
+      throw error
+    }
+  }
+
+  // Optimized refresh function for completion deletion (undo)
+  const handleCompletionDeleted = async (habitId, timeOfDay) => {
+    const today = new Date().toISOString().split('T')[0]
+    const timeOfDayId = timeOfDayMap[timeOfDay]
+    
+    // Find the completion to delete
+    const completion = logs.find(c => 
+      c.habit_id === habitId && 
+      c.completed_date === today &&
+      c.time_of_day_id === timeOfDayId
+    )
+    
+    if (!completion) {
+      throw new Error('Completion not found')
+    }
+    
+    // Optimistic update: remove completion immediately
+    setLogs(prev => prev.filter(log => log.id !== completion.id))
+    
+    try {
+      // Delete completion in background
+      await api.deleteCompletion(completion.id)
+      return true
+    } catch (error) {
+      // Restore completion on error
+      setLogs(prev => [...prev, completion])
+      console.error('Failed to delete completion:', error)
+      throw error
+    }
+  }
+
+  // Time of day mapping
+  const timeOfDayMap = {
+    'morning': 1,
+    'noon': 2, 
+    'afternoon': 3,
+    'night': 4
   }
 
   const handleExplore = () => {
@@ -180,6 +264,9 @@ function Dashboard() {
                 habits={habits}
                 logs={logs}
                 onRefresh={loadData}
+                onHabitCreated={handleHabitCreated}
+                onCompletionCreated={handleCompletionCreated}
+                onCompletionDeleted={handleCompletionDeleted}
               />
             )}
 

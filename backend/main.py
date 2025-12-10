@@ -4,7 +4,7 @@ Personal Habit Coach - FastAPI Backend (Phase 1 & 2 Enhanced)
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional, Dict, Any
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import os
 import uuid
 
@@ -281,6 +281,184 @@ async def get_habits_count_for_today(
         return {"count": count, "time_of_day": time_of_day, "user_id": query_user_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/logs/stats")
+async def get_log_stats(user_id: str = Depends(get_user_id_optional)):
+    """Get user's habit completion statistics"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        
+        # Get recent completions for streak calculation
+        from datetime import datetime, timedelta
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        
+        completions = db.get_completions(
+            user_id=query_user_id,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # Calculate current streak
+        current_streak = 0
+        if completions:
+            # Group completions by date
+            dates_with_completions = set()
+            for completion in completions:
+                if completion.get('completed_at'):
+                    try:
+                        # Handle different date formats
+                        completed_at = completion['completed_at']
+                        if isinstance(completed_at, str):
+                            # Try parsing ISO format
+                            if 'T' in completed_at:
+                                completion_date = datetime.fromisoformat(completed_at.replace('Z', '+00:00')).date()
+                            else:
+                                completion_date = datetime.fromisoformat(completed_at).date()
+                        else:
+                            completion_date = completed_at.date() if hasattr(completed_at, 'date') else completed_at
+                        dates_with_completions.add(completion_date)
+                    except (ValueError, AttributeError):
+                        # Skip invalid dates
+                        continue
+            
+            # Count consecutive days from today
+            current_date = datetime.now().date()
+            while current_date in dates_with_completions:
+                current_streak += 1
+                current_date -= timedelta(days=1)
+        
+        return {
+            "current_streak": current_streak,
+            "total_completions": len(completions)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get log stats: {str(e)}")
+
+
+@app.get("/api/success-rates/date/{target_date}")
+async def get_success_rate_for_date(
+    target_date: str,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get success rate for a specific date"""
+    try:
+        from datetime import datetime
+        try:
+            from daily_success_scheduler import daily_scheduler
+        except ImportError:
+            # Fallback if scheduler is not available
+            raise HTTPException(status_code=503, detail="Success rate scheduler not available. Please rebuild Docker image.")
+        
+        query_user_id = user_id if user_id else "default_user"
+        
+        # Parse date
+        date_obj = datetime.fromisoformat(target_date).date()
+        
+        # Get success rate with proper status
+        result = daily_scheduler.get_success_rate_for_date(query_user_id, date_obj)
+        
+        return result
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get success rate: {str(e)}")
+
+
+@app.get("/api/success-rates/range")
+async def get_success_rates_range(
+    start_date: str,
+    end_date: str,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get success rates for a date range (for monthly calendar)"""
+    try:
+        from datetime import datetime
+        try:
+            from daily_success_scheduler import daily_scheduler
+        except ImportError:
+            # Fallback if scheduler is not available
+            raise HTTPException(status_code=503, detail="Success rate scheduler not available. Please rebuild Docker image.")
+        
+        query_user_id = user_id if user_id else "default_user"
+        
+        # Parse dates
+        start_date_obj = datetime.fromisoformat(start_date).date()
+        end_date_obj = datetime.fromisoformat(end_date).date()
+        
+        # Get stored rates from database
+        stored_rates = db.get_daily_success_rates_range(query_user_id, start_date_obj, end_date_obj)
+        
+        # Create a map of stored rates by date
+        stored_map = {rate['date']: rate for rate in stored_rates}
+        
+        # Generate complete range with proper status for each date
+        results = []
+        current_date = start_date_obj
+        
+        while current_date <= end_date_obj:
+            date_str = current_date.isoformat()
+            
+            if date_str in stored_map:
+                # Use stored rate
+                rate = stored_map[date_str]
+                success_rate = rate['success_rate']
+                if success_rate == 0:
+                    status = 'red'
+                elif success_rate < 80:
+                    status = 'yellow'
+                else:
+                    status = 'green'
+                
+                results.append({
+                    **rate,
+                    'status': status
+                })
+            else:
+                # Use scheduler to get proper status
+                result = daily_scheduler.get_success_rate_for_date(query_user_id, current_date)
+                results.append(result)
+            
+            current_date += timedelta(days=1)
+        
+        return {
+            "start_date": start_date,
+            "end_date": end_date,
+            "rates": results
+        }
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get success rates range: {str(e)}")
+
+
+@app.post("/api/success-rates/calculate/{target_date}")
+async def calculate_daily_success_rate(
+    target_date: str,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Manually calculate and store success rate for a specific date"""
+    try:
+        from datetime import datetime
+        
+        query_user_id = user_id if user_id else "default_user"
+        
+        # Parse date
+        date_obj = datetime.fromisoformat(target_date).date()
+        
+        # Calculate and save
+        result = db.calculate_and_save_daily_success_rate(query_user_id, date_obj)
+        
+        if result:
+            return {"success": True, "data": result}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to calculate success rate")
+            
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to calculate success rate: {str(e)}")
 
 
 @app.get("/api/dashboard/data")
@@ -1052,52 +1230,7 @@ async def test_unlock_items(user_id: str = Depends(get_user_id)):
         raise HTTPException(status_code=500, detail=f"Failed to unlock test items: {str(e)}")
 
 
-@app.get("/api/bobo/customizations")
-async def get_equipped_customizations(user_id: str = Depends(get_user_id)):
-    """
-    Get user's currently equipped Bobo customizations
-    """
-    try:
-        equipped = db.get_equipped_customizations(user_id)
-        return equipped or {
-            'hat': None,
-            'costume': None,
-            'color': None,
-            'dance': None
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get customizations: {str(e)}")
-
-
-@app.post("/api/bobo/equip")
-async def equip_customization(
-    customizations: Dict[str, Any],
-    user_id: str = Depends(get_user_id)
-):
-    """
-    Equip Bobo customizations
-    
-    Body: {hat, costume, color, dance}
-    """
-    try:
-        result = db.save_equipped_customizations(user_id, customizations)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to equip customization: {str(e)}")
-
-
-@app.get("/api/bobo/items")
-async def get_bobo_items(
-    item_type: Optional[str] = None,
-    user_id: str = Depends(get_user_id)
-):
-    """
-    Get user's unlocked Bobo items
-    
-    Optional filter by item_type: hat, costume, dance
-    """
-    try:
-        items = db.get_bobo_items(user_id, item_type)
+# Duplicate endpoints removed - using the first set of definitions above
         return items
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get bobo items: {str(e)}")
