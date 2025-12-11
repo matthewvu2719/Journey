@@ -9,6 +9,7 @@ import EnhancedDashboard from '../components/EnhancedDashboard'
 import AchievementProgress from '../components/AchievementProgress'
 import AchievementNotification from '../components/AchievementNotification'
 import BoboCustomization from '../components/BoboCustomization'
+import BoboTestPanel from '../components/BoboTestPanel'
 import VoiceCallSettings from '../components/VoiceCallSettings'
 import VoiceCallButton from '../components/VoiceCallButton'
 
@@ -366,6 +367,9 @@ function Dashboard() {
 
           {/* Floating Voice Call Button */}
           <VoiceCallButton userId={user?.id || 'guest'} />
+          
+          {/* Achievement Test Floating Button */}
+          <BoboTestPanel />
         </section>
       )}
     </div>

@@ -139,7 +139,7 @@ export default function BoboTestPanel() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 right-6 z-40 bg-purple-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-purple-700 transition-all hover:scale-105 font-medium text-sm"
+        className="fixed bottom-[200px] right-6 z-40 bg-purple-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-purple-700 transition-all hover:scale-105 font-medium text-sm"
         title="Test Achievement System"
       >
         🧪 Test Achievements
@@ -148,7 +148,7 @@ export default function BoboTestPanel() {
   }
 
   return (
-    <div className="fixed bottom-24 right-6 z-40 w-[420px] max-h-[700px] bg-[var(--color-surface)] border-2 border-purple-500 rounded-xl shadow-2xl flex flex-col">
+    <div className="fixed bottom-[200px] right-6 z-40 w-[420px] max-h-[700px] bg-[var(--color-surface)] border-2 border-purple-500 rounded-xl shadow-2xl flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-gradient-to-r from-purple-500/10 to-pink-500/10">
         <div>
