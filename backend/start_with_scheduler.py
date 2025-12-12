@@ -10,12 +10,12 @@ from daily_success_scheduler import daily_scheduler
 def run_scheduler():
     """Run the scheduler in a separate thread"""
     print("Starting daily success rate scheduler...")
-    daily_scheduler.start_scheduler()
+    daily_scheduler.start_scheduler()  # This will now show disabled message
 
 
 def main():
     """Start both the API server and scheduler"""
-    # Start scheduler in background thread
+    # Start scheduler in background thread (will show disabled message)
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
     

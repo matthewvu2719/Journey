@@ -287,3 +287,4 @@ class AchievementUnlock(BaseModel):
     reward_type: str
     reward: Dict
     message: str
+

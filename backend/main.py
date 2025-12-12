@@ -396,6 +396,7 @@ async def get_success_rates_range(
         # Generate complete range with proper status for each date
         results = []
         current_date = start_date_obj
+        today = datetime.now().date()
         
         while current_date <= end_date_obj:
             date_str = current_date.isoformat()
@@ -415,10 +416,32 @@ async def get_success_rates_range(
                     **rate,
                     'status': status
                 })
-            else:
-                # Use scheduler to get proper status
+            elif current_date > today:
+                # Future date - return gray status
+                results.append({
+                    'date': date_str,
+                    'total_habit_instances': 0,
+                    'completed_instances': 0,
+                    'success_rate': 0.0,
+                    'status': 'gray',
+                    'is_future_date': True
+                })
+            elif current_date == today:
+                # Current day - use scheduler for real-time calculation
                 result = daily_scheduler.get_success_rate_for_date(query_user_id, current_date)
                 results.append(result)
+            else:
+                # Past date with no stored data - this should not happen in normal operation
+                # Log warning and return default values instead of expensive calculation
+                print(f"Warning: Missing stored success rate for past date {date_str} for user {query_user_id}")
+                results.append({
+                    'date': date_str,
+                    'total_habit_instances': 0,
+                    'completed_instances': 0,
+                    'success_rate': 0.0,
+                    'status': 'red',
+                    'is_missing_data': True
+                })
             
             current_date += timedelta(days=1)
         

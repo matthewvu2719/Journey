@@ -166,17 +166,11 @@ class DailySuccessScheduler:
                     }
     
     def start_scheduler(self):
-        """Start the daily scheduler"""
-        # Schedule to run at 00:05 (5 minutes after midnight)
-        schedule.every().day.at("00:05").do(self.calculate_yesterday_success_rates)
-        
-        self.running = True
-        print("✓ Daily success rate scheduler started")
-        print("  - Will calculate yesterday's rates at 00:05 daily")
-        
-        while self.running:
-            schedule.run_pending()
-            time.sleep(60)  # Check every minute
+        """Start the daily scheduler - DISABLED"""
+        # Removed: Schedule to run at 00:05 (5 minutes after midnight)
+        # This was unreliable for web apps since users don't keep browsers open 24/7
+        print("⚠️  Daily success rate scheduler is disabled")
+        print("   Success rates will be calculated on-demand instead")
     
     def stop_scheduler(self):
         """Stop the scheduler"""
@@ -185,10 +179,8 @@ class DailySuccessScheduler:
         print("✓ Daily success rate scheduler stopped")
     
     async def start_async_scheduler(self):
-        """Start scheduler in async mode"""
-        while self.running:
-            schedule.run_pending()
-            await asyncio.sleep(60)
+        """Start scheduler in async mode - DISABLED"""
+        print("⚠️  Async scheduler is disabled")
 
 
 # Global scheduler instance
