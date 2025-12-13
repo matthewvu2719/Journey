@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timezone Debug</title>
+</head>
+<body>
+    <h1>Timezone Debug</h1>
+    <div id="output"></div>
+    
+    <script>
+        const now = new Date();
+        const output = document.getElementById('output');
+        
+        const info = `
+            <h2>Current Time Info</h2>
+            <p><strong>Local time:</strong> ${now.toString()}</p>
+            <p><strong>UTC time:</strong> ${now.toUTCString()}</p>
+            <p><strong>ISO string:</strong> ${now.toISOString()}</p>
+            
+            <h2>Timezone Offset</h2>
+            <p><strong>getTimezoneOffset():</strong> ${now.getTimezoneOffset()} minutes</p>
+            <p><strong>Converted (sent to backend):</strong> ${now.getTimezoneOffset() * -1} minutes</p>
+            
+            <h2>Date Calculations</h2>
+            <p><strong>Local date (en-CA):</strong> ${now.toLocaleDateString('en-CA')}</p>
+            <p><strong>Local day (en-US):</strong> ${now.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+            
+            <h2>Expected Backend Calculation</h2>
+            <p><strong>UTC now:</strong> ${new Date().toISOString()}</p>
+            <p><strong>Offset to add:</strong> ${now.getTimezoneOffset() * -1} minutes</p>
+            
+            <h2>Manual Calculation</h2>
+            <p>If UTC is ${new Date().toISOString()}</p>
+            <p>And we add ${now.getTimezoneOffset() * -1} minutes</p>
+            <p>We should get local time matching: ${now.toISOString()}</p>
+        `;
+        
+        output.innerHTML = info;
+    </script>
+</body>
+</html>

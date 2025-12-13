@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timezone Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .correct { color: green; }
+        .incorrect { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Timezone Calculation Test</h1>
+    
+    <div class="section">
+        <h2>Current Time Information</h2>
+        <div id="timeInfo"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Timezone Offset Calculation</h2>
+        <div id="offsetInfo"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Backend Simulation</h2>
+        <div id="backendSim"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Test API Call</h2>
+        <button onclick="testAPI()">Test API Call</button>
+        <div id="apiResult"></div>
+    </div>
+    
+    <script>
+        function updateTimeInfo() {
+            const now = new Date();
+            const timeInfo = document.getElementById('timeInfo');
+            
+            timeInfo.innerHTML = `
+                <p><strong>Local Time:</strong> ${now.toString()}</p>
+                <p><strong>UTC Time:</strong> ${now.toUTCString()}</p>
+                <p><strong>ISO String:</strong> ${now.toISOString()}</p>
+                <p><strong>Local Date (en-CA):</strong> ${now.toLocaleDateString('en-CA')}</p>
+                <p><strong>Local Day:</strong> ${now.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+            `;
+        }
+        
+        function updateOffsetInfo() {
+            const now = new Date();
+            const jsOffset = now.getTimezoneOffset();
+            const backendOffset = -jsOffset;
+            
+            const offsetInfo = document.getElementById('offsetInfo');
+            offsetInfo.innerHTML = `
+                <p><strong>JavaScript getTimezoneOffset():</strong> ${jsOffset} minutes</p>
+                <p><strong>What we send to backend:</strong> ${backendOffset} minutes</p>
+                <p><strong>Explanation:</strong> ${jsOffset > 0 ? 'Behind UTC' : jsOffset < 0 ? 'Ahead of UTC' : 'UTC'}</p>
+            `;
+        }
+        
+        function simulateBackend() {
+            const now = new Date();
+            const jsOffset = now.getTimezoneOffset();
+            const backendOffset = -jsOffset;
+            
+            // Simulate backend calculation
+            const utcNow = new Date();
+            utcNow.setTime(utcNow.getTime() - (utcNow.getTimezoneOffset() * 60000)); // Convert to UTC
+            
+            const backendCalculated = new Date(utcNow.getTime() + (backendOffset * 60000));
+            
+            const backendSim = document.getElementById('backendSim');
+            const dateMatch = now.toLocaleDateString('en-CA') === backendCalculated.toLocaleDateString('en-CA');
+            const dayMatch = now.toLocaleDateString('en-US', { weekday: 'short' }) === backendCalculated.toLocaleDateString('en-US', { weekday: 'short' });
+            
+            backendSim.innerHTML = `
+                <p><strong>UTC Time (simulated):</strong> ${utcNow.toISOString()}</p>
+                <p><strong>Backend Calculated Time:</strong> ${backendCalculated.toString()}</p>
+                <p><strong>Backend Date:</strong> ${backendCalculated.toLocaleDateString('en-CA')} <span class="${dateMatch ? 'correct' : 'incorrect'}">${dateMatch ? '✓' : '✗'}</span></p>
+                <p><strong>Backend Day:</strong> ${backendCalculated.toLocaleDateString('en-US', { weekday: 'short' })} <span class="${dayMatch ? 'correct' : 'incorrect'}">${dayMatch ? '✓' : '✗'}</span></p>
+                <p><strong>Expected Date:</strong> ${now.toLocaleDateString('en-CA')}</p>
+                <p><strong>Expected Day:</strong> ${now.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+            `;
+        }
+        
+        async function testAPI() {
+            const apiResult = document.getElementById('apiResult');
+            apiResult.innerHTML = '<p>Testing API...</p>';
+            
+            try {
+                const timezoneOffset = -new Date().getTimezoneOffset();
+                const response = await fetch(`http://localhost:8000/api/debug/timezone?timezone_offset=${timezoneOffset}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const now = new Date();
+                    
+                    apiResult.innerHTML = `
+                        <h3>API Response:</h3>
+                        <p><strong>Received Offset:</strong> ${data.received_offset}</p>
+                        <p><strong>UTC Time:</strong> ${data.utc_time}</p>
+                        <p><strong>Server Time:</strong> ${data.server_time}</p>
+                        <p><strong>Calculated Local:</strong> ${data.calculated_local_time}</p>
+                        <p><strong>Calculated Date:</strong> ${data.calculated_date}</p>
+                        <p><strong>Calculated Day:</strong> ${data.calculated_day}</p>
+                        <hr>
+                        <p><strong>Expected Date:</strong> ${now.toLocaleDateString('en-CA')}</p>
+                        <p><strong>Expected Day:</strong> ${now.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                        <p><strong>Date Match:</strong> <span class="${data.calculated_date === now.toLocaleDateString('en-CA') ? 'correct' : 'incorrect'}">${data.calculated_date === now.toLocaleDateString('en-CA') ? '✓' : '✗'}</span></p>
+                        <p><strong>Day Match:</strong> <span class="${data.calculated_day === now.toLocaleDateString('en-US', { weekday: 'short' }) ? 'correct' : 'incorrect'}">${data.calculated_day === now.toLocaleDateString('en-US', { weekday: 'short' }) ? '✓' : '✗'}</span></p>
+                    `;
+                } else {
+                    apiResult.innerHTML = `<p class="incorrect">API Error: ${response.status} - ${response.statusText}</p>`;
+                }
+            } catch (error) {
+                apiResult.innerHTML = `<p class="incorrect">Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Update info on page load
+        updateTimeInfo();
+        updateOffsetInfo();
+        simulateBackend();
+        
+        // Update every second
+        setInterval(() => {
+            updateTimeInfo();
+            updateOffsetInfo();
+            simulateBackend();
+        }, 1000);
+    </script>
+</body>
+</html>

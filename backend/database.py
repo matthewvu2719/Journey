@@ -234,13 +234,18 @@ class SupabaseClient:
         self.client.table("habits").delete().eq("id", habit_id).execute()
         return True
     
-    def get_habits_for_today(self, user_id: str, time_of_day: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_habits_for_today(self, user_id: str, time_of_day: Optional[str] = None, timezone_offset: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get habits scheduled for today, optionally filtered by time of day - optimized version"""
-        from datetime import datetime
+        from datetime import datetime, timedelta
         
         if self.mock_mode:
             # Use existing logic for mock mode
-            today = datetime.now().strftime('%a')
+            # Calculate local time based on timezone offset
+            if timezone_offset is not None:
+                local_now = datetime.utcnow() + timedelta(minutes=timezone_offset)
+            else:
+                local_now = datetime.now()
+            today = local_now.strftime('%a')
             all_habits = self.get_habits(user_id)
             
             today_habits = []
@@ -268,48 +273,60 @@ class SupabaseClient:
             
             return today_habits
         
-        # Use fallback method directly for better reliability
-            today = datetime.now().strftime('%a')
-            all_habits = self.get_habits(user_id)
+        # Use fallback method for Supabase mode too (simpler and more reliable)
+        # Calculate local time based on timezone offset
+        if timezone_offset is not None:
+            local_now = datetime.utcnow() + timedelta(minutes=timezone_offset)
+        else:
+            local_now = datetime.now()
+        today = local_now.strftime('%a')
+        all_habits = self.get_habits(user_id)
+        
+        today_habits = []
+        for habit in all_habits:
+            habit_days = habit.get('days', [])
+            habit_times = habit.get('times_of_day', [])
             
-            today_habits = []
-            for habit in all_habits:
-                habit_days = habit.get('days', [])
-                habit_times = habit.get('times_of_day', [])
-                
-                # Check if habit is scheduled for today
-                if not habit_days:
-                    is_today = True
-                else:
-                    is_today = today in habit_days
-                
-                # If filtering by time of day
-                if time_of_day:
-                    if not habit_times:
-                        is_time_match = True
-                    else:
-                        is_time_match = time_of_day in habit_times
-                else:
+            # Check if habit is scheduled for today
+            if not habit_days:
+                is_today = True
+            else:
+                is_today = today in habit_days
+            
+            # If filtering by time of day
+            if time_of_day:
+                if not habit_times:
                     is_time_match = True
-                
-                if is_today and is_time_match:
-                    today_habits.append(habit)
+                else:
+                    is_time_match = time_of_day in habit_times
+            else:
+                is_time_match = True
             
-            return today_habits
+            if is_today and is_time_match:
+                today_habits.append(habit)
+        
+        return today_habits
     
-    def get_habits_count_for_today(self, user_id: str, time_of_day: Optional[str] = None) -> int:
+    def get_habits_count_for_today(self, user_id: str, time_of_day: Optional[str] = None, timezone_offset: Optional[int] = None) -> int:
         """Get count of habits scheduled for today, optionally filtered by time of day"""
-        return len(self.get_habits_for_today(user_id, time_of_day))
+        return len(self.get_habits_for_today(user_id, time_of_day, timezone_offset))
     
-    def get_time_remaining_today(self, user_id: str) -> int:
+    def get_time_remaining_today(self, user_id: str, timezone_offset: Optional[int] = None) -> int:
         """Get remaining time for uncompleted big habits today - accounts for times_of_day"""
         if self.mock_mode:
             # Mock implementation - calculate from mock data
+            # Calculate local time based on timezone offset
+            if timezone_offset is not None:
+                local_now = datetime.utcnow() + timedelta(minutes=timezone_offset)
+            else:
+                local_now = datetime.now()
+            today_date = local_now.date().isoformat()
+            
             all_habits = self.get_habits(user_id)
             today_completions = self.get_completions(
                 user_id=user_id,
-                start_date=date.today().isoformat(),
-                end_date=date.today().isoformat()
+                start_date=today_date,
+                end_date=today_date
             )
             
             # Count completions per habit
@@ -319,7 +336,12 @@ class SupabaseClient:
                 completions_per_habit[habit_id] = completions_per_habit.get(habit_id, 0) + 1
             
             time_remaining = 0
-            today_day = datetime.now().strftime('%a')
+            # Calculate local time based on timezone offset
+            if timezone_offset is not None:
+                local_now = datetime.utcnow() + timedelta(minutes=timezone_offset)
+            else:
+                local_now = datetime.now()
+            today_day = local_now.strftime('%a')
             
             for habit in all_habits:
                 if (habit.get('habit_type') == 'big' and 
@@ -347,10 +369,16 @@ class SupabaseClient:
         
         try:
             # Use regular Supabase queries for better compatibility  
-            from datetime import datetime
+            from datetime import datetime, timedelta
+            
+            # Calculate local time based on timezone offset
+            if timezone_offset is not None:
+                local_now = datetime.utcnow() + timedelta(minutes=timezone_offset)
+            else:
+                local_now = datetime.now()
             
             # Get today's day of week (convert Python 0=Monday to schema 1=Monday, 7=Sunday)
-            python_dow = datetime.now().weekday()  # 0=Monday, 6=Sunday
+            python_dow = local_now.weekday()  # 0=Monday, 6=Sunday
             schema_dow = python_dow + 1 if python_dow < 6 else 7  # 1=Monday, 7=Sunday
             
             # Step 1: Get big habits with duration for user
@@ -387,7 +415,7 @@ class SupabaseClient:
                 times_per_habit[habit_id] = times_per_habit.get(habit_id, 0) + 1
             
             # Step 4: Get today's completions
-            today_date = date.today().isoformat()
+            today_date = local_now.date().isoformat()
             completions_response = self.client.table("habit_completions").select("habit_id").eq("user_id", user_id).eq("completed_date", today_date).in_("habit_id", today_habit_ids).execute()
             
             completions_per_habit = {}
@@ -422,12 +450,29 @@ class SupabaseClient:
             traceback.print_exc()
             return 0
 
-    def get_today_stats(self, user_id: str) -> Dict[str, Any]:
+    def get_today_stats(self, user_id: str, timezone_offset: Optional[int] = None) -> Dict[str, Any]:
         """Get comprehensive stats for today - optimized version"""
-        from datetime import datetime, date as date_type
+        from datetime import datetime, date as date_type, timedelta
         
-        today_date = date_type.today().isoformat()
-        today_day = datetime.now().strftime('%a')  # 'Mon', 'Tue', etc.
+        print(f"[DEBUG] get_today_stats called with timezone_offset: {timezone_offset}")
+        
+        # Calculate local time based on timezone offset
+        if timezone_offset is not None:
+            # timezone_offset is in minutes (e.g., -300 for EST)
+            utc_now = datetime.utcnow()
+            local_now = utc_now + timedelta(minutes=timezone_offset)
+            print(f"[DEBUG] UTC time: {utc_now}")
+            print(f"[DEBUG] Local time (with offset): {local_now}")
+        else:
+            # Fallback to server time
+            local_now = datetime.now()
+            print(f"[DEBUG] Using server time: {local_now}")
+        
+        today_date = local_now.date().isoformat()
+        today_day = local_now.strftime('%a')  # 'Mon', 'Tue', etc.
+        
+        print(f"[DEBUG] Calculated today_date: {today_date}")
+        print(f"[DEBUG] Calculated today_day: {today_day}")
         
         if self.mock_mode:
             # Use existing logic for mock mode
@@ -477,7 +522,7 @@ class SupabaseClient:
             success_rate = round((completed_count / total_instances) * 100) if total_instances > 0 else 0
             
             # Get time remaining using optimized function
-            time_remaining = self.get_time_remaining_today(user_id)
+            time_remaining = self.get_time_remaining_today(user_id, timezone_offset)
             
             return {
                 'habits_today': total_instances,
@@ -489,10 +534,9 @@ class SupabaseClient:
         
         try:
             # Use regular Supabase queries instead of execute_sql for better compatibility
-            from datetime import datetime
             
             # Get today's day of week (convert Python 0=Monday to schema 1=Monday, 7=Sunday)
-            python_dow = datetime.now().weekday()  # 0=Monday, 6=Sunday
+            python_dow = local_now.weekday()  # 0=Monday, 6=Sunday (using timezone-adjusted time)
             schema_dow = python_dow + 1 if python_dow < 6 else 7  # 1=Monday, 7=Sunday
             
             print(f"[DEBUG] Today is day {schema_dow} (Python: {python_dow})")
@@ -556,7 +600,7 @@ class SupabaseClient:
             print(f"[DEBUG] Total habit instances today: {total_instances}")
             
             # Step 4: Get today's completions
-            today_date = date_type.today().isoformat()
+            # Use the timezone-adjusted date we calculated earlier
             completions_response = self.client.table("habit_completions").select("habit_id").eq("user_id", user_id).eq("completed_date", today_date).in_("habit_id", today_habit_ids).execute()
             
             completions_per_habit = {}
@@ -582,7 +626,7 @@ class SupabaseClient:
             print(f"[DEBUG] Completed instances: {completed_instances}/{total_instances} = {success_rate}%")
             
             # Get time remaining using optimized function
-            time_remaining = self.get_time_remaining_today(user_id)
+            time_remaining = self.get_time_remaining_today(user_id, timezone_offset)
             
             return {
                 'habits_today': total_instances,
@@ -610,7 +654,7 @@ class SupabaseClient:
                 success_rate = round((completions_today / habits_today) * 100) if habits_today > 0 else 0
                 
                 # Get time remaining using optimized function
-                time_remaining = self.get_time_remaining_today(user_id)
+                time_remaining = self.get_time_remaining_today(user_id, timezone_offset)
                 
                 return {
                     'habits_today': habits_today,

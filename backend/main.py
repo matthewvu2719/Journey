@@ -91,6 +91,28 @@ async def health_check():
         "database_mode": "supabase" if not db.mock_mode else "mock"
     }
 
+@app.get("/api/debug/timezone")
+async def debug_timezone(timezone_offset: Optional[int] = None):
+    """Debug endpoint to test timezone offset"""
+    from datetime import datetime, timedelta
+    
+    utc_now = datetime.utcnow()
+    server_now = datetime.now()
+    
+    result = {
+        "received_offset": timezone_offset,
+        "utc_time": utc_now.isoformat(),
+        "server_time": server_now.isoformat(),
+    }
+    
+    if timezone_offset is not None:
+        calculated_local = utc_now + timedelta(minutes=timezone_offset)
+        result["calculated_local_time"] = calculated_local.isoformat()
+        result["calculated_date"] = calculated_local.date().isoformat()
+        result["calculated_day"] = calculated_local.strftime('%a')
+    
+    return result
+
 
 # ============================================================================
 # AUTHENTICATION ENDPOINTS (Phase 1)
@@ -194,6 +216,36 @@ async def get_habits(user_id: str = Depends(get_user_id_optional)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/habits/today")
+async def get_habits_for_today(
+    time_of_day: Optional[str] = None,
+    timezone_offset: Optional[int] = None,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get habits scheduled for today, optionally filtered by time of day"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        habits = db.get_habits_for_today(query_user_id, time_of_day, timezone_offset)
+        return habits
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/habits/today/count")
+async def get_habits_count_for_today(
+    time_of_day: Optional[str] = None,
+    timezone_offset: Optional[int] = None,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get count of habits scheduled for today, optionally filtered by time of day"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        count = db.get_habits_count_for_today(query_user_id, time_of_day, timezone_offset)
+        return {"count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/habits/{habit_id}", response_model=Habit)
 async def get_habit(habit_id: int, user_id: str = Depends(get_user_id_optional)):
     """Get a specific habit"""
@@ -255,28 +307,7 @@ async def delete_habit(habit_id: int, user_id: str = Depends(get_user_id_optiona
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/habits/today")
-async def get_habits_for_today(
-    time_of_day: Optional[str] = None,
-    user_id: str = Depends(get_user_id_optional)
-):
-    """Get habits scheduled for today, optionally filtered by time of day"""
-    try:
-        query_user_id = user_id if user_id else "default_user"
-        habits = db.get_habits_for_today(query_user_id, time_of_day)
-        return habits
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/api/habits/today/count")
-async def get_habits_count_for_today(
-    time_of_day: Optional[str] = None,
-    user_id: str = Depends(get_user_id_optional)
-):
-    """Get count of habits scheduled for today, optionally filtered by time of day"""
-    try:
-        query_user_id = user_id if user_id else "default_user"
         count = db.get_habits_count_for_today(query_user_id, time_of_day)
         return {"count": count, "time_of_day": time_of_day, "user_id": query_user_id}
     except Exception as e:
@@ -485,7 +516,10 @@ async def calculate_daily_success_rate(
 
 
 @app.get("/api/dashboard/data")
-async def get_dashboard_data(user_id: str = Depends(get_user_id_optional)):
+async def get_dashboard_data(
+    user_id: str = Depends(get_user_id_optional),
+    timezone_offset: Optional[int] = None
+):
     """Get all dashboard data in a single optimized request"""
     try:
         query_user_id = user_id if user_id else "default_user"
@@ -498,8 +532,13 @@ async def get_dashboard_data(user_id: str = Depends(get_user_id_optional)):
             return db.get_habits(query_user_id)
         
         def get_completions_sync():
-            from datetime import date
-            today = date.today()
+            from datetime import date, datetime, timedelta
+            # Calculate local time based on timezone offset
+            if timezone_offset is not None:
+                local_now = datetime.utcnow() + timedelta(minutes=timezone_offset)
+            else:
+                local_now = datetime.now()
+            today = local_now.date()
             return db.get_completions(
                 user_id=query_user_id,
                 start_date=today,
@@ -507,7 +546,7 @@ async def get_dashboard_data(user_id: str = Depends(get_user_id_optional)):
             )
         
         def get_stats_sync():
-            return db.get_today_stats(query_user_id)
+            return db.get_today_stats(query_user_id, timezone_offset)
         
         # Execute database calls in parallel
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -531,11 +570,15 @@ async def get_dashboard_data(user_id: str = Depends(get_user_id_optional)):
 
 
 @app.get("/api/stats/today")
-async def get_today_stats(user_id: str = Depends(get_user_id_optional)):
+async def get_today_stats(
+    user_id: str = Depends(get_user_id_optional),
+    timezone_offset: Optional[int] = None
+):
     """Get comprehensive stats for today"""
     try:
         query_user_id = user_id if user_id else "default_user"
-        stats = db.get_today_stats(query_user_id)
+        print(f"[API DEBUG] get_today_stats called with timezone_offset: {timezone_offset}")
+        stats = db.get_today_stats(query_user_id, timezone_offset)
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

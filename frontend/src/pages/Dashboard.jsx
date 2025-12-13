@@ -15,6 +15,7 @@ import VoiceCallButton from '../components/VoiceCallButton'
 
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { getTodayDate } from '../utils/timezone'
 
 function Dashboard() {
   const { user } = useAuth()
@@ -112,7 +113,7 @@ function Dashboard() {
 
   // Optimized refresh function for completion deletion (undo)
   const handleCompletionDeleted = async (habitId, timeOfDay) => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = getTodayDate()
     const timeOfDayId = timeOfDayMap[timeOfDay]
     
     // Find the completion to delete
@@ -285,6 +286,7 @@ function Dashboard() {
                 habits={habits} 
                 completions={logs} 
                 onSectionChange={setScheduleResetFn}
+                onRefresh={loadData}
               />
             )}
 

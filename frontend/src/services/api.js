@@ -179,13 +179,29 @@ export const api = {
   },
 
   getTodayStats: async () => {
-    const { data } = await client.get('/api/stats/today')
+    // Get user's timezone offset in minutes
+    // getTimezoneOffset() returns positive for behind UTC, negative for ahead
+    // We need to send the negative of this to the backend
+    const timezoneOffset = -new Date().getTimezoneOffset()
+    console.log('[API DEBUG] Sending timezone_offset:', timezoneOffset)
+    const { data } = await client.get('/api/stats/today', {
+      params: { timezone_offset: timezoneOffset }
+    })
+    console.log('[API DEBUG] Received stats:', data)
     return data
   },
 
   // Batch endpoint for dashboard data
   getDashboardData: async () => {
-    const { data } = await client.get('/api/dashboard/data')
+    // Get user's timezone offset in minutes
+    // getTimezoneOffset() returns positive for behind UTC, negative for ahead
+    // We need to send the negative of this to the backend
+    const timezoneOffset = -new Date().getTimezoneOffset()
+    console.log('[API DEBUG] getDashboardData sending timezone_offset:', timezoneOffset)
+    const { data } = await client.get('/api/dashboard/data', {
+      params: { timezone_offset: timezoneOffset }
+    })
+    console.log('[API DEBUG] getDashboardData received:', data)
     return data
   },
   

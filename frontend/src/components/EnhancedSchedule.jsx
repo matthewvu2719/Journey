@@ -3,14 +3,16 @@ import WeeklyCalendarView from './WeeklyCalendarView'
 import MonthlyCalendarView from './MonthlyCalendarView'
 import YearlyCalendarView from './YearlyCalendarView'
 import { dateUtils } from '../utils/dateUtils'
+import { api } from '../services/api'
 
-export default function EnhancedSchedule({ habits = [], completions = [], onSectionChange }) {
+export default function EnhancedSchedule({ habits = [], completions = [], onSectionChange, onRefresh }) {
   const [view, setView] = useState('weekly')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewDate, setViewDate] = useState(new Date()) // What period user is viewing
   const [selectedDate, setSelectedDate] = useState(null) // Date selected from monthly calendar
   const [touchStart, setTouchStart] = useState(null)
   const [touchEnd, setTouchEnd] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const views = [
     { id: 'weekly', label: 'Weekly', icon: '📅' },
@@ -210,10 +212,59 @@ export default function EnhancedSchedule({ habits = [], completions = [], onSect
     )
   }
 
+  const handleRefreshSchedule = async () => {
+    setIsRefreshing(true)
+    try {
+      // If parent provides refresh function, use it
+      if (onRefresh) {
+        await onRefresh()
+      } else {
+        // Fallback: refresh data directly
+        const today = new Date()
+        const dayOfWeek = today.getDay()
+        const monday = new Date(today)
+        monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+        const startDate = monday.toISOString().split('T')[0]
+        
+        await api.getCompletions({ start_date: startDate })
+      }
+      
+      // Show success feedback briefly
+      setTimeout(() => {
+        setIsRefreshing(false)
+      }, 500)
+    } catch (error) {
+      console.error('Failed to refresh schedule:', error)
+      setIsRefreshing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-light">Schedule</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-3xl font-bold text-light">Schedule</h2>
+          <button
+            onClick={handleRefreshSchedule}
+            disabled={isRefreshing}
+            className="p-2 rounded-lg hover:bg-light/10 transition-colors disabled:opacity-50"
+            title="Refresh schedule data"
+          >
+            <svg 
+              className={`w-5 h-5 text-light/60 ${isRefreshing ? 'animate-spin' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+              />
+            </svg>
+          </button>
+        </div>
         
         <select
           value={view}

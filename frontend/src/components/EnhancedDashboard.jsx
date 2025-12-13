@@ -11,6 +11,7 @@ import { DotPattern } from './ui/DotPattern'
 import RobotMascot from './RobotMascot'
 import AchievementNotification from './AchievementNotification'
 import { useBobo } from '../contexts/BoboContext'
+import { getTodayDayName, getTodayDate } from '../utils/timezone'
 
 export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCreated, onCompletionCreated, onCompletionDeleted }) {
   const { getEquippedItems } = useBobo()
@@ -23,6 +24,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
   const [celebrationMessage, setCelebrationMessage] = useState('')
   const [celebrationDance, setCelebrationDance] = useState(null)
   const [achievementToShow, setAchievementToShow] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
 
   // Map time names to IDs
@@ -47,26 +49,34 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
 
   const loadDashboardData = async () => {
     try {
+      console.log('[DASHBOARD DEBUG] Starting loadDashboardData')
+      
       // Try to use the optimized batch API first
       try {
+        console.log('[DASHBOARD DEBUG] Trying batch API...')
         const dashboardData = await api.getDashboardData()
+        console.log('[DASHBOARD DEBUG] Batch API success:', dashboardData)
         setStats(dashboardData.stats)
         return
       } catch (batchError) {
-        console.log('Batch dashboard API not available, trying individual API:', batchError.message)
+        console.log('[DASHBOARD DEBUG] Batch API failed:', batchError.message)
       }
       
       // Fallback: Try individual stats API
       try {
+        console.log('[DASHBOARD DEBUG] Trying individual stats API...')
         const todayStats = await api.getTodayStats()
+        console.log('[DASHBOARD DEBUG] Individual API success:', todayStats)
         setStats(todayStats)
         return
       } catch (apiError) {
-        console.log('Backend stats API not available, calculating client-side:', apiError.message)
+        console.log('[DASHBOARD DEBUG] Individual API failed:', apiError.message)
+        console.log('[DASHBOARD DEBUG] Falling back to client-side calculation')
       }
       
       // Final fallback: Calculate stats client-side
-      const today = new Date().toLocaleDateString('en-US', { weekday: 'short' })
+      const today = getTodayDayName()
+      console.log('[DASHBOARD DEBUG] Client-side calculation for day:', today)
       
       // Build list of habit instances (habit × time_of_day combinations) for today
       const habitInstances = []
@@ -106,12 +116,15 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
       const totalInstances = habitInstances.length
       const successRate = totalInstances > 0 ? Math.round((completedInstances / totalInstances) * 100) : 0
       
-      setStats({
+      const clientStats = {
         habits_today: totalInstances,  // Total habit instances (habit × time combinations)
         completed_today: completedInstances,
         success_rate_today: successRate,
         time_remaining: timeRemaining
-      })
+      }
+      
+      console.log('[DASHBOARD DEBUG] Client-side calculated stats:', clientStats)
+      setStats(clientStats)
     } catch (error) {
       console.error('Failed to load dashboard:', error)
     }
@@ -119,7 +132,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
 
   // Check if a specific habit instance is completed
   const isCompleted = (habitId, timeOfDay) => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = getTodayDate()
     const timeOfDayId = timeOfDayMap[timeOfDay]
     return api.isHabitCompleted(habitId, today, timeOfDayId, logs)
   }
@@ -154,7 +167,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         await onCompletionDeleted(habitId, timeOfDay)
       } else {
         // Fallback to old method
-        const today = new Date().toISOString().split('T')[0]
+        const today = getTodayDate()
         const timeOfDayId = timeOfDayMap[timeOfDay]
         
         // Find the completion to delete
@@ -177,7 +190,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
 
   const handleQuickComplete = async (habitId, timeOfDay) => {
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = getTodayDate()
       const completionData = {
         habit_id: habitId,
         completed_date: today,
@@ -242,7 +255,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         return
       }
       
-      const today = new Date().toISOString().split('T')[0]
+      const today = getTodayDate()
       const completionPayload = {
         habit_id: completingHabit.id,
         completed_date: today,
@@ -342,6 +355,20 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
     }
   }
 
+  const handleRefreshHabits = async () => {
+    setIsRefreshing(true)
+    try {
+      await onRefresh()
+      // Show success feedback briefly
+      setTimeout(() => {
+        setIsRefreshing(false)
+      }, 500)
+    } catch (error) {
+      console.error('Failed to refresh habits:', error)
+      setIsRefreshing(false)
+    }
+  }
+
 
 
   return (
@@ -393,9 +420,31 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
       {/* Dot Pattern Background */}
       <DotPattern opacity={0.1} />
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-3xl font-bold text-light mb-2">Habits Overview</h2>
+          <div className="flex items-center gap-4 mb-2">
+            <h2 className="text-3xl font-bold text-light">Habits Overview</h2>
+            <button
+              onClick={handleRefreshHabits}
+              disabled={isRefreshing}
+              className="p-2 rounded-lg hover:bg-light/10 transition-colors disabled:opacity-50"
+              title="Refresh habits data"
+            >
+              <svg 
+                className={`w-5 h-5 text-light/60 ${isRefreshing ? 'animate-spin' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                />
+              </svg>
+            </button>
+          </div>
           <p className="text-light/60">Manage and track your habits</p>
         </div>
         <button
@@ -516,7 +565,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {['morning', 'noon', 'afternoon', 'night'].map(timeOfDay => {
               // Get today's day name (Mon, Tue, Wed, etc.)
-              const today = new Date().toLocaleDateString('en-US', { weekday: 'short' })
+              const today = getTodayDayName()
               
               // Debug: log what we're checking
               console.log('Today is:', today)
