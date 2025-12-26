@@ -112,7 +112,11 @@ export const api = {
   },
   
   createCompletion: async (completion) => {
-    const { data } = await client.post('/api/completions', completion)
+    // Enhanced completion creation includes timezone offset for immediate stats update
+    const timezoneOffset = -new Date().getTimezoneOffset()
+    const { data } = await client.post('/api/completions', completion, {
+      params: { timezone_offset: timezoneOffset }
+    })
     return data
   },
   
@@ -122,7 +126,11 @@ export const api = {
   },
   
   deleteCompletion: async (id) => {
-    await client.delete(`/api/completions/${id}`)
+    // Enhanced completion deletion includes timezone offset for immediate stats update
+    const timezoneOffset = -new Date().getTimezoneOffset()
+    await client.delete(`/api/completions/${id}`, {
+      params: { timezone_offset: timezoneOffset }
+    })
   },
 
   // Helper to get today's completions
@@ -202,11 +210,26 @@ export const api = {
       params: { timezone_offset: timezoneOffset }
     })
     console.log('[API DEBUG] getDashboardData received:', data)
+    
+    // Enhanced response format includes:
+    // - habits: array of habits
+    // - completions: array of today's completions
+    // - stats: enhanced stats object with data_source and is_stored indicators
+    // - timestamp: when the data was retrieved
     return data
   },
   
-  chat: async (message, userId = 'default_user') => {
-    const { data } = await client.post('/api/chat', { message, user_id: userId })
+  chat: async (message, userId = 'default_user', timezoneOffset = null) => {
+    // Get timezone offset if not provided
+    if (timezoneOffset === null) {
+      timezoneOffset = -new Date().getTimezoneOffset() // Convert to minutes from UTC
+    }
+    
+    const { data } = await client.post('/api/chat', { 
+      message, 
+      user_id: userId,
+      timezone_offset: timezoneOffset
+    })
     return data
   },
   
@@ -232,8 +255,18 @@ export const api = {
   },
   
   // Phase 4: AI Agents
-  agentChat: async (message, context = {}) => {
-    const { data } = await client.post('/api/chat', { message, context })
+  agentChat: async (message, context = {}, userId = 'default_user', timezoneOffset = null) => {
+    // Get timezone offset if not provided
+    if (timezoneOffset === null) {
+      timezoneOffset = -new Date().getTimezoneOffset() // Convert to minutes from UTC
+    }
+    
+    const { data } = await client.post('/api/chat', { 
+      message, 
+      user_id: userId,
+      timezone_offset: timezoneOffset,
+      context 
+    })
     return data
   },
   
@@ -293,6 +326,26 @@ export const api = {
     return data
   },
 
+  unlockDailyAchievement: async () => {
+    const { data } = await client.post('/api/achievements/unlock/daily')
+    return data
+  },
+
+  unlockWeeklyAchievement: async () => {
+    const { data } = await client.post('/api/achievements/unlock/weekly')
+    return data
+  },
+
+  unlockMonthlyAchievement: async () => {
+    const { data } = await client.post('/api/achievements/unlock/monthly')
+    return data
+  },
+
+  checkRewardClaimed: async (achievementType) => {
+    const { data } = await client.get(`/api/achievements/claimed/${achievementType}`)
+    return data.claimed
+  },
+
   getAvailableRewards: async () => {
     const { data } = await client.get('/api/achievements/rewards')
     return data
@@ -346,9 +399,18 @@ export const api = {
     return data
   },
 
-  getSuccessRatesRange: async (startDate, endDate) => {
+  getSuccessRatesRange: async (startDate, endDate, timezoneOffset = null) => {
+    // Get timezone offset if not provided
+    if (timezoneOffset === null) {
+      timezoneOffset = -new Date().getTimezoneOffset() // Convert to minutes from UTC
+    }
+    
     const { data } = await client.get('/api/success-rates/range', {
-      params: { start_date: startDate, end_date: endDate }
+      params: { 
+        start_date: startDate, 
+        end_date: endDate,
+        timezone_offset: timezoneOffset
+      }
     })
     return data
   },

@@ -265,3 +265,19 @@ class UserInfo(BaseModel):
     email: Optional[str] = None
     user_type: str
     created_at: Optional[datetime] = None
+    timezone: Optional[str] = None  # e.g., "America/New_York", "UTC"
+
+
+class UserPreferences(BaseModel):
+    user_id: str
+    timezone: str = "UTC"  # Default to UTC
+    date_format: str = "YYYY-MM-DD"  # ISO format
+    time_format: str = "24h"  # 24h or 12h
+    week_start: str = "monday"  # monday or sunday
+
+
+class UserPreferencesUpdate(BaseModel):
+    timezone: Optional[str] = None
+    date_format: Optional[str] = None
+    time_format: Optional[str] = None
+    week_start: Optional[str] = None

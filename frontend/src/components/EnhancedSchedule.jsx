@@ -64,16 +64,38 @@ export default function EnhancedSchedule({ habits = [], completions = [], onSect
     }
   }, [onSectionChange])
 
-  // Check if user is viewing the current period
+  // Check if user is viewing the current period (current date is visible in the view)
+  // This is independent of selectedDate - only depends on viewDate
   const isViewingCurrentPeriod = () => {
     const today = new Date()
     
     switch (view) {
       case 'weekly':
-        return dateUtils.getWeekStart(viewDate).getTime() === dateUtils.getWeekStart(today).getTime()
+        // More robust week comparison - check if today falls within the viewed week
+        const todayTime = today.getTime()
+        const viewWeekStart = dateUtils.getWeekStart(new Date(viewDate))
+        const viewWeekEnd = dateUtils.getWeekEnd(new Date(viewDate))
+        
+        // Normalize times to avoid hour/minute/second differences
+        viewWeekStart.setHours(0, 0, 0, 0)
+        viewWeekEnd.setHours(23, 59, 59, 999)
+        
+        const isInCurrentWeek = todayTime >= viewWeekStart.getTime() && todayTime <= viewWeekEnd.getTime()
+        
+        console.log('[DEBUG] Weekly Current Check:', {
+          today: today.toDateString(),
+          viewDate: viewDate.toDateString(),
+          viewWeekStart: viewWeekStart.toDateString(),
+          viewWeekEnd: viewWeekEnd.toDateString(),
+          isInCurrentWeek
+        })
+        
+        return isInCurrentWeek
       case 'monthly':
+        // Check if today falls within the currently viewed month
         return dateUtils.isCurrentMonth(viewDate)
       case 'yearly':
+        // Check if today falls within the currently viewed year
         return dateUtils.isCurrentYear(viewDate)
       default:
         return false
@@ -122,7 +144,7 @@ export default function EnhancedSchedule({ habits = [], completions = [], onSect
     }
   }
 
-  const navigateToToday = () => {
+  const navigateToCurrent = () => {
     const today = new Date()
     setViewDate(today)
     setSelectedDate(null) // Reset selected date to show current date highlighting
@@ -292,14 +314,22 @@ export default function EnhancedSchedule({ habits = [], completions = [], onSect
           <div className="text-lg font-semibold text-light">
             {dateUtils.getPeriodDisplay(viewDate, view)}
           </div>
-          {!isViewingCurrentPeriod() && (
-            <button
-              onClick={navigateToToday}
-              className="px-3 py-1 bg-light text-dark rounded-lg text-sm font-medium hover:bg-light/90 transition-colors"
-            >
-              Today
-            </button>
-          )}
+          {(() => {
+            const isCurrentPeriod = isViewingCurrentPeriod()
+            console.log('[DEBUG] Button Render:', {
+              view,
+              isCurrentPeriod,
+              shouldShowButton: !isCurrentPeriod
+            })
+            return !isCurrentPeriod && (
+              <button
+                onClick={navigateToCurrent}
+                className="px-3 py-1 bg-light text-dark rounded-lg text-sm font-medium hover:bg-light/90 transition-colors"
+              >
+                Current
+              </button>
+            )
+          })()}
         </div>
         
         <button

@@ -94,6 +94,28 @@ COMMENT ON TABLE public.user_availability IS 'User availability schedule for ML 
 
 
 -- ============================================================================
+-- TABLE: rewards_check (Achievement Reward Claiming)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.rewards_check (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  achievement_type TEXT NOT NULL CHECK (achievement_type IN ('daily_perfect', 'weekly_perfect', 'monthly_perfect')),
+  claim_date DATE NOT NULL,
+  claim_period TEXT NOT NULL, -- 'YYYY-MM-DD' for daily, 'YYYY-WW' for weekly, 'YYYY-MM' for monthly
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Ensure one claim per period per user per achievement type
+  UNIQUE(user_id, achievement_type, claim_period)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rewards_check_user_id ON public.rewards_check(user_id);
+CREATE INDEX IF NOT EXISTS idx_rewards_check_claim_period ON public.rewards_check(claim_period);
+CREATE INDEX IF NOT EXISTS idx_rewards_check_achievement_type ON public.rewards_check(achievement_type);
+
+COMMENT ON TABLE public.rewards_check IS 'Tracks when users claimed achievement rewards to prevent duplicate claims within time periods';
+
+
+-- ============================================================================
 -- TABLE: fixed_events (Phase 2)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.fixed_events (

@@ -19,11 +19,12 @@ from database import SupabaseClient
 from ml_engine import MLEngine
 from ml_trainer import get_ml_trainer
 from ml_scheduler import get_ml_scheduler
-from intelligent_chatbot import intelligent_chatbot
+from intelligent_chatbot import get_intelligent_chatbot
 from timetable_engine import TimetableEngine
 from auth import (
     auth_service, get_current_user, get_user_id, get_user_id_optional,
-    SignUpRequest, SignInRequest, GuestLoginRequest, AuthResponse, UserInfo
+    SignUpRequest, SignInRequest, GuestLoginRequest, AuthResponse, UserInfo,
+    UserPreferences, UserPreferencesUpdate
 )
 
 # Initialize FastAPI
@@ -47,7 +48,7 @@ db = SupabaseClient()
 ml_engine = MLEngine()
 ml_trainer = get_ml_trainer(db)  # Initialize ML trainer with database
 ml_scheduler = get_ml_scheduler(db)  # Initialize ML scheduler
-# intelligent_chatbot is imported as a singleton from intelligent_chatbot.py
+intelligent_chatbot = get_intelligent_chatbot(db)  # Initialize chatbot with database
 timetable_engine = TimetableEngine()
 
 
@@ -180,11 +181,103 @@ async def signout(user_id: str = Depends(get_user_id)):
 @app.get("/api/auth/me", response_model=UserInfo)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current user information"""
+    # Get user preferences to include timezone
+    try:
+        preferences = db.get_user_preferences(current_user["user_id"])
+        timezone = preferences.get("timezone")
+    except:
+        timezone = None
+    
     return UserInfo(
         user_id=current_user["user_id"],
         email=current_user.get("email"),
-        user_type=current_user.get("type", "guest")
+        user_type=current_user.get("type", "guest"),
+        timezone=timezone
     )
+
+
+# ============================================================================
+# USER PREFERENCES ENDPOINTS
+# ============================================================================
+
+@app.get("/api/preferences", response_model=UserPreferences)
+async def get_user_preferences(user_id: str = Depends(get_user_id)):
+    """Get user preferences including timezone"""
+    try:
+        preferences = db.get_user_preferences(user_id)
+        return UserPreferences(**preferences)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/preferences", response_model=UserPreferences)
+async def update_user_preferences(
+    preferences: UserPreferencesUpdate,
+    user_id: str = Depends(get_user_id)
+):
+    """Update user preferences"""
+    try:
+        # Only update provided fields
+        update_data = {k: v for k, v in preferences.dict().items() if v is not None}
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No preferences provided to update")
+        
+        result = db.update_user_preferences(user_id, update_data)
+        return UserPreferences(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/preferences/timezones")
+async def get_available_timezones():
+    """Get list of available timezones"""
+    try:
+        import pytz
+        
+        # Get common timezones organized by region
+        common_timezones = {
+            "North America": [
+                {"value": "America/New_York", "label": "Eastern Time (UTC-5/-4)"},
+                {"value": "America/Chicago", "label": "Central Time (UTC-6/-5)"},
+                {"value": "America/Denver", "label": "Mountain Time (UTC-7/-6)"},
+                {"value": "America/Los_Angeles", "label": "Pacific Time (UTC-8/-7)"},
+                {"value": "America/Anchorage", "label": "Alaska Time (UTC-9/-8)"},
+                {"value": "Pacific/Honolulu", "label": "Hawaii Time (UTC-10)"},
+            ],
+            "Europe": [
+                {"value": "Europe/London", "label": "London (UTC+0/+1)"},
+                {"value": "Europe/Paris", "label": "Paris (UTC+1/+2)"},
+                {"value": "Europe/Berlin", "label": "Berlin (UTC+1/+2)"},
+                {"value": "Europe/Rome", "label": "Rome (UTC+1/+2)"},
+                {"value": "Europe/Madrid", "label": "Madrid (UTC+1/+2)"},
+                {"value": "Europe/Moscow", "label": "Moscow (UTC+3)"},
+            ],
+            "Asia": [
+                {"value": "Asia/Tokyo", "label": "Tokyo (UTC+9)"},
+                {"value": "Asia/Shanghai", "label": "Shanghai (UTC+8)"},
+                {"value": "Asia/Kolkata", "label": "India (UTC+5:30)"},
+                {"value": "Asia/Dubai", "label": "Dubai (UTC+4)"},
+                {"value": "Asia/Singapore", "label": "Singapore (UTC+8)"},
+            ],
+            "Australia": [
+                {"value": "Australia/Sydney", "label": "Sydney (UTC+10/+11)"},
+                {"value": "Australia/Melbourne", "label": "Melbourne (UTC+10/+11)"},
+                {"value": "Australia/Perth", "label": "Perth (UTC+8)"},
+            ],
+            "Other": [
+                {"value": "UTC", "label": "UTC (Coordinated Universal Time)"},
+            ]
+        }
+        
+        return {
+            "timezones": common_timezones,
+            "total_count": sum(len(zones) for zones in common_timezones.values())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -401,7 +494,8 @@ async def get_success_rate_for_date(
 async def get_success_rates_range(
     start_date: str,
     end_date: str,
-    user_id: str = Depends(get_user_id_optional)
+    user_id: str = Depends(get_user_id_optional),
+    timezone_offset: Optional[int] = None
 ):
     """Get success rates for a date range (for monthly calendar)"""
     try:
@@ -427,7 +521,13 @@ async def get_success_rates_range(
         # Generate complete range with proper status for each date
         results = []
         current_date = start_date_obj
-        today = datetime.now().date()
+        
+        # Calculate user's local "today" based on timezone offset
+        if timezone_offset is not None:
+            local_now = datetime.utcnow() + timedelta(minutes=timezone_offset)
+            today = local_now.date()
+        else:
+            today = datetime.now().date()
         
         while current_date <= end_date_obj:
             date_str = current_date.isoformat()
@@ -457,14 +557,8 @@ async def get_success_rates_range(
                     'status': 'gray',
                     'is_future_date': True
                 })
-            elif current_date == today:
-                # Current day - use scheduler for real-time calculation
-                result = daily_scheduler.get_success_rate_for_date(query_user_id, current_date)
-                results.append(result)
             else:
-                # Past date with no stored data - this should not happen in normal operation
-                # Log warning and return default values instead of expensive calculation
-                print(f"Warning: Missing stored success rate for past date {date_str} for user {query_user_id}")
+                # Past date with no stored data or current day - return red status with 0%
                 results.append({
                     'date': date_str,
                     'total_habit_instances': 0,
@@ -501,13 +595,18 @@ async def calculate_daily_success_rate(
         # Parse date
         date_obj = datetime.fromisoformat(target_date).date()
         
-        # Calculate and save
-        result = db.calculate_and_save_daily_success_rate(query_user_id, date_obj)
-        
-        if result:
-            return {"success": True, "data": result}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to calculate success rate")
+        # Return red status with 0% for missing data - no calculation performed
+        return {
+            "success": True, 
+            "data": {
+                'date': target_date,
+                'total_instances': 0,
+                'completed_instances': 0,
+                'success_rate': 0.0,
+                'status': 'red',
+                'is_missing_data': True
+            }
+        }
             
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
@@ -520,7 +619,7 @@ async def get_dashboard_data(
     user_id: str = Depends(get_user_id_optional),
     timezone_offset: Optional[int] = None
 ):
-    """Get all dashboard data in a single optimized request"""
+    """Get all dashboard data in a single optimized request using database-first approach"""
     try:
         query_user_id = user_id if user_id else "default_user"
         
@@ -546,7 +645,8 @@ async def get_dashboard_data(
             )
         
         def get_stats_sync():
-            return db.get_today_stats(query_user_id, timezone_offset)
+            # Use database-first approach for daily statistics
+            return db.get_or_calculate_daily_stats(query_user_id, timezone_offset=timezone_offset)
         
         # Execute database calls in parallel
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -558,10 +658,28 @@ async def get_dashboard_data(
             completions = completions_future.result()
             stats = stats_future.result()
         
+        # Add indicator for whether data was retrieved from database or calculated
+        stats_with_source = {
+            **stats,
+            "data_source": stats.get("source", "calculated"),  # Indicates source: 'database', 'calculated', 'fallback', or 'error'
+            "is_stored": stats.get("source") == "database"  # True if data was retrieved from database
+        }
+        
+        print(f"[DASHBOARD API DEBUG] ===== DASHBOARD DATA RESPONSE =====")
+        print(f"[DASHBOARD API DEBUG] User: {query_user_id}")
+        print(f"[DASHBOARD API DEBUG] Habits count: {len(habits)}")
+        print(f"[DASHBOARD API DEBUG] Completions count: {len(completions)}")
+        print(f"[DASHBOARD API DEBUG] Stats source: {stats_with_source.get('data_source')}")
+        print(f"[DASHBOARD API DEBUG] Habits today: {stats_with_source.get('habits_today')}")
+        print(f"[DASHBOARD API DEBUG] Completed today: {stats_with_source.get('completed_today')}")
+        print(f"[DASHBOARD API DEBUG] Success rate: {stats_with_source.get('success_rate_today')}%")
+        print(f"[DASHBOARD API DEBUG] Time remaining: {stats_with_source.get('time_remaining')}")
+        print(f"[DASHBOARD API DEBUG] =======================================")
+        
         return {
             "habits": habits,
             "completions": completions,
-            "stats": stats,
+            "stats": stats_with_source,
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
@@ -577,10 +695,24 @@ async def get_today_stats(
     """Get comprehensive stats for today"""
     try:
         query_user_id = user_id if user_id else "default_user"
-        print(f"[API DEBUG] get_today_stats called with timezone_offset: {timezone_offset}")
+        print(f"[API DEBUG] ===== GET TODAY STATS API CALLED =====")
+        print(f"[API DEBUG] User: {query_user_id}")
+        print(f"[API DEBUG] Timezone offset: {timezone_offset}")
+        print(f"[API DEBUG] Calling db.get_today_stats...")
+        
         stats = db.get_today_stats(query_user_id, timezone_offset)
+        
+        print(f"[API DEBUG] ===== RETURNING STATS TO FRONTEND =====")
+        print(f"[API DEBUG] Habits today: {stats.get('habits_today')}")
+        print(f"[API DEBUG] Completed today: {stats.get('completed_today')}")
+        print(f"[API DEBUG] Success rate: {stats.get('success_rate_today')}%")
+        print(f"[API DEBUG] Time remaining: {stats.get('time_remaining')}")
+        print(f"[API DEBUG] Raw completions: {stats.get('completions_today')}")
+        print(f"[API DEBUG] ==========================================")
+        
         return stats
     except Exception as e:
+        print(f"[API ERROR] get_today_stats failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -591,17 +723,85 @@ async def get_today_stats(
 # ============================================================================
 
 @app.post("/api/completions", response_model=Completion)
-async def create_completion(completion: CompletionCreate, user_id: str = Depends(get_user_id_optional)):
-    """Create a habit completion record"""
+async def create_completion(
+    completion: CompletionCreate, 
+    user_id: str = Depends(get_user_id_optional),
+    timezone_offset: Optional[int] = None
+):
+    """Create a habit completion record and update daily statistics with comprehensive error handling"""
     try:
-        # Use authenticated user_id or default
-        completion_data = completion.dict()
-        completion_data['user_id'] = user_id if user_id else completion_data.get('user_id', 'default_user')
+        # Input validation and sanitization
+        try:
+            completion_data = completion.dict()
+            
+            # Validate and sanitize user_id
+            if user_id and isinstance(user_id, str) and user_id.strip():
+                completion_data['user_id'] = user_id.strip()
+            elif completion_data.get('user_id') and isinstance(completion_data['user_id'], str):
+                completion_data['user_id'] = completion_data['user_id'].strip()
+            else:
+                completion_data['user_id'] = 'default_user'
+            
+            # Validate timezone_offset
+            if timezone_offset is not None:
+                if not isinstance(timezone_offset, (int, float)) or timezone_offset < -720 or timezone_offset > 840:
+                    print(f"[WARNING] Invalid timezone offset {timezone_offset}, ignoring")
+                    timezone_offset = None
+            
+        except Exception as validation_error:
+            print(f"[ERROR] Input validation failed: {validation_error}")
+            raise HTTPException(status_code=400, detail="Invalid input data")
         
-        result = db.create_completion(completion_data)
-        return result
+        # Use enhanced method that updates daily statistics with fallback handling
+        try:
+            print(f"[COMPLETION API DEBUG] ===== CREATING COMPLETION =====")
+            print(f"[COMPLETION API DEBUG] User: {completion_data.get('user_id')}")
+            print(f"[COMPLETION API DEBUG] Habit ID: {completion_data.get('habit_id')}")
+            print(f"[COMPLETION API DEBUG] Date: {completion_data.get('completed_date')}")
+            print(f"[COMPLETION API DEBUG] Time of day: {completion_data.get('time_of_day_id')}")
+            print(f"[COMPLETION API DEBUG] Timezone offset: {timezone_offset}")
+            
+            result = db.create_completion_and_update_stats(completion_data, timezone_offset)
+            
+            # Check if the result indicates success
+            if not result or not isinstance(result, dict):
+                raise HTTPException(status_code=500, detail="Failed to create completion")
+            
+            # Check if this is the original data (indicating failure)
+            if result == completion_data:
+                raise HTTPException(status_code=500, detail="Completion creation failed")
+            
+            print(f"[COMPLETION API DEBUG] ===== COMPLETION CREATED SUCCESSFULLY =====")
+            print(f"[COMPLETION API DEBUG] Completion ID: {result.get('id')}")
+            print(f"[COMPLETION API DEBUG] Stats should be updated in database now")
+            print(f"[COMPLETION API DEBUG] ==========================================")
+            
+            return result
+            
+        except HTTPException:
+            raise
+        except Exception as creation_error:
+            print(f"[ERROR] Completion creation failed: {creation_error}")
+            # Try fallback to basic completion creation (without stats update)
+            try:
+                print("[DEBUG] Attempting fallback completion creation")
+                fallback_result = db.create_completion(completion_data)
+                if fallback_result:
+                    print("[WARNING] Created completion without stats update")
+                    return fallback_result
+                else:
+                    raise HTTPException(status_code=500, detail="All completion creation methods failed")
+            except Exception as fallback_error:
+                print(f"[ERROR] Fallback completion creation also failed: {fallback_error}")
+                raise HTTPException(status_code=500, detail="Unable to create completion")
+                
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] Unexpected error in create_completion: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/completions", response_model=List[Completion])
@@ -640,17 +840,70 @@ async def get_completion(completion_id: int):
 
 
 @app.delete("/api/completions/{completion_id}")
-async def delete_completion(completion_id: int):
-    """Delete a completion"""
+async def delete_completion(completion_id: int, timezone_offset: Optional[int] = None):
+    """Delete a completion and update daily statistics with comprehensive error handling"""
     try:
-        success = db.delete_completion(completion_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Completion not found")
-        return {"message": "Completion deleted successfully"}
+        # Input validation
+        try:
+            if not isinstance(completion_id, int) or completion_id <= 0:
+                raise HTTPException(status_code=400, detail="Invalid completion ID")
+            
+            # Validate timezone_offset
+            if timezone_offset is not None:
+                if not isinstance(timezone_offset, (int, float)) or timezone_offset < -720 or timezone_offset > 840:
+                    print(f"[WARNING] Invalid timezone offset {timezone_offset}, ignoring")
+                    timezone_offset = None
+                    
+        except HTTPException:
+            raise
+        except Exception as validation_error:
+            print(f"[ERROR] Input validation failed: {validation_error}")
+            raise HTTPException(status_code=400, detail="Invalid input data")
+        
+        # Check if completion exists before attempting deletion
+        try:
+            existing_completion = db.get_completion(completion_id)
+            if not existing_completion:
+                raise HTTPException(status_code=404, detail="Completion not found")
+        except HTTPException:
+            raise
+        except Exception as check_error:
+            print(f"[WARNING] Could not verify completion existence: {check_error}")
+            # Continue with deletion attempt anyway
+        
+        # Use enhanced method that updates daily statistics with fallback handling
+        try:
+            success = db.delete_completion_and_update_stats(completion_id, timezone_offset)
+            
+            if not success:
+                # Try fallback to basic deletion (without stats update)
+                try:
+                    print("[DEBUG] Attempting fallback completion deletion")
+                    fallback_success = db.delete_completion(completion_id)
+                    if fallback_success:
+                        print("[WARNING] Deleted completion without stats update")
+                        return {"message": "Completion deleted successfully (stats update failed)"}
+                    else:
+                        raise HTTPException(status_code=404, detail="Completion not found or could not be deleted")
+                except Exception as fallback_error:
+                    print(f"[ERROR] Fallback deletion also failed: {fallback_error}")
+                    raise HTTPException(status_code=500, detail="Unable to delete completion")
+            
+            return {"message": "Completion deleted successfully"}
+            
+        except HTTPException:
+            raise
+        except Exception as deletion_error:
+            print(f"[ERROR] Completion deletion failed: {deletion_error}")
+            raise HTTPException(status_code=500, detail="Failed to delete completion")
+                
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] Unexpected error in delete_completion: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # Legacy endpoint for backward compatibility
@@ -723,7 +976,7 @@ async def get_recommendations(user_id: str = "default_user"):
     try:
         # Get user data
         habits = db.get_habits(user_id)
-        logs = db.get_logs()
+        logs = db.get_logs(user_id=user_id)  # ✅ Fixed: User-specific logs
         availability = db.get_availability(user_id)
         
         # Generate recommendations
@@ -741,7 +994,7 @@ async def get_analytics(user_id: str = "default_user"):
     """Get ML-powered analytics and insights"""
     try:
         habits = db.get_habits(user_id)
-        logs = db.get_logs()
+        logs = db.get_logs(user_id=user_id)  # ✅ Fixed: User-specific logs
         
         analytics = ml_engine.analyze_patterns(habits, logs)
         
@@ -851,17 +1104,86 @@ async def get_ml_recommendations(user_id: str = Depends(get_user_id_optional), l
 async def chat_with_coach(message: ChatMessage):
     """Chat with AI habit coach (intelligent version with intent recognition)"""
     try:
-        # Get context
+        # Get context - USER-SPECIFIC DATA
         habits = db.get_habits(message.user_id)
-        logs = db.get_logs()
+        logs = db.get_completions(user_id=message.user_id)  # ✅ Fixed: User-specific completions
         schedule = db.get_schedule(message.user_id)
+        
+        # Get today's habits specifically (with timezone support)
+        today_habits = db.get_habits_for_today(message.user_id, timezone_offset=message.timezone_offset)
+        
+        # Get today's habit instances (each time-of-day counts separately)
+        today_habit_instances = db.get_habit_instances_for_today(message.user_id, timezone_offset=user_timezone_offset)
+        
+        # Get user's timezone offset from preferences (fallback to message timezone_offset)
+        try:
+            user_timezone_offset = db.get_user_timezone_offset(message.user_id)
+        except:
+            user_timezone_offset = message.timezone_offset or 0
+        
+        # Add comprehensive date range helper functions using user's stored timezone
+        def get_habits_for_tomorrow():
+            return db.get_habit_instances_for_relative_date(message.user_id, 1, user_timezone_offset)
+        
+        def get_habits_for_yesterday():
+            return db.get_habit_instances_for_relative_date(message.user_id, -1, user_timezone_offset)
+        
+        def get_habits_for_specific_date(date_str):
+            return db.get_habit_instances_for_date(message.user_id, date_str, user_timezone_offset)
+        
+        def get_habits_for_this_week():
+            return db.get_habits_for_week(message.user_id, 0, user_timezone_offset)
+        
+        def get_habits_for_next_week():
+            return db.get_habits_for_week(message.user_id, 1, user_timezone_offset)
+        
+        def get_habits_for_last_week():
+            return db.get_habits_for_week(message.user_id, -1, user_timezone_offset)
+        
+        def get_habits_for_this_month():
+            return db.get_habits_for_month(message.user_id, 0, user_timezone_offset)
+        
+        def get_habits_for_next_month():
+            return db.get_habits_for_month(message.user_id, 1, user_timezone_offset)
+        
+        def get_habits_for_last_month():
+            return db.get_habits_for_month(message.user_id, -1, user_timezone_offset)
+        
+        def get_habits_for_date_range(start_date, end_date):
+            return db.get_habits_for_date_range(message.user_id, start_date, end_date, user_timezone_offset)
+        
+        def get_habits_for_day_of_week(day_name, weeks_ahead=4):
+            return db.get_habits_for_day_of_week(message.user_id, day_name, weeks_ahead, user_timezone_offset)
+        
+        # DEBUG: Print what data we're getting
+        print(f"[CHAT DEBUG] User ID: {message.user_id}")
+        print(f"[CHAT DEBUG] Total habits: {len(habits)}")
+        print(f"[CHAT DEBUG] Today's habits: {len(today_habits)}")
+        print(f"[CHAT DEBUG] Logs: {len(logs)}")
+        print(f"[CHAT DEBUG] Message: {message.message}")
         
         # Build user context
         user_context = {
-            'habits': habits,
-            'logs': logs,
+            'habits': habits,  # All habits
+            'today_habits': today_habits,  # Today's scheduled habits (unique habits)
+            'today_habit_instances': today_habit_instances,  # Today's habit instances (each time counts)
+            'logs': logs,  # ✅ Now contains only this user's data
             'schedule': schedule,
-            'user_id': message.user_id
+            'user_id': message.user_id,
+            'timezone_offset': user_timezone_offset,  # Pass user's stored timezone offset to context
+            # Comprehensive date range helper functions
+            'get_habits_for_tomorrow': get_habits_for_tomorrow,
+            'get_habits_for_yesterday': get_habits_for_yesterday,
+            'get_habits_for_specific_date': get_habits_for_specific_date,
+            'get_habits_for_this_week': get_habits_for_this_week,
+            'get_habits_for_next_week': get_habits_for_next_week,
+            'get_habits_for_last_week': get_habits_for_last_week,
+            'get_habits_for_this_month': get_habits_for_this_month,
+            'get_habits_for_next_month': get_habits_for_next_month,
+            'get_habits_for_last_month': get_habits_for_last_month,
+            'get_habits_for_date_range': get_habits_for_date_range,
+            'get_habits_for_day_of_week': get_habits_for_day_of_week,
+            'db': db  # Give Bobo direct access to database functions
         }
         
         # Process message with intelligent chatbot
@@ -880,6 +1202,34 @@ async def chat_with_coach(message: ChatMessage):
     except Exception as e:
         print(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/debug/chat-context")
+async def debug_chat_context(message: ChatMessage):
+    """Debug endpoint to see what data the chatbot receives"""
+    try:
+        # Get the same data that chatbot gets
+        habits = db.get_habits(message.user_id)
+        today_habits = db.get_habits_for_today(message.user_id)
+        logs = db.get_completions(user_id=message.user_id)
+        schedule = db.get_schedule(message.user_id)
+        
+        return {
+            "user_id": message.user_id,
+            "total_habits": len(habits),
+            "habits": habits,
+            "today_habits_count": len(today_habits), 
+            "today_habits": today_habits,
+            "logs_count": len(logs),
+            "logs": logs[:5],  # First 5 logs
+            "schedule": schedule,
+            "debug_info": {
+                "db_mock_mode": db.mock_mode,
+                "chatbot_ai_enabled": intelligent_chatbot.ai_enabled if intelligent_chatbot else False
+            }
+        }
+    except Exception as e:
+        return {"error": str(e), "user_id": message.user_id}
 
 
 if __name__ == "__main__":
@@ -961,6 +1311,35 @@ async def delete_daily_capacity(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/capacity/check")
+async def check_habit_capacity(
+    habit_data: HabitCreate,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Check if adding a habit would exceed daily capacity (16 hours)"""
+    try:
+        query_user_id = user_id if user_id else "default_user"
+        
+        # Convert habit data to dict
+        habit_dict = habit_data.dict()
+        habit_dict['user_id'] = query_user_id
+        
+        # Check capacity
+        result = db.check_habit_capacity(query_user_id, habit_dict)
+        
+        return {
+            "can_add": result['can_add'],
+            "message": result['message'],
+            "current_usage_hours": {day: usage/60 for day, usage in result['current_usage'].items()},
+            "new_usage_hours": {day: usage/60 for day, usage in result['new_usage'].items()},
+            "daily_limit_hours": 16,
+            "problem_days": result.get('problem_days', [])
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================================
 # ACHIEVEMENT ENDPOINTS
 # ============================================================================
@@ -1007,6 +1386,54 @@ async def get_achievement_progress(user_id: str = Depends(get_user_id)):
         raise HTTPException(status_code=500, detail=f"Failed to get progress: {str(e)}")
 
 
+@app.post("/api/achievements/unlock/daily")
+async def unlock_daily_achievement(user_id: str = Depends(get_user_id)):
+    """
+    Unlock daily achievement if conditions are met (100% success rate for today)
+    """
+    try:
+        achievement_engine = AchievementEngine(db)
+        result = achievement_engine.unlock_daily_achievement(user_id)
+        if result:
+            return {"success": True, "achievement": result}
+        else:
+            raise HTTPException(status_code=400, detail="Daily achievement conditions not met")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to unlock daily achievement: {str(e)}")
+
+
+@app.post("/api/achievements/unlock/weekly")
+async def unlock_weekly_achievement(user_id: str = Depends(get_user_id)):
+    """
+    Unlock weekly achievement if conditions are met (100% success rate for entire week)
+    """
+    try:
+        achievement_engine = AchievementEngine(db)
+        result = achievement_engine.unlock_weekly_achievement(user_id)
+        if result:
+            return {"success": True, "achievement": result}
+        else:
+            raise HTTPException(status_code=400, detail="Weekly achievement conditions not met")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to unlock weekly achievement: {str(e)}")
+
+
+@app.post("/api/achievements/unlock/monthly")
+async def unlock_monthly_achievement(user_id: str = Depends(get_user_id)):
+    """
+    Unlock monthly achievement if conditions are met (100% success rate for entire month)
+    """
+    try:
+        achievement_engine = AchievementEngine(db)
+        result = achievement_engine.unlock_monthly_achievement(user_id)
+        if result:
+            return {"success": True, "achievement": result}
+        else:
+            raise HTTPException(status_code=400, detail="Monthly achievement conditions not met")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to unlock monthly achievement: {str(e)}")
+
+
 @app.get("/api/achievements/rewards")
 async def get_available_rewards(user_id: str = Depends(get_user_id)):
     """
@@ -1042,6 +1469,28 @@ async def get_unlocked_rewards(
         return rewards
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get unlocked rewards: {str(e)}")
+
+
+@app.get("/api/achievements/claimed/{achievement_type}")
+async def check_achievement_claimed(
+    achievement_type: str,
+    user_id: str = Depends(get_user_id)
+):
+    """
+    Check if user has already claimed this achievement type for the current period
+    
+    - daily_perfect: Once per day
+    - weekly_perfect: Once per week  
+    - monthly_perfect: Once per month
+    """
+    try:
+        if achievement_type not in ['daily_perfect', 'weekly_perfect', 'monthly_perfect']:
+            raise HTTPException(status_code=400, detail="Invalid achievement type")
+        
+        claimed = db.check_reward_claimed_for_period(user_id, achievement_type)
+        return {"claimed": claimed}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to check claimed status: {str(e)}")
 
 
 # ============================================================================

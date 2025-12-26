@@ -207,7 +207,7 @@ const BoboCustomization = () => {
     { id: 'costumes', label: '👔 Costumes', items: unlockedItems.costumes },
     { id: 'colors', label: '🎨 Colors', items: unlockedItems.colors },
     { id: 'dances', label: '💃 Dances', items: unlockedItems.dances },
-    { id: 'themes', label: '🌈 Themes', items: unlockedItems.themes }
+    { id: 'themes', label: '⭐ Themes', items: unlockedItems.themes }
   ];
 
   const renderItem = (item, itemType) => {
@@ -219,9 +219,9 @@ const BoboCustomization = () => {
         key={item.item_id}
         onClick={() => handlePreview(itemType, item)}
         className={`
-          relative p-4 rounded-2xl border-2 cursor-pointer transition-all
+          relative p-4 rounded-2xl border-2 cursor-pointer transition-all m-1
           ${isSelected 
-            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/20 scale-105 shadow-lg' 
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/20 shadow-lg transform scale-105' 
             : 'bg-light/5 border-light/10 hover:border-[var(--color-accent)]/50 hover:bg-light/10'
           }
         `}
@@ -319,26 +319,35 @@ const BoboCustomization = () => {
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
       <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-[var(--color-foreground)] mb-2">
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-2">
+          <h2 className="text-3xl font-bold text-[var(--color-foreground)]">
             🎨 Bobo's Wardrobe
           </h2>
-          <p className="text-[var(--color-foreground-secondary)]">
-            Customize Bobo's appearance with items you've unlocked through achievements!
-          </p>
+          <button
+            onClick={fetchUnlockedItems}
+            disabled={loading}
+            className="p-2 rounded-lg hover:bg-light/10 transition-colors disabled:opacity-50"
+            title="Refresh items"
+          >
+            <svg 
+              className={`w-5 h-5 text-light/60 ${loading ? 'animate-spin' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+              />
+            </svg>
+          </button>
         </div>
-        <button
-          onClick={fetchUnlockedItems}
-          disabled={loading}
-          className="px-4 py-2 rounded-xl bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
-          title="Refresh items"
-        >
-          <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh
-        </button>
+        <p className="text-[var(--color-foreground-secondary)]">
+          Customize Bobo's appearance with items you've unlocked through achievements!
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -399,16 +408,16 @@ const BoboCustomization = () => {
         <div className="lg:col-span-2">
           <div className="glass rounded-3xl p-6 border border-[var(--color-border)] h-full flex flex-col">
             {/* Tabs */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+<div className="flex gap-3 mb-6 overflow-x-hidden pb-3 px-2 pt-1 flex-wrap">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    px-4 py-2 rounded-xl whitespace-nowrap transition-all
+                    px-4 py-2 rounded-xl whitespace-nowrap transition-all flex-shrink-0
                     ${activeTab === tab.id
-                      ? 'bg-[var(--color-accent)] text-white shadow-lg'
-                      : 'bg-light/5 text-[var(--color-foreground)] hover:bg-light/10 border border-light/10'
+                      ? 'bg-[var(--color-accent)] text-white shadow-lg border-2 border-[var(--color-accent)]'
+                      : 'bg-light/5 text-[var(--color-foreground)] hover:bg-light/10 border-2 border-light/10 hover:border-[var(--color-accent)]/30'
                     }
                   `}
                 >
@@ -430,7 +439,7 @@ const BoboCustomization = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 p-2">
                   {tabs.find(t => t.id === activeTab)?.items.map(item => 
                     renderItem(item, activeTab.slice(0, -1)) // Remove 's' from tab id
                   )}

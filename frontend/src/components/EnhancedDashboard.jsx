@@ -12,6 +12,8 @@ import RobotMascot from './RobotMascot'
 import AchievementNotification from './AchievementNotification'
 import { useBobo } from '../contexts/BoboContext'
 import { getTodayDayName, getTodayDate } from '../utils/timezone'
+import { useLocalCompletions } from '../hooks/useLocalCompletions'
+import { useInstantStats } from '../hooks/useInstantStats'
 
 export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCreated, onCompletionCreated, onCompletionDeleted }) {
   const { getEquippedItems } = useBobo()
@@ -25,6 +27,11 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
   const [celebrationDance, setCelebrationDance] = useState(null)
   const [achievementToShow, setAchievementToShow] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Use custom hooks for local completion tracking and instant stats
+  const { addCompletion, removeCompletion, isCompleted: isLocallyCompleted, revertCompletion } = useLocalCompletions(logs)
+  const currentStats = useInstantStats(habits, stats, isLocallyCompleted)
+
 
 
   // Map time names to IDs
@@ -41,19 +48,21 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
 
   // Close completion form if the habit becomes completed
   useEffect(() => {
-    if (completingHabit && completingTimeOfDay && isCompleted(completingHabit.id, completingTimeOfDay)) {
-      setCompletingHabit(null)
-      setCompletingTimeOfDay(null)
+    if (completingHabit && completingTimeOfDay) {
+      const timeOfDayId = timeOfDayMap[completingTimeOfDay]
+      if (isLocallyCompleted(completingHabit.id, timeOfDayId)) {
+        setCompletingHabit(null)
+        setCompletingTimeOfDay(null)
+      }
     }
-  }, [logs, completingHabit, completingTimeOfDay])
+  }, [isLocallyCompleted, completingHabit, completingTimeOfDay])
 
   const loadDashboardData = async () => {
     try {
-      console.log('[DASHBOARD DEBUG] Starting loadDashboardData')
+      console.log('[DASHBOARD DEBUG] Loading initial dashboard data')
       
       // Try to use the optimized batch API first
       try {
-        console.log('[DASHBOARD DEBUG] Trying batch API...')
         const dashboardData = await api.getDashboardData()
         console.log('[DASHBOARD DEBUG] Batch API success:', dashboardData)
         setStats(dashboardData.stats)
@@ -64,94 +73,45 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
       
       // Fallback: Try individual stats API
       try {
-        console.log('[DASHBOARD DEBUG] Trying individual stats API...')
         const todayStats = await api.getTodayStats()
         console.log('[DASHBOARD DEBUG] Individual API success:', todayStats)
         setStats(todayStats)
         return
       } catch (apiError) {
         console.log('[DASHBOARD DEBUG] Individual API failed:', apiError.message)
-        console.log('[DASHBOARD DEBUG] Falling back to client-side calculation')
       }
       
-      // Final fallback: Calculate stats client-side
-      const today = getTodayDayName()
-      console.log('[DASHBOARD DEBUG] Client-side calculation for day:', today)
-      
-      // Build list of habit instances (habit × time_of_day combinations) for today
-      const habitInstances = []
-      let completedInstances = 0
-      let timeRemaining = 0
-      
-      habits.forEach(habit => {
-        const habitDays = habit.days || []
-        const habitTimes = habit.times_of_day || []
-        
-        // Check if habit is scheduled for today
-        if (habitDays.length === 0 || habitDays.includes(today)) {
-          // If no times specified, default to one instance
-          const timesToCheck = habitTimes.length > 0 ? habitTimes : ['morning']
-          
-          // Create an instance for each time of day
-          timesToCheck.forEach(timeOfDay => {
-            habitInstances.push({
-              habitId: habit.id,
-              timeOfDay: timeOfDay,
-              estimatedDuration: habit.estimated_duration || 0
-            })
-            
-            // Check if this instance is completed
-            if (isCompleted(habit.id, timeOfDay)) {
-              completedInstances++
-            } else {
-              // Only add duration for big habits with estimated_duration set
-              if (habit.habit_type === 'big' && habit.estimated_duration) {
-                timeRemaining += habit.estimated_duration
-              }
-            }
-          })
-        }
+      // Final fallback: Set basic stats structure
+      setStats({
+        habits_today: 0,
+        completed_today: 0,
+        success_rate_today: 0,
+        time_remaining: 0
       })
       
-      const totalInstances = habitInstances.length
-      const successRate = totalInstances > 0 ? Math.round((completedInstances / totalInstances) * 100) : 0
-      
-      const clientStats = {
-        habits_today: totalInstances,  // Total habit instances (habit × time combinations)
-        completed_today: completedInstances,
-        success_rate_today: successRate,
-        time_remaining: timeRemaining
-      }
-      
-      console.log('[DASHBOARD DEBUG] Client-side calculated stats:', clientStats)
-      setStats(clientStats)
     } catch (error) {
       console.error('Failed to load dashboard:', error)
     }
   }
 
-  // Check if a specific habit instance is completed
-  const isCompleted = (habitId, timeOfDay) => {
-    const today = getTodayDate()
-    const timeOfDayId = timeOfDayMap[timeOfDay]
-    return api.isHabitCompleted(habitId, today, timeOfDayId, logs)
+  // Helper function to check completion by time name (for backward compatibility)
+  const isCompletedByTimeName = (habitId, timeOfDayName) => {
+    const timeOfDayId = timeOfDayMap[timeOfDayName]
+    return isLocallyCompleted(habitId, timeOfDayId)
   }
 
-  const handleStartCompletion = async (habitId, timeOfDay) => {
+  const handleStartCompletion = (habitId, timeOfDay) => {
     const habit = habits.find(h => h.id === habitId)
     
     // Check if already completed - if so, undo it
-    if (isCompleted(habitId, timeOfDay)) {
-      // Don't await - let it run in background for immediate UI response
-      handleUndoCompletion(habitId, timeOfDay).catch(error => {
-        console.error('Failed to undo completion:', error)
-      })
+    if (isCompletedByTimeName(habitId, timeOfDay)) {
+      handleUndoCompletion(habitId, timeOfDay)
       return
     }
     
     // For atomic habits, complete immediately
     if (habit.habit_type === 'atomic') {
-      await handleQuickComplete(habitId, timeOfDay)
+      handleQuickComplete(habitId, timeOfDay)
       return
     }
     
@@ -160,173 +120,188 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
     setCompletingTimeOfDay(timeOfDay)
   }
 
-  const handleUndoCompletion = async (habitId, timeOfDay) => {
-    try {
-      if (onCompletionDeleted) {
-        // Use optimized handler from parent
-        await onCompletionDeleted(habitId, timeOfDay)
-      } else {
-        // Fallback to old method
+  const handleUndoCompletion = (habitId, timeOfDay) => {
+    const timeOfDayId = timeOfDayMap[timeOfDay]
+    
+    // 1. Update local state immediately for instant UI response
+    const key = removeCompletion(habitId, timeOfDayId)
+    
+    // 2. API call in background (don't await)
+    const performUndo = async () => {
+      try {
+        if (onCompletionDeleted) {
+          await onCompletionDeleted(habitId, timeOfDay)
+        } else {
+          const today = getTodayDate()
+          const completion = logs.find(c => 
+            c.habit_id === habitId && 
+            c.completed_date === today &&
+            c.time_of_day_id === timeOfDayId
+          )
+          
+          if (completion) {
+            await api.deleteCompletion(completion.id)
+            onRefresh()
+          }
+        }
+      } catch (error) {
+        console.error('Failed to undo completion:', error)
+        // Revert local state on error
+        revertCompletion(key)
+        alert('Failed to undo completion. Please try again.')
+      }
+    }
+    
+    performUndo()
+  }
+
+  const handleQuickComplete = (habitId, timeOfDay) => {
+    const habit = habits.find(h => h.id === habitId)
+    const timeOfDayId = timeOfDayMap[timeOfDay]
+    
+    // 1. Update local state immediately for instant UI response
+    const key = addCompletion(habitId, timeOfDayId)
+    
+    // 2. Show celebration immediately
+    const messages = [
+      `Amazing! You completed "${habit?.name}"! 🎉`,
+      `Great job on "${habit?.name}"! Keep it up! 💪`,
+      `Woohoo! "${habit?.name}" is done! You're on fire! 🔥`,
+      `Fantastic! Another win with "${habit?.name}"! ⭐`
+    ]
+    setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
+    
+    // Pick random dance and show immediately
+    const equippedItems = getEquippedItems()
+    const unlockedDances = equippedItems?.dances || []
+    const randomDance = unlockedDances.length > 0 
+      ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
+      : true // Default dance
+    setCelebrationDance(randomDance)
+    
+    // Show celebration and confetti immediately
+    setShowCelebration(true)
+    setTimeout(() => setShowCelebration(false), 3000)
+    setShowConfetti(Date.now())
+    
+    // 3. API call in background (don't await)
+    const performCompletion = async () => {
+      try {
         const today = getTodayDate()
-        const timeOfDayId = timeOfDayMap[timeOfDay]
+        const completionData = {
+          habit_id: habitId,
+          completed_date: today,
+          time_of_day_id: timeOfDayId
+        }
         
-        // Find the completion to delete
-        const completion = logs.find(c => 
-          c.habit_id === habitId && 
-          c.completed_date === today &&
-          c.time_of_day_id === timeOfDayId
-        )
-        
-        if (completion) {
-          await api.deleteCompletion(completion.id)
+        if (onCompletionCreated) {
+          await onCompletionCreated(completionData)
+        } else {
+          await api.createCompletion(completionData)
           onRefresh()
         }
+        
+        // Check achievements in background
+        checkAchievements(today).catch(error => {
+          console.error('Failed to check achievements:', error)
+        })
+        
+      } catch (error) {
+        console.error('Failed to create completion:', error)
+        // Revert local state on error
+        revertCompletion(key)
+        alert('Failed to complete habit. Please try again.')
       }
-    } catch (error) {
-      console.error('Failed to undo completion:', error)
-      alert('Failed to undo completion. Please try again.')
     }
+    
+    performCompletion()
   }
 
-  const handleQuickComplete = async (habitId, timeOfDay) => {
-    try {
-      const today = getTodayDate()
-      const completionData = {
-        habit_id: habitId,
-        completed_date: today,
-        time_of_day_id: timeOfDayMap[timeOfDay]
-      }
-      
-      // Show celebration immediately for better UX
-      const habit = habits.find(h => h.id === habitId)
-      const messages = [
-        `Amazing! You completed "${habit?.name}"! 🎉`,
-        `Great job on "${habit?.name}"! Keep it up! 💪`,
-        `Woohoo! "${habit?.name}" is done! You're on fire! 🔥`,
-        `Fantastic! Another win with "${habit?.name}"! ⭐`
-      ]
-      setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
-      
-      // Pick random dance and show immediately
-      const equippedItems = getEquippedItems()
-      const unlockedDances = equippedItems?.dances || []
-      const randomDance = unlockedDances.length > 0 
-        ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
-        : true // Default dance
-      setCelebrationDance(randomDance)
-      
-      // Create completion and check achievements in parallel (non-blocking)
-      if (onCompletionCreated) {
-        // Use optimized handler from parent
-        onCompletionCreated(completionData).catch(error => {
-          console.error('Failed to create completion:', error)
-        })
-      } else {
-        // Fallback: create completion in background
-        api.createCompletion(completionData).catch(error => {
-          console.error('Failed to create completion:', error)
-        })
-      }
-      
-      // Check achievements in background (non-blocking)
-      checkAchievements(today).catch(error => {
-        console.error('Failed to check achievements:', error)
-      })
-      
-      setShowCelebration(true)
-      setTimeout(() => setShowCelebration(false), 3000)
-      
-      setShowConfetti(Date.now()) // Trigger confetti!
-      onRefresh()
-    } catch (error) {
-      console.error('Failed to complete habit:', error)
-      alert('Failed to complete habit. Please try again.')
-    }
-  }
-
-  const handleSubmitCompletion = async (completionData) => {
-    try {
-      // Check if already completed before submitting
-      if (isCompleted(completingHabit.id, completingTimeOfDay)) {
-        alert('This habit is already completed for this time slot!')
-        setCompletingHabit(null)
-        setCompletingTimeOfDay(null)
-        onRefresh()
-        return
-      }
-      
-      const today = getTodayDate()
-      const completionPayload = {
-        habit_id: completingHabit.id,
-        completed_date: today,
-        time_of_day_id: timeOfDayMap[completingTimeOfDay],
-        mood_before: completionData.mood_before,
-        mood_after: completionData.mood_after,
-        energy_level_before: completionData.energy_level_before,
-        energy_level_after: completionData.energy_level_after
-      }
-      
-      const duration = parseInt(completionData.actual_duration)
-      if (!isNaN(duration) && duration > 0) {
-        completionPayload.actual_duration = duration
-      }
-      
-      // Show celebration immediately for better UX
-      const messages = [
-        `Incredible! You completed "${completingHabit.name}"! 🎉`,
-        `You're crushing it! "${completingHabit.name}" is done! 💪`,
-        `Outstanding work on "${completingHabit.name}"! 🌟`,
-        `Yes! Another "${completingHabit.name}" in the books! 🚀`
-      ]
-      setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
-      
-      // Pick random dance and show immediately
-      const equippedItems = getEquippedItems()
-      const unlockedDances = equippedItems?.dances || []
-      const randomDance = unlockedDances.length > 0 
-        ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
-        : true // Default dance
-      setCelebrationDance(randomDance)
-      
-      // Create completion and check achievements in parallel (non-blocking)
-      if (onCompletionCreated) {
-        // Use optimized handler from parent
-        onCompletionCreated(completionPayload).catch(error => {
-          console.error('Failed to create completion:', error)
-        })
-      } else {
-        // Fallback: create completion in background
-        api.createCompletion(completionPayload).catch(error => {
-          console.error('Failed to create completion:', error)
-        })
-      }
-      
-      // Check achievements in background (non-blocking)
-      checkAchievements(today).catch(error => {
-        console.error('Failed to check achievements:', error)
-      })
-      
-      setShowCelebration(true)
-      setTimeout(() => setShowCelebration(false), 3000)
-      
-      setShowConfetti(Date.now()) // Trigger confetti!
+  const handleSubmitCompletion = (completionData) => {
+    const timeOfDayId = timeOfDayMap[completingTimeOfDay]
+    
+    // Check if already completed before submitting
+    if (isLocallyCompleted(completingHabit.id, timeOfDayId)) {
+      alert('This habit is already completed for this time slot!')
       setCompletingHabit(null)
       setCompletingTimeOfDay(null)
-      onRefresh()
-    } catch (error) {
-      console.error('Failed to log habit:', error)
-      console.error('Error details:', error.response?.data)
-      
-      // Check if it's a duplicate completion error
-      if (error.response?.data?.detail?.includes('already exists')) {
-        alert('This habit is already completed for this time slot!')
-        setCompletingHabit(null)
-        setCompletingTimeOfDay(null)
-        onRefresh() // Refresh to show correct state
-      } else {
-        alert('Failed to log habit. Please try again.')
+      return
+    }
+    
+    // 1. Update local state immediately for instant UI response
+    const key = addCompletion(completingHabit.id, timeOfDayId)
+    
+    // 2. Show celebration immediately
+    const messages = [
+      `Incredible! You completed "${completingHabit.name}"! 🎉`,
+      `You're crushing it! "${completingHabit.name}" is done! 💪`,
+      `Outstanding work on "${completingHabit.name}"! 🌟`,
+      `Yes! Another "${completingHabit.name}" in the books! 🚀`
+    ]
+    setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)])
+    
+    // Pick random dance and show immediately
+    const equippedItems = getEquippedItems()
+    const unlockedDances = equippedItems?.dances || []
+    const randomDance = unlockedDances.length > 0 
+      ? unlockedDances[Math.floor(Math.random() * unlockedDances.length)]
+      : true // Default dance
+    setCelebrationDance(randomDance)
+    
+    // Show celebration and confetti immediately
+    setShowCelebration(true)
+    setTimeout(() => setShowCelebration(false), 3000)
+    setShowConfetti(Date.now())
+    
+    // Close modal immediately for better UX
+    setCompletingHabit(null)
+    setCompletingTimeOfDay(null)
+    
+    // 3. API call in background (don't await)
+    const performCompletion = async () => {
+      try {
+        const today = getTodayDate()
+        const completionPayload = {
+          habit_id: completingHabit.id,
+          completed_date: today,
+          time_of_day_id: timeOfDayId,
+          mood_before: completionData.mood_before,
+          mood_after: completionData.mood_after,
+          energy_level_before: completionData.energy_level_before,
+          energy_level_after: completionData.energy_level_after
+        }
+        
+        const duration = parseInt(completionData.actual_duration)
+        if (!isNaN(duration) && duration > 0) {
+          completionPayload.actual_duration = duration
+        }
+        
+        if (onCompletionCreated) {
+          await onCompletionCreated(completionPayload)
+        } else {
+          await api.createCompletion(completionPayload)
+          onRefresh()
+        }
+        
+        // Check achievements in background
+        checkAchievements(today).catch(error => {
+          console.error('Failed to check achievements:', error)
+        })
+        
+      } catch (error) {
+        console.error('Failed to create completion:', error)
+        // Revert local state on error
+        revertCompletion(key)
+        
+        if (error.response?.data?.detail?.includes('already exists')) {
+          alert('This habit is already completed for this time slot!')
+        } else {
+          alert('Failed to log habit. Please try again.')
+        }
       }
     }
+    
+    performCompletion()
   }
 
   const checkAchievements = async (date) => {
@@ -513,7 +488,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         <BlurFade delay={0}>
           <div className="glass rounded-xl p-6">
             <div className="text-3xl font-bold text-light">
-              <NumberTicker value={stats?.habits_today || 0} />
+              <NumberTicker value={currentStats?.habits_today || 0} />
             </div>
             <div className="text-light/60 text-sm">Habits Today</div>
           </div>
@@ -522,7 +497,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         <BlurFade delay={0.1}>
           <div className="glass rounded-xl p-6">
             <div className="text-3xl font-bold text-light">
-              <NumberTicker value={stats?.completed_today || 0} />
+              <NumberTicker value={currentStats?.completed_today || 0} />
             </div>
             <div className="text-light/60 text-sm">Completed Today</div>
           </div>
@@ -532,14 +507,15 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
           <div className="glass rounded-xl p-6 flex items-center justify-between">
             <div>
               <div className="text-3xl font-bold text-light">
-                <NumberTicker value={stats?.success_rate_today || 0} />%
+                <NumberTicker value={currentStats?.success_rate_today || 0} />%
               </div>
               <div className="text-light/60 text-sm">Today's Success</div>
             </div>
             <CircularProgress 
-              value={stats?.success_rate_today || 0} 
+              value={currentStats?.success_rate_today || 0} 
               size={60}
               strokeWidth={4}
+              textSize="text-sm"
             />
           </div>
         </BlurFade>
@@ -547,13 +523,15 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         <BlurFade delay={0.3}>
           <div className="glass rounded-xl p-6">
             <div className="text-3xl font-bold text-light">
-              <NumberTicker value={stats?.time_remaining || 0} />
+              <NumberTicker value={currentStats?.time_remaining || 0} />
               <span className="text-lg text-light/60 ml-1">min</span>
             </div>
             <div className="text-light/60 text-sm">Time Remaining</div>
           </div>
         </BlurFade>
       </div>
+
+
 
       <div className="glass rounded-2xl p-6">
         <h3 className="text-xl font-bold text-light mb-4">Today's Habits</h3>
@@ -627,7 +605,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
                                   <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded">{habit.estimated_duration}m</span>
                                 )}
                               </div>
-                              {isCompleted(habit.id, timeOfDay) && (
+                              {isCompletedByTimeName(habit.id, timeOfDay) && (
                                 <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
@@ -638,12 +616,12 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
                             <ShimmerButton
                               onClick={() => handleStartCompletion(habit.id, timeOfDay)}
                               className={`w-full py-1.5 rounded text-xs font-semibold transition ${
-                                isCompleted(habit.id, timeOfDay)
+                                isCompletedByTimeName(habit.id, timeOfDay)
                                   ? 'bg-green-500 text-white hover:bg-green-600'
                                   : 'bg-light text-dark hover:bg-light/90'
                               }`}
                             >
-                              {isCompleted(habit.id, timeOfDay) ? '✓ Done (click to undo)' : 'Complete'}
+                              {isCompletedByTimeName(habit.id, timeOfDay) ? '✓ Done (click to undo)' : 'Complete'}
                             </ShimmerButton>
                           </div>
                         </div>

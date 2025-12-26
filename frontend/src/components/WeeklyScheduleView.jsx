@@ -136,7 +136,7 @@ export default function WeeklyScheduleView({ habits, completions = [], currentDa
                                       {habit.difficulty}
                                     </span>
                                   )}
-                                  {habit.estimated_duration && (
+                                  {habit.estimated_duration && habit.habit_type !== 'atomic' && (
                                     <span className="text-xs text-light/50">• {habit.estimated_duration}m</span>
                                   )}
                                 </div>

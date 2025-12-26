@@ -164,3 +164,7 @@ habit-coach/migration-*.sql
 habit-coach/supabase-complete-schema.sql
 # Keep the consolidated schema
 !habit-coach/database-schema-complete.sql
+
+# Markdown documentation files
+*.md
+*.MD

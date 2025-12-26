@@ -2,7 +2,7 @@
 Pydantic models for API validation - Simplified to match database schema
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 from enum import Enum
 
@@ -160,6 +160,7 @@ class AnalyticsResponse(BaseModel):
 class ChatMessage(BaseModel):
     message: str
     user_id: str = "default_user"
+    timezone_offset: Optional[int] = None  # Timezone offset in minutes from UTC
 
 
 class ChatResponse(BaseModel):
@@ -255,6 +256,77 @@ class DailyCapacityBulkUpdate(BaseModel):
                 }
             }
         }
+
+
+# ============================================================================
+# DAILY SUCCESS RATE MODELS
+# ============================================================================
+
+class DailySuccessRateBase(BaseModel):
+    """Base model for daily success rate statistics"""
+    user_id: str
+    date: date
+    total_habit_instances: int = Field(0, ge=0, description="Total number of habit instances for the day")
+    completed_instances: int = Field(0, ge=0, description="Number of completed habit instances")
+    success_rate: float = Field(0.0, ge=0.0, le=100.0, description="Success rate percentage (0-100)")
+    time_remaining: Optional[int] = Field(None, ge=0, description="Remaining time in minutes")
+
+
+class DailySuccessRateCreate(DailySuccessRateBase):
+    """Create daily success rate record"""
+    pass
+
+
+class DailySuccessRateUpdate(BaseModel):
+    """Update daily success rate record"""
+    total_habit_instances: Optional[int] = Field(None, ge=0)
+    completed_instances: Optional[int] = Field(None, ge=0)
+    success_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
+    time_remaining: Optional[int] = Field(None, ge=0)
+
+
+class DailySuccessRate(DailySuccessRateBase):
+    """Daily success rate response model with database fields"""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+    
+    def calculate_success_rate(self) -> float:
+        """Calculate success rate percentage from instances"""
+        if self.total_habit_instances == 0:
+            return 0.0
+        return (self.completed_instances / self.total_habit_instances) * 100.0
+    
+    def is_perfect_day(self) -> bool:
+        """Check if all habits were completed (100% success rate)"""
+        return self.total_habit_instances > 0 and self.completed_instances == self.total_habit_instances
+    
+    def to_stats_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format matching existing stats API"""
+        return {
+            'habits_today': self.total_habit_instances,
+            'completed_today': self.completed_instances,
+            'success_rate_today': self.success_rate,
+            'time_remaining': self.time_remaining or 0
+        }
+    
+    @classmethod
+    def from_calculation(cls, user_id: str, date: date, calculated_stats: Dict[str, Any]) -> 'DailySuccessRate':
+        """Create DailySuccessRate instance from calculated statistics"""
+        return cls(
+            id=0,  # Will be set by database
+            user_id=user_id,
+            date=date,
+            total_habit_instances=calculated_stats.get('habits_today', 0),
+            completed_instances=calculated_stats.get('completed_today', 0),
+            success_rate=calculated_stats.get('success_rate_today', 0.0),
+            time_remaining=calculated_stats.get('time_remaining', 0),
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
 
 
 # ============================================================================

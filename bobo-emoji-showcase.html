@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bobo's Emoji Expression Showcase</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        .bobo-card {
+            text-align: center;
+            padding: 20px;
+            border: 3px solid #eee;
+            border-radius: 15px;
+            background: linear-gradient(145deg, #f9f9f9, #ffffff);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .bobo-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+        .bobo-card h3 {
+            margin: 15px 0 10px 0;
+            color: #555;
+            font-size: 1.1em;
+        }
+        .bobo-card p {
+            margin: 5px 0;
+            color: #777;
+            font-size: 0.9em;
+        }
+        .bobo-svg {
+            margin: 10px 0;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+        }
+        .intro {
+            text-align: center;
+            margin: 30px 0;
+            padding: 25px;
+            background: linear-gradient(45deg, #f0f8ff, #e8f5e8);
+            border-radius: 15px;
+            border: 3px solid #667eea;
+        }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 15px 25px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Bobo's 20 Cute Emoji Expressions! ✨</h1>
+        
+        <div class="intro">
+            <h2>Meet All of Bobo's Adorable Faces!</h2>
+            <p>Each expression is carefully designed to be super cute and full of personality. 
+            These can be used in your RobotMascot component to give Bobo different emotions!</p>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number">20</div>
+                    <div>Unique Expressions</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">100%</div>
+                    <div>Cuteness Level</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">∞</div>
+                    <div>Personality</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="emoji-grid">
+            <!-- 1. Sparkly Happy -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <!-- Bobo Body -->
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#667eea" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <line x1="30" y1="85" x2="70" y2="85" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    
+                    <!-- Head -->
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#667eea" opacity="0.95"/>
+                    
+                    <!-- Sparkly Happy Eyes -->
+                    <circle cx="40" cy="32" r="4" fill="#000"/>
+                    <circle cx="60" cy="32" r="4" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <circle cx="61" cy="30" r="2" fill="white"/>
+                    <circle cx="38" cy="29" r="1" fill="#FFD700" opacity="0.8"/>
+                    <circle cx="42" cy="34" r="1" fill="#FFD700" opacity="0.8"/>
+                    <circle cx="58" cy="29" r="1" fill="#FFD700" opacity="0.8"/>
+                    <circle cx="62" cy="34" r="1" fill="#FFD700" opacity="0.8"/>
+                    
+                    <!-- Happy Mouth -->
+                    <path d="M 38 42 Q 50 50 62 42" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                    
+                    <!-- Antenna -->
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#667eea" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#667eea"/>
+                    
+                    <!-- Arms -->
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#667eea" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#667eea" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#667eea" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#667eea" opacity="0.9"/>
+                    
+                    <!-- Tracks -->
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>✨ Sparkly Happy</h3>
+                <p>emotion="sparkly_happy"</p>
+            </div>
+
+            <!-- 2. Heart Eyes -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#E91E63" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#E91E63" opacity="0.95"/>
+                    
+                    <!-- Heart Eyes -->
+                    <path d="M 37 29 Q 35 27 37 30 Q 40 27 42 30 Q 40 33 37 29" fill="#000"/>
+                    <path d="M 57 29 Q 55 27 57 30 Q 60 27 62 30 Q 60 33 57 29" fill="#000"/>
+                    <circle cx="39" cy="30" r="1" fill="white" opacity="0.8"/>
+                    <circle cx="59" cy="30" r="1" fill="white" opacity="0.8"/>
+                    
+                    <path d="M 40 42 Q 50 48 60 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#E91E63" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#E91E63"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#E91E63" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#E91E63" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#E91E63" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#E91E63" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>♥ Heart Eyes</h3>
+                <p>emotion="heart_eyes"</p>
+            </div>
+
+            <!-- 3. Sleepy -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#9C27B0" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#9C27B0" opacity="0.95"/>
+                    
+                    <!-- Sleepy Eyes -->
+                    <path d="M 35 32 Q 40 29 45 32" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <path d="M 55 32 Q 60 29 65 32" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <circle cx="42" cy="35" r="1" fill="white" opacity="0.6"/>
+                    <circle cx="58" cy="35" r="1" fill="white" opacity="0.6"/>
+                    
+                    <ellipse cx="50" cy="44" rx="3" ry="2" fill="#000" opacity="0.7"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#9C27B0" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#9C27B0"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#9C27B0" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#9C27B0" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#9C27B0" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#9C27B0" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😴 Sleepy</h3>
+                <p>emotion="sleepy"</p>
+            </div>
+
+            <!-- 4. Blushing -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#FF8A80" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#FF8A80" opacity="0.95"/>
+                    
+                    <!-- Blushing Eyes -->
+                    <path d="M 36 32 Q 40 29 44 32" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <path d="M 56 32 Q 60 29 64 32" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <circle cx="30" cy="38" r="4" fill="#FF8A80" opacity="0.7"/>
+                    <circle cx="70" cy="38" r="4" fill="#FF8A80" opacity="0.7"/>
+                    
+                    <path d="M 42 42 Q 50 47 58 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#FF8A80" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#FF8A80"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#FF8A80" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#FF8A80" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#FF8A80" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#FF8A80" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😊 Blushing</h3>
+                <p>emotion="blushing"</p>
+            </div>
+
+            <!-- 5. Winking -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#4CAF50" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#4CAF50" opacity="0.95"/>
+                    
+                    <!-- Winking Eyes -->
+                    <circle cx="40" cy="32" r="5" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <circle cx="42" cy="29" r="1" fill="white" opacity="0.8"/>
+                    <path d="M 56 32 Q 60 29 64 32" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                    
+                    <path d="M 40 42 Q 50 48 60 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#4CAF50" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#4CAF50"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#4CAF50" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#4CAF50" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#4CAF50" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#4CAF50" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😉 Winking</h3>
+                <p>emotion="winking"</p>
+            </div>
+
+            <!-- 6. Star Eyes -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#FFD700" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#FFD700" opacity="0.95"/>
+                    
+                    <!-- Star Eyes -->
+                    <g transform="translate(40, 32)">
+                        <path d="M 0 -4 L 1 -1 L 4 0 L 1 1 L 0 4 L -1 1 L -4 0 L -1 -1 Z" fill="#000"/>
+                        <circle cx="0" cy="0" r="1" fill="white" opacity="0.8"/>
+                    </g>
+                    <g transform="translate(60, 32)">
+                        <path d="M 0 -4 L 1 -1 L 4 0 L 1 1 L 0 4 L -1 1 L -4 0 L -1 -1 Z" fill="#000"/>
+                        <circle cx="0" cy="0" r="1" fill="white" opacity="0.8"/>
+                    </g>
+                    
+                    <path d="M 38 42 Q 50 50 62 42" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#FFD700" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#FFD700"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#FFD700" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#FFD700" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#FFD700" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#FFD700" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>⭐ Star Eyes</h3>
+                <p>emotion="star_eyes"</p>
+            </div>
+
+            <!-- 7. Surprised -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#FF5722" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#FF5722" opacity="0.95"/>
+                    
+                    <!-- Surprised Eyes -->
+                    <circle cx="40" cy="32" r="7" fill="#000"/>
+                    <circle cx="60" cy="32" r="7" fill="#000"/>
+                    <circle cx="40" cy="32" r="5" fill="white"/>
+                    <circle cx="60" cy="32" r="5" fill="white"/>
+                    <circle cx="40" cy="30" r="2" fill="#000"/>
+                    <circle cx="60" cy="30" r="2" fill="#000"/>
+                    <circle cx="41" cy="29" r="1" fill="white"/>
+                    <circle cx="61" cy="29" r="1" fill="white"/>
+                    
+                    <ellipse cx="50" cy="44" rx="4" ry="6" fill="none" stroke="#000" stroke-width="2"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#FF5722" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#FF5722"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#FF5722" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#FF5722" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#FF5722" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#FF5722" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😲 Surprised</h3>
+                <p>emotion="surprised"</p>
+            </div>
+
+            <!-- 8. Giggly -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#E91E63" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#E91E63" opacity="0.95"/>
+                    
+                    <!-- Giggly Eyes -->
+                    <circle cx="40" cy="32" r="5" fill="#000"/>
+                    <circle cx="60" cy="32" r="5" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <circle cx="61" cy="30" r="2" fill="white"/>
+                    <path d="M 35 28 Q 37 26 39 28" stroke="#FF69B4" stroke-width="1" fill="none"/>
+                    <path d="M 61 28 Q 63 26 65 28" stroke="#FF69B4" stroke-width="1" fill="none"/>
+                    
+                    <path d="M 35 42 Q 42 48 50 45 Q 58 48 65 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#E91E63" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#E91E63"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#E91E63" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#E91E63" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#E91E63" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#E91E63" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😄 Giggly</h3>
+                <p>emotion="giggly"</p>
+            </div>
+
+            <!-- 9. Kawaii Shy -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#FFB3BA" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#FFB3BA" opacity="0.95"/>
+                    
+                    <!-- Kawaii Shy Eyes -->
+                    <path d="M 36 32 Q 40 29 44 32" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <path d="M 56 32 Q 60 29 64 32" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <circle cx="32" cy="36" r="3" fill="#FFB3BA" opacity="0.8"/>
+                    <circle cx="68" cy="36" r="3" fill="#FFB3BA" opacity="0.8"/>
+                    
+                    <path d="M 45 44 Q 50 41 55 44" stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#FFB3BA" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#FFB3BA"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#FFB3BA" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#FFB3BA" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#FFB3BA" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#FFB3BA" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>🥺 Kawaii Shy</h3>
+                <p>emotion="kawaii_shy"</p>
+            </div>
+
+            <!-- 10. Excited -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#4CAF50" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#4CAF50" opacity="0.95"/>
+                    
+                    <!-- Excited Eyes -->
+                    <circle cx="40" cy="32" r="6" fill="#000"/>
+                    <circle cx="60" cy="32" r="6" fill="#000"/>
+                    <circle cx="41" cy="30" r="2.5" fill="white"/>
+                    <circle cx="61" cy="30" r="2.5" fill="white"/>
+                    <circle cx="42" cy="29" r="1" fill="white"/>
+                    <circle cx="62" cy="29" r="1" fill="white"/>
+                    <circle cx="33" cy="26" r="1" fill="#FFD700" opacity="0.9"/>
+                    <circle cx="47" cy="25" r="1" fill="#FFD700" opacity="0.9"/>
+                    <circle cx="53" cy="25" r="1" fill="#FFD700" opacity="0.9"/>
+                    <circle cx="67" cy="26" r="1" fill="#FFD700" opacity="0.9"/>
+                    
+                    <path d="M 36 42 Q 50 52 64 42" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#4CAF50" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#4CAF50"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#4CAF50" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#4CAF50" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#4CAF50" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#4CAF50" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>🤩 Excited</h3>
+                <p>emotion="excited"</p>
+            </div>
+
+            <!-- Continue with remaining 10 emojis... -->
+            <!-- 11. Dreamy -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#9C27B0" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#9C27B0" opacity="0.95"/>
+                    
+                    <!-- Dreamy Eyes -->
+                    <circle cx="40" cy="32" r="3" fill="#000"/>
+                    <circle cx="60" cy="32" r="3" fill="#000"/>
+                    <circle cx="41" cy="30" r="1.5" fill="white"/>
+                    <circle cx="61" cy="30" r="1.5" fill="white"/>
+                    <circle cx="35" cy="28" r="0.5" fill="#E1BEE7" opacity="0.8"/>
+                    <circle cx="45" cy="27" r="0.5" fill="#E1BEE7" opacity="0.8"/>
+                    <circle cx="55" cy="27" r="0.5" fill="#E1BEE7" opacity="0.8"/>
+                    <circle cx="65" cy="28" r="0.5" fill="#E1BEE7" opacity="0.8"/>
+                    
+                    <path d="M 42 42 Q 50 46 58 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#9C27B0" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#9C27B0"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#9C27B0" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#9C27B0" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#9C27B0" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#9C27B0" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>💭 Dreamy</h3>
+                <p>emotion="dreamy"</p>
+            </div>
+
+            <!-- 12. Playful -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#FF5722" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#FF5722" opacity="0.95"/>
+                    
+                    <!-- Playful Eyes -->
+                    <circle cx="40" cy="32" r="5" fill="#000"/>
+                    <circle cx="60" cy="32" r="5" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <circle cx="61" cy="30" r="2" fill="white"/>
+                    <circle cx="42" cy="29" r="1" fill="white"/>
+                    <circle cx="62" cy="29" r="1" fill="white"/>
+                    
+                    <!-- Playful Mouth with Tongue -->
+                    <path d="M 40 42 Q 50 47 60 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <ellipse cx="52" cy="46" rx="3" ry="2" fill="#FF8A80"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#FF5722" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#FF5722"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#FF5722" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#FF5722" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#FF5722" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#FF5722" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😛 Playful</h3>
+                <p>emotion="playful"</p>
+            </div>
+
+            <!-- 13. Loving -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#E91E63" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#E91E63" opacity="0.95"/>
+                    
+                    <!-- Loving Eyes -->
+                    <circle cx="40" cy="32" r="5" fill="#000"/>
+                    <circle cx="60" cy="32" r="5" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <circle cx="61" cy="30" r="2" fill="white"/>
+                    <path d="M 47 25 Q 45 23 47 26 Q 50 23 52 26 Q 50 29 47 25" fill="#E91E63" opacity="0.8"/>
+                    
+                    <path d="M 40 42 Q 50 48 60 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#E91E63" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#E91E63"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#E91E63" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#E91E63" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#E91E63" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#E91E63" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>💕 Loving</h3>
+                <p>emotion="loving"</p>
+            </div>
+
+            <!-- 14. Cheeky -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#FF9800" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#FF9800" opacity="0.95"/>
+                    
+                    <!-- Cheeky Eyes -->
+                    <circle cx="40" cy="32" r="5" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <path d="M 56 32 Q 60 29 64 32" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                    <circle cx="68" cy="36" r="2" fill="#FF8A80" opacity="0.6"/>
+                    
+                    <path d="M 40 42 Q 45 46 52 44 Q 58 46 60 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#FF9800" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#FF9800"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#FF9800" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#FF9800" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#FF9800" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#FF9800" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😏 Cheeky</h3>
+                <p>emotion="cheeky"</p>
+            </div>
+
+            <!-- 15. Innocent -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#87CEEB" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#87CEEB" opacity="0.95"/>
+                    
+                    <!-- Innocent Eyes -->
+                    <circle cx="40" cy="32" r="4" fill="#000"/>
+                    <circle cx="60" cy="32" r="4" fill="#000"/>
+                    <circle cx="40" cy="30" r="2" fill="white"/>
+                    <circle cx="60" cy="30" r="2" fill="white"/>
+                    <circle cx="41" cy="29" r="1" fill="white"/>
+                    <circle cx="61" cy="29" r="1" fill="white"/>
+                    
+                    <ellipse cx="50" cy="44" rx="4" ry="2" fill="none" stroke="#000" stroke-width="1.5"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#87CEEB" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#87CEEB"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#87CEEB" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#87CEEB" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#87CEEB" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#87CEEB" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😇 Innocent</h3>
+                <p>emotion="innocent"</p>
+            </div>
+
+            <!-- 16. Cheerful -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#4CAF50" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#4CAF50" opacity="0.95"/>
+                    
+                    <!-- Cheerful Eyes -->
+                    <circle cx="40" cy="32" r="5" fill="#000"/>
+                    <circle cx="60" cy="32" r="5" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <circle cx="61" cy="30" r="2" fill="white"/>
+                    <path d="M 35 27 L 37 29 L 35 31" stroke="#FFD700" stroke-width="1" fill="none" stroke-linecap="round"/>
+                    <path d="M 65 27 L 63 29 L 65 31" stroke="#FFD700" stroke-width="1" fill="none" stroke-linecap="round"/>
+                    
+                    <path d="M 38 42 Q 50 50 62 42" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#4CAF50" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#4CAF50"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#4CAF50" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#4CAF50" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#4CAF50" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#4CAF50" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😊 Cheerful</h3>
+                <p>emotion="cheerful"</p>
+            </div>
+
+            <!-- 17. Mischievous -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#FF5722" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#FF5722" opacity="0.95"/>
+                    
+                    <!-- Mischievous Eyes -->
+                    <circle cx="40" cy="32" r="5" fill="#000"/>
+                    <circle cx="60" cy="32" r="5" fill="#000"/>
+                    <circle cx="39" cy="30" r="2" fill="white"/>
+                    <circle cx="61" cy="30" r="2" fill="white"/>
+                    <path d="M 34 29 Q 36 27 38 29" stroke="#FF5722" stroke-width="1" fill="none"/>
+                    <path d="M 62 29 Q 64 27 66 29" stroke="#FF5722" stroke-width="1" fill="none"/>
+                    
+                    <path d="M 38 42 Q 46 48 54 44 Q 62 48 65 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#FF5722" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#FF5722"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#FF5722" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#FF5722" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#FF5722" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#FF5722" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😈 Mischievous</h3>
+                <p>emotion="mischievous"</p>
+            </div>
+
+            <!-- 18. Confused -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#9E9E9E" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#9E9E9E" opacity="0.95"/>
+                    
+                    <!-- Confused Eyes -->
+                    <circle cx="40" cy="32" r="5" fill="#000"/>
+                    <circle cx="60" cy="32" r="5" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <circle cx="61" cy="30" r="2" fill="white"/>
+                    <path d="M 48 24 Q 50 22 52 24 Q 50 26 48 24" stroke="#9E9E9E" stroke-width="1" fill="none"/>
+                    
+                    <ellipse cx="50" cy="44" rx="3" ry="2" fill="none" stroke="#000" stroke-width="1.5"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#9E9E9E" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#9E9E9E"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#9E9E9E" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#9E9E9E" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#9E9E9E" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#9E9E9E" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😕 Confused</h3>
+                <p>emotion="confused"</p>
+            </div>
+
+            <!-- 19. Sleepy Smile -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#9C27B0" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#9C27B0" opacity="0.95"/>
+                    
+                    <!-- Sleepy Smile Eyes -->
+                    <path d="M 35 32 Q 40 29 45 32" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <path d="M 55 32 Q 60 29 65 32" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <circle cx="32" cy="36" r="2" fill="#FFB3E6" opacity="0.6"/>
+                    <circle cx="68" cy="36" r="2" fill="#FFB3E6" opacity="0.6"/>
+                    
+                    <path d="M 42 42 Q 50 46 58 42" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#9C27B0" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#9C27B0"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#9C27B0" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#9C27B0" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#9C27B0" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#9C27B0" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>😌 Sleepy Smile</h3>
+                <p>emotion="sleepy_smile"</p>
+            </div>
+
+            <!-- 20. Super Happy -->
+            <div class="bobo-card">
+                <svg viewBox="0 0 100 140" width="200" height="280" class="bobo-svg">
+                    <rect x="20" y="50" width="60" height="70" rx="8" fill="#FF1744" opacity="0.9"/>
+                    <line x1="30" y1="70" x2="70" y2="70" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <rect x="25" y="15" width="50" height="40" rx="6" fill="#FF1744" opacity="0.95"/>
+                    
+                    <!-- Super Happy Eyes -->
+                    <circle cx="40" cy="32" r="4" fill="#000"/>
+                    <circle cx="60" cy="32" r="4" fill="#000"/>
+                    <circle cx="41" cy="30" r="2" fill="white"/>
+                    <circle cx="61" cy="30" r="2" fill="white"/>
+                    <circle cx="42" cy="29" r="1" fill="white"/>
+                    <circle cx="62" cy="29" r="1" fill="white"/>
+                    <circle cx="30" cy="25" r="1" fill="#FFD700"/>
+                    <circle cx="35" cy="22" r="0.5" fill="#FFD700"/>
+                    <circle cx="45" cy="20" r="1" fill="#FFD700"/>
+                    <circle cx="55" cy="20" r="1" fill="#FFD700"/>
+                    <circle cx="65" cy="22" r="0.5" fill="#FFD700"/>
+                    <circle cx="70" cy="25" r="1" fill="#FFD700"/>
+                    
+                    <path d="M 35 42 Q 50 52 65 42" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
+                    
+                    <line x1="50" y1="15" x2="50" y2="8" stroke="#FF1744" stroke-width="2"/>
+                    <circle cx="50" cy="6" r="3" fill="#FF1744"/>
+                    <rect x="10" y="60" width="8" height="25" rx="4" fill="#FF1744" opacity="0.8"/>
+                    <rect x="82" y="60" width="8" height="25" rx="4" fill="#FF1744" opacity="0.8"/>
+                    <circle cx="14" cy="88" r="4" fill="#FF1744" opacity="0.9"/>
+                    <circle cx="86" cy="88" r="4" fill="#FF1744" opacity="0.9"/>
+                    <rect x="22" y="122" width="56" height="12" rx="6" fill="#333" opacity="0.3"/>
+                    <circle cx="32" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="50" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                    <circle cx="68" cy="128" r="4" fill="rgba(255,255,255,0.5)"/>
+                </svg>
+                <h3>🤩 Super Happy</h3>
+                <p>emotion="super_happy"</p>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; padding: 25px; background: linear-gradient(45deg, #f0f8ff, #e8f5e8); border-radius: 15px; border: 3px solid #667eea;">
+            <h3>🚀 How to Use These Emotions:</h3>
+            <pre style="background: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.9em;">
+// Import the emoji collection
+import { boboEmojis } from './assets/bobo-emojis.js';
+
+// Use in RobotMascot component
+&lt;RobotMascot 
+  emotion="sparkly_happy"  // Use any of the 20 emotion names
+  animate={true}
+  size="lg"
+/&gt;
+
+// Available emotions:
+// sparkly_happy, heart_eyes, sleepy, blushing, winking, star_eyes,
+// surprised, giggly, kawaii_shy, excited, dreamy, playful, loving,
+// cheeky, innocent, cheerful, mischievous, confused, sleepy_smile, super_happy
+            </pre>
+            
+            <p style="margin-top: 20px; text-align: center; font-size: 1.1em; color: #555;">
+                Each expression is designed to be <strong style="color: #667eea;">super cute</strong> with unique details like sparkles, 
+                blush effects, and expressive features that give Bobo tons of personality! 🎨✨
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Add some fun hover animations
+        document.querySelectorAll('.bobo-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.03)';
+                const svg = this.querySelector('.bobo-svg');
+                if (svg) {
+                    svg.style.filter = 'drop-shadow(0 8px 16px rgba(102, 126, 234, 0.3))';
+                }
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+                const svg = this.querySelector('.bobo-svg');
+                if (svg) {
+                    svg.style.filter = 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))';
+                }
+            });
+        });
+
+        // Add a subtle animation to the antennas
+        document.querySelectorAll('.bobo-svg circle[cy="6"]').forEach(antenna => {
+            antenna.style.animation = 'pulse 2s ease-in-out infinite';
+        });
+
+        // Add CSS for the pulse animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

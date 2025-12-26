@@ -40,22 +40,22 @@ export default function Analytics({ habits, logs }) {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-[var(--color-accent)] rounded-xl p-6 text-white shadow-lg">
-          <div className="text-sm opacity-90">Completion Rate</div>
+          <div className="text-sm opacity-90">Your Success Rate</div>
           <div className="text-3xl font-bold mt-2">{analytics.average_completion_rate}%</div>
         </div>
         
         <div className="bg-[var(--color-accent)] rounded-xl p-6 text-white shadow-lg">
-          <div className="text-sm opacity-90">Total Completions</div>
+          <div className="text-sm opacity-90">Total Victories</div>
           <div className="text-3xl font-bold mt-2">{analytics.total_completions}</div>
         </div>
         
         <div className="bg-[var(--color-accent)] rounded-xl p-6 text-white shadow-lg">
-          <div className="text-sm opacity-90">Best Time</div>
+          <div className="text-sm opacity-90">Your Power Hour</div>
           <div className="text-2xl font-bold mt-2">{analytics.best_time_of_day}</div>
         </div>
         
         <div className="bg-[var(--color-accent)] rounded-xl p-6 text-white shadow-lg">
-          <div className="text-sm opacity-90">Best Energy</div>
+          <div className="text-sm opacity-90">Peak Energy Mode</div>
           <div className="text-2xl font-bold mt-2">{analytics.best_energy_level}</div>
         </div>
       </div>
@@ -64,7 +64,7 @@ export default function Analytics({ habits, logs }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Completion Trend */}
         <div className="glass rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-light mb-4">7-Day Trend</h3>
+          <h3 className="text-lg font-bold text-light mb-4">Your Weekly Journey</h3>
           {analytics.completion_trend.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={analytics.completion_trend}>
@@ -84,14 +84,14 @@ export default function Analytics({ habits, logs }) {
             </ResponsiveContainer>
           ) : (
             <div className="h-64 flex items-center justify-center text-[var(--color-foreground-secondary)]">
-              No trend data yet
+              Let's start building some awesome data together! 🚀
             </div>
           )}
         </div>
 
         {/* Success by Difficulty */}
         <div className="glass rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-light mb-4">Success by Difficulty</h3>
+          <h3 className="text-lg font-bold text-light mb-4">Challenge Level Mastery</h3>
           {difficultyData.some(d => d.completions > 0) ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={difficultyData}>
@@ -111,7 +111,7 @@ export default function Analytics({ habits, logs }) {
             </ResponsiveContainer>
           ) : (
             <div className="h-64 flex items-center justify-center text-[var(--color-foreground-secondary)]">
-              No completion data yet
+              Ready to tackle some challenges? I believe in you! 💪
             </div>
           )}
         </div>
@@ -119,7 +119,7 @@ export default function Analytics({ habits, logs }) {
 
       {/* AI Insights */}
       <div className="glass rounded-2xl p-6">
-        <h3 className="text-xl font-bold text-light mb-4">🤖 AI Insights</h3>
+        <h3 className="text-xl font-bold text-light mb-4">Bobo's Smart Tips for You!</h3>
         <div className="space-y-2">
           {analytics.recommendations.map((rec, idx) => (
             <div key={idx} className="flex items-start gap-3 bg-light/5 p-4 rounded-xl hover:bg-light/10 transition-colors">

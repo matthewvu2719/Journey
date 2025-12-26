@@ -37,10 +37,8 @@ class DailySuccessScheduler:
             success_count = 0
             for user_id in user_ids:
                 if user_id:
-                    result = db.calculate_and_save_daily_success_rate(user_id, yesterday)
-                    if result:
-                        success_count += 1
-                        print(f"✓ Saved success rate for user {user_id}: {result['success_rate']}%")
+                    # Skip automatic calculation - success rates are only saved when habits are completed
+                    pass
             
             print(f"✓ Processed {success_count} users for {yesterday}")
             
@@ -140,30 +138,15 @@ class DailySuccessScheduler:
                     'is_stored': True
                 }
             else:
-                # No data for past date - calculate and store it
-                result = db.calculate_and_save_daily_success_rate(user_id, target_date)
-                if result:
-                    success_rate = result['success_rate']
-                    if success_rate == 0:
-                        status = 'red'
-                    elif success_rate < 80:
-                        status = 'yellow'
-                    else:
-                        status = 'green'
-                    
-                    return {
-                        **result,
-                        'status': status,
-                        'is_calculated': True
-                    }
-                else:
-                    return {
-                        'date': target_date.isoformat(),
-                        'total_instances': 0,
-                        'completed_instances': 0,
-                        'success_rate': 0.0,
-                        'status': 'red'
-                    }
+                # No data for past date - return red status with 0%
+                return {
+                    'date': target_date.isoformat(),
+                    'total_instances': 0,
+                    'completed_instances': 0,
+                    'success_rate': 0.0,
+                    'status': 'red',
+                    'is_missing_data': True
+                }
     
     def start_scheduler(self):
         """Start the daily scheduler - DISABLED"""

@@ -15,16 +15,11 @@ def test_success_rate_system():
     user_id = "test_user"
     test_date = date.today() - timedelta(days=1)  # Yesterday
     
-    # Test 1: Calculate success rate for a date
-    print(f"\n1. Testing success rate calculation for {test_date}")
-    
-    result = db.calculate_and_save_daily_success_rate(user_id, test_date)
-    if result:
-        print(f"✓ Success rate calculated: {result['success_rate']}%")
-        print(f"  - Total instances: {result['total_habit_instances']}")
-        print(f"  - Completed: {result['completed_instances']}")
-    else:
-        print("✗ Failed to calculate success rate")
+    # Test 1: Method removed - success rates only saved when habits completed
+    print(f"\n1. Success rate calculation method removed")
+    print("✓ Success rates are now only saved when habits are completed")
+    print("  - Missing past dates will show gray status")
+    print("  - No automatic calculation for missing data")
     
     # Test 2: Retrieve stored success rate
     print(f"\n2. Testing retrieval of stored success rate")

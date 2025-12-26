@@ -1,4 +1,4 @@
-export function CircularProgress({ value, size = 120, strokeWidth = 8, className = '' }) {
+export function CircularProgress({ value, size = 120, strokeWidth = 8, className = '', textSize = 'text-2xl' }) {
   const radius = (size - strokeWidth) / 2
   const circumference = radius * 2 * Math.PI
   const offset = circumference - (value / 100) * circumference
@@ -30,7 +30,7 @@ export function CircularProgress({ value, size = 120, strokeWidth = 8, className
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-2xl font-bold text-[var(--color-foreground)]">
+        <span className={`${textSize} font-bold text-[var(--color-foreground)]`}>
           {Math.round(value)}%
         </span>
       </div>

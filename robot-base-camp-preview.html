@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Base Camp Preview</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1A1A1A;
+            color: #F9F5F2;
+            overflow-x: hidden;
+        }
+        
+        .theme-selector {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .theme-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .theme-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        
+        .theme-btn.active {
+            background: var(--color-accent, #F9F5F2);
+            color: var(--color-background, #1A1A1A);
+        }
+        
+        .base-camp-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .interactive-object {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .interactive-object:hover {
+            filter: brightness(1.2) drop-shadow(0 0 20px var(--color-accent));
+        }
+        
+        .object-label {
+            font-family: 'Segoe UI', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            fill: var(--color-accent);
+            text-anchor: middle;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .object-label.theme-text {
+            fill: var(--color-accent) !important;
+        }
+        
+        .interactive-object:hover .object-label {
+            opacity: 1;
+        }
+        
+        /* Theme Variables */
+        :root {
+            --color-background: #1A1A1A;
+            --color-background-darker: #0F0F0F;
+            --color-foreground: #F9F5F2;
+            --color-foreground-secondary: #E5E1DE;
+            --color-accent: #F9F5F2;
+            --color-accent-hover: #E5E1DE;
+            --color-border: rgba(249, 245, 242, 0.15);
+            --color-glass: rgba(249, 245, 242, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-selector">
+        <button class="theme-btn active" onclick="setTheme('dark')">Dark</button>
+        <button class="theme-btn" onclick="setTheme('light')">Light</button>
+        <button class="theme-btn" onclick="setTheme('blue')">Ocean Blue</button>
+        <button class="theme-btn" onclick="setTheme('purple')">Purple Haze</button>
+        <button class="theme-btn" onclick="setTheme('green')">Forest Green</button>
+        <button class="theme-btn" onclick="setTheme('warm')">Warm Sunset</button>
+        <button class="theme-btn" onclick="setTheme('pink')">Cute Pink</button>
+        <button class="theme-btn" onclick="setTheme('light2')">Light 2</button>
+        <button class="theme-btn" onclick="setTheme('dark2')">Dark 2</button>
+        <button class="theme-btn" onclick="setTheme('amethyst')">Amethyst Haze</button>
+        <button class="theme-btn" onclick="setTheme('amethystDark')">Amethyst Dark</button>
+        <button class="theme-btn" onclick="setTheme('candyland')">CandyLand</button>
+        <button class="theme-btn" onclick="setTheme('candylandDark')">CandyLand Dark</button>
+        <button class="theme-btn" onclick="setTheme('kodama')">Kodama Grove</button>
+        <button class="theme-btn" onclick="setTheme('kodamaDark')">Kodama Dark</button>
+        <button class="theme-btn" onclick="setTheme('notebook')">Notebook</button>
+        <button class="theme-btn" onclick="setTheme('notebookDark')">Notebook Dark</button>
+        <button class="theme-btn" onclick="setTheme('mocha')">Mocha Mouse</button>
+        <button class="theme-btn" onclick="setTheme('mochaDark')">Mocha Dark</button>
+        <button class="theme-btn" onclick="setTheme('vintage')">Vintage Paper</button>
+        <button class="theme-btn" onclick="setTheme('vintageDark')">Vintage Dark</button>
+        <button class="theme-btn" onclick="setTheme('haven')">Haven</button>
+        <button class="theme-btn" onclick="setTheme('havenDark')">Haven Dark</button>
+        <button class="theme-btn" onclick="setTheme('bubblegum')">Bubblegum</button>
+        <button class="theme-btn" onclick="setTheme('bubblegumDark')">Bubblegum Dark</button>
+        <button class="theme-btn" onclick="setTheme('retroArcade')">Retro Arcade</button>
+        <button class="theme-btn" onclick="setTheme('retroArcadeDark')">Retro Dark</button>
+    </div>
+
+    <div class="base-camp-container">
+        <!-- Robot Base Camp SVG -->
+        <svg viewBox="0 0 1200 800" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;">
+            <!-- Definitions for gradients and filters -->
+            <defs>
+                <!-- Theme-based gradients -->
+                <linearGradient id="baseGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--color-background-darker)" />
+                    <stop offset="50%" stop-color="var(--color-background)" />
+                    <stop offset="100%" stop-color="var(--color-background-darker)" />
+                </linearGradient>
+                
+                <linearGradient id="panelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--color-glass)" />
+                    <stop offset="100%" stop-color="var(--color-border)" />
+                </linearGradient>
+                
+                <linearGradient id="energyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="var(--color-accent)" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="var(--color-accent-hover)" stop-opacity="1" />
+                    <stop offset="100%" stop-color="var(--color-accent)" stop-opacity="0.8" />
+                </linearGradient>
+
+                <!-- Glow filter -->
+                <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge> 
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+
+                <!-- Grid pattern -->
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--color-border)" stroke-width="0.5" opacity="0.3"/>
+                </pattern>
+                
+                <!-- Holographic Beacon Filter -->
+                <filter id="holoGlow">
+                    <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                    <feMerge> 
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+                
+                <!-- Strong glow for interactive objects -->
+                <filter id="strongGlow">
+                    <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+                    <feMerge> 
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+                
+                <!-- Mirror reflection filter -->
+                <filter id="mirrorGlow">
+                    <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+                    <feMerge> 
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+                
+                <!-- Object-specific gradients with sci-fi colors -->
+                <linearGradient id="holoBeaconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#00FFFF" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="#0080FF" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#00FFFF" stop-opacity="0.8" />
+                </linearGradient>
+                
+                <linearGradient id="mapTableGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FF6B35" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="#FF8E53" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#FF6B35" stop-opacity="0.8" />
+                </linearGradient>
+                
+                <linearGradient id="commStationGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#32CD32" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="#7FFF00" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#32CD32" stop-opacity="0.8" />
+                </linearGradient>
+                
+                <linearGradient id="dataCoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#9370DB" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="#BA55D3" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#9370DB" stop-opacity="0.8" />
+                </linearGradient>
+                
+                <linearGradient id="mirrorGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#E0E0E0" stop-opacity="0.3" />
+                    <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.6" />
+                    <stop offset="100%" stop-color="#E0E0E0" stop-opacity="0.3" />
+                </linearGradient>
+                
+                <linearGradient id="badgeDisplayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFD700" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="#FFA500" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#FFD700" stop-opacity="0.8" />
+                </linearGradient>
+                
+                <!-- Wall Materials & Textures - Foreground-based -->
+                <linearGradient id="metalPanelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--color-foreground)" stop-opacity="0.2" />
+                    <stop offset="30%" stop-color="var(--color-foreground-secondary)" stop-opacity="0.3" />
+                    <stop offset="70%" stop-color="var(--color-foreground)" stop-opacity="0.25" />
+                    <stop offset="100%" stop-color="var(--color-foreground-secondary)" stop-opacity="0.15" />
+                </linearGradient>
+                
+                <linearGradient id="energyPanelGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="var(--color-foreground)" stop-opacity="0.3" />
+                    <stop offset="50%" stop-color="var(--color-foreground-secondary)" stop-opacity="0.5" />
+                    <stop offset="100%" stop-color="var(--color-foreground)" stop-opacity="0.3" />
+                </linearGradient>
+                
+                <!-- Floor Materials - Theme-based -->
+                <linearGradient id="floorPanelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--color-foreground)" stop-opacity="0.08" />
+                    <stop offset="50%" stop-color="var(--color-foreground-secondary)" stop-opacity="0.15" />
+                    <stop offset="100%" stop-color="var(--color-foreground)" stop-opacity="0.08" />
+                </linearGradient>
+                
+                <!-- Hex Pattern for Walls -->
+                <pattern id="hexPattern" width="30" height="26" patternUnits="userSpaceOnUse">
+                    <polygon points="15,2 25,8 25,18 15,24 5,18 5,8" fill="none" stroke="#00CCFF" stroke-width="0.5" opacity="0.4"/>
+                    <circle cx="15" cy="13" r="1" fill="#00CCFF" opacity="0.6">
+                        <animate attributeName="opacity" values="0.6;1;0.6" dur="4s" repeatCount="indefinite" />
+                    </circle>
+                </pattern>
+                
+                <!-- Circuit Pattern for Floors -->
+                <pattern id="circuitPattern" width="60" height="60" patternUnits="userSpaceOnUse">
+                    <g stroke="#0080FF" stroke-width="1" fill="none" opacity="0.3">
+                        <line x1="0" y1="30" x2="20" y2="30" />
+                        <line x1="40" y1="30" x2="60" y2="30" />
+                        <line x1="30" y1="0" x2="30" y2="20" />
+                        <line x1="30" y1="40" x2="30" y2="60" />
+                        <circle cx="20" cy="30" r="3" />
+                        <circle cx="40" cy="30" r="3" />
+                        <circle cx="30" cy="20" r="3" />
+                        <circle cx="30" cy="40" r="3" />
+                    </g>
+                    <animate attributeName="opacity" values="0.3;0.6;0.3" dur="6s" repeatCount="indefinite" />
+                </pattern>
+                
+                <!-- Hex Grid for Floor -->
+                <pattern id="hexFloorPattern" width="40" height="35" patternUnits="userSpaceOnUse">
+                    <polygon points="20,3 30,10 30,25 20,32 10,25 10,10" fill="none" stroke="#FF6B35" stroke-width="0.8" opacity="0.2"/>
+                    <polygon points="20,8 26,12 26,23 20,27 14,23 14,12" fill="#FF6B35" opacity="0.1"/>
+                </pattern>
+                
+                <!-- Energy Flow Pattern -->
+                <pattern id="energyFlowPattern" width="80" height="20" patternUnits="userSpaceOnUse">
+                    <rect width="80" height="20" fill="none"/>
+                    <path d="M0,10 Q20,5 40,10 T80,10" stroke="#00FFFF" stroke-width="2" fill="none" opacity="0.5">
+                        <animate attributeName="stroke-dasharray" values="0,80;40,40;80,0" dur="3s" repeatCount="indefinite" />
+                    </path>
+                </pattern>
+                
+                <!-- Command Center - Fixed coloring -->
+                <linearGradient id="commandCenterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#4A90E2" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="#357ABD" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#2E5A87" stop-opacity="0.9" />
+                </linearGradient>
+                
+                <!-- Wall Theme Gradient - Like "Let's get started together" button -->
+                <linearGradient id="wallThemeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--color-accent)" stop-opacity="0.15" />
+                    <stop offset="50%" stop-color="var(--color-accent-hover)" stop-opacity="0.25" />
+                    <stop offset="100%" stop-color="var(--color-accent)" stop-opacity="0.15" />
+                </linearGradient>
+                
+                <!-- Floor Theme Gradient - Like "Begin your journey" button -->
+                <linearGradient id="floorThemeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--color-foreground)" stop-opacity="0.1" />
+                    <stop offset="50%" stop-color="var(--color-foreground-secondary)" stop-opacity="0.2" />
+                    <stop offset="100%" stop-color="var(--color-foreground)" stop-opacity="0.1" />
+                </linearGradient>
+                
+                <!-- Radio - Fixed green coloring -->
+                <linearGradient id="radioGreenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#32CD32" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="#7FFF00" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#32CD32" stop-opacity="0.8" />
+                </linearGradient>
+                
+                <linearGradient id="badgeDisplayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFD700" stop-opacity="0.8" />
+                    <stop offset="50%" stop-color="#FFA500" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#FFD700" stop-opacity="0.8" />
+                </linearGradient>
+            </defs>
+
+            <!-- Background Base Structure with Depth -->
+            <rect width="1200" height="800" fill="url(#baseGradient)" />
+            <rect width="1200" height="800" fill="url(#grid)" />
+            
+            <!-- Central Area Background - Reduces grid visibility -->
+            <rect x="400" y="300" width="400" height="300" rx="20" fill="var(--color-background)" opacity="0.6" />
+            <rect x="420" y="320" width="360" height="260" rx="15" fill="var(--color-glass)" opacity="0.4" />
+            
+            <!-- Enhanced Walls & Floor System -->
+            <g id="wallsAndFloors">
+                <!-- Back Wall Panels -->
+                <g id="backWalls" opacity="0.8">
+                    <!-- Main Back Wall -->
+                    <rect x="0" y="0" width="1200" height="500" fill="url(#metalPanelGradient)" />
+                    
+                    <!-- Wall Panel Seams -->
+                    <line x1="200" y1="0" x2="200" y2="500" stroke="var(--color-foreground)" stroke-width="1.5" opacity="0.3" />
+                    <line x1="400" y1="0" x2="400" y2="500" stroke="var(--color-foreground)" stroke-width="1.5" opacity="0.3" />
+                    <line x1="600" y1="0" x2="600" y2="500" stroke="var(--color-foreground)" stroke-width="1.5" opacity="0.3" />
+                    <line x1="800" y1="0" x2="800" y2="500" stroke="var(--color-foreground)" stroke-width="1.5" opacity="0.3" />
+                    <line x1="1000" y1="0" x2="1000" y2="500" stroke="var(--color-foreground)" stroke-width="1.5" opacity="0.3" />
+                    
+                    <!-- Subtle Wall Texture -->
+                    <rect x="0" y="0" width="1200" height="500" fill="url(#grid)" opacity="0.1" />
+                    
+                    <!-- Subtle Strip Lighting -->
+                    <rect x="50" y="20" width="1100" height="4" rx="2" fill="url(#energyPanelGradient)">
+                        <animate attributeName="opacity" values="0.3;0.6;0.3" dur="6s" repeatCount="indefinite" />
+                    </rect>
+                    <rect x="100" y="280" width="1000" height="3" rx="1.5" fill="url(#energyPanelGradient)">
+                        <animate attributeName="opacity" values="0.2;0.5;0.2" dur="7s" repeatCount="indefinite" />
+                    </rect>
+                    <!-- Middle area subtle strips -->
+                    <rect x="75" y="350" width="1050" height="3" rx="1.5" fill="url(#energyPanelGradient)">
+                        <animate attributeName="opacity" values="0.25;0.55;0.25" dur="6.5s" repeatCount="indefinite" />
+                    </rect>
+                    <rect x="125" y="450" width="950" height="2" rx="1" fill="url(#energyPanelGradient)">
+                        <animate attributeName="opacity" values="0.2;0.45;0.2" dur="8s" repeatCount="indefinite" />
+                    </rect>
+                    
+                    <!-- Status Light Strips -->
+                    <g id="statusLights">
+                        <circle cx="150" cy="50" r="4" fill="#00CCFF" opacity="0.8">
+                            <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="300" cy="50" r="4" fill="#00FF80" opacity="0.7">
+                            <animate attributeName="opacity" values="0.7;1;0.7" dur="2.5s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="450" cy="50" r="4" fill="#FF6B35" opacity="0.9">
+                            <animate attributeName="opacity" values="0.9;1;0.9" dur="1.8s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="750" cy="50" r="4" fill="#9370DB" opacity="0.6">
+                            <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="900" cy="50" r="4" fill="#FFD700" opacity="0.8">
+                            <animate attributeName="opacity" values="0.8;1;0.8" dur="2.2s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="1050" cy="50" r="4" fill="#FFFFFF" opacity="0.7">
+                            <animate attributeName="opacity" values="0.7;1;0.7" dur="2.8s" repeatCount="indefinite" />
+                        </circle>
+                        
+                        <!-- Middle area status lights -->
+                        <circle cx="200" cy="380" r="4" fill="#00CCFF" opacity="0.6">
+                            <animate attributeName="opacity" values="0.6;1;0.6" dur="3.2s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="400" cy="380" r="4" fill="#FF6B35" opacity="0.8">
+                            <animate attributeName="opacity" values="0.8;1;0.8" dur="2.7s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="800" cy="380" r="4" fill="#9370DB" opacity="0.7">
+                            <animate attributeName="opacity" values="0.7;1;0.7" dur="3.5s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="1000" cy="380" r="4" fill="#32CD32" opacity="0.9">
+                            <animate attributeName="opacity" values="0.9;1;0.9" dur="2.3s" repeatCount="indefinite" />
+                        </circle>
+                    </g>
+                    
+                    <!-- Wall Control Consoles -->
+                    <rect x="80" y="200" width="40" height="60" rx="5" fill="url(#metalPanelGradient)" opacity="0.9" />
+                    <rect x="85" y="210" width="30" height="15" rx="2" fill="#00CCFF" opacity="0.6">
+                        <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite" />
+                    </rect>
+                    
+                    <rect x="1080" y="180" width="40" height="80" rx="5" fill="url(#metalPanelGradient)" opacity="0.9" />
+                    <rect x="1085" y="190" width="30" height="20" rx="2" fill="#FF6B35" opacity="0.7">
+                        <animate attributeName="opacity" values="0.7;1;0.7" dur="2.5s" repeatCount="indefinite" />
+                    </rect>
+                </g>
+                
+                <!-- Side Walls -->
+                <g id="sideWalls" opacity="0.6">
+                    <!-- Left Wall -->
+                    <polygon points="0,0 0,550 50,500 50,50" fill="url(#metalPanelGradient)" />
+                    <rect x="0" y="0" width="50" height="550" fill="url(#grid)" opacity="0.15" />
+                    
+                    <!-- Right Wall -->
+                    <polygon points="1200,0 1200,550 1150,500 1150,50" fill="url(#metalPanelGradient)" />
+                    <rect x="1150" y="0" width="50" height="550" fill="url(#grid)" opacity="0.15" />
+                    
+                    <!-- Vertical Holo-Strips -->
+                    <rect x="20" y="100" width="6" height="200" rx="3" fill="#00CCFF" opacity="0.4">
+                        <animate attributeName="height" values="200;250;200" dur="4s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.4;0.8;0.4" dur="4s" repeatCount="indefinite" />
+                    </rect>
+                    <rect x="1174" y="120" width="6" height="180" rx="3" fill="#FF6B35" opacity="0.5">
+                        <animate attributeName="height" values="180;220;180" dur="3.5s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.5;0.9;0.5" dur="3.5s" repeatCount="indefinite" />
+                    </rect>
+                </g>
+                
+
+                
+                <!-- Overhead Structural Framework -->
+                <g id="overheadStructure" opacity="0.7">
+                    <!-- Main Support Beam -->
+                    <rect x="100" y="30" width="1000" height="25" rx="12" fill="url(#metalPanelGradient)" />
+                    <rect x="100" y="30" width="1000" height="25" rx="12" fill="url(#grid)" opacity="0.1" />
+                    
+                    <!-- Cross Beams -->
+                    <rect x="200" y="20" width="15" height="300" rx="7" fill="url(#metalPanelGradient)" opacity="0.8" />
+                    <rect x="600" y="15" width="15" height="320" rx="7" fill="url(#metalPanelGradient)" opacity="0.8" />
+                    <rect x="1000" y="20" width="15" height="300" rx="7" fill="url(#metalPanelGradient)" opacity="0.8" />
+                    
+                    <!-- Ambient Strip Lighting -->
+                    <rect x="120" y="45" width="960" height="3" rx="1.5" fill="#00CCFF" opacity="0.6">
+                        <animate attributeName="opacity" values="0.6;1;0.6" dur="6s" repeatCount="indefinite" />
+                    </rect>
+                </g>
+            </g>
+
+            <!-- Main Base Platform - Made Bigger -->
+            <g id="basePlatform">
+                <!-- Platform Base -->
+                <ellipse cx="600" cy="680" rx="580" ry="100" fill="var(--color-background-darker)" opacity="0.8" />
+                <ellipse cx="600" cy="675" rx="560" ry="95" fill="url(#panelGradient)" />
+                
+                <!-- Platform Details -->
+                <rect x="100" y="650" width="1000" height="60" rx="30" fill="var(--color-glass)" opacity="0.6" />
+                <rect x="120" y="660" width="960" height="40" rx="20" fill="var(--color-border)" opacity="0.4" />
+                
+                <!-- Platform Lights -->
+                <circle cx="200" cy="680" r="12" fill="var(--color-accent)" opacity="0.8" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="350" cy="680" r="12" fill="var(--color-accent)" opacity="0.6" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="850" cy="680" r="12" fill="var(--color-accent)" opacity="0.7" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.7;1;0.7" dur="1.8s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="1000" cy="680" r="12" fill="var(--color-accent)" opacity="0.9" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.9;1;0.9" dur="2.2s" repeatCount="indefinite" />
+                </circle>
+            </g>
+
+            <!-- Holo Beacon - Today's Objective (Habits) -->
+            <g id="holoBeacon" class="interactive-object" onclick="openHabitsSection()">
+                <!-- Beacon Base -->
+                <ellipse cx="600" cy="450" rx="35" ry="8" fill="var(--color-glass)" opacity="0.6" />
+                
+                <!-- Main Beacon Pillar -->
+                <rect x="590" y="390" width="20" height="60" rx="10" fill="url(#holoBeaconGradient)" opacity="0.8" filter="url(#holoGlow)">
+                    <animate attributeName="opacity" values="0.8;1;0.8" dur="1.5s" repeatCount="indefinite" />
+                </rect>
+                
+                <!-- Holographic Orb -->
+                <circle cx="600" cy="360" r="25" fill="none" stroke="#00FFFF" stroke-width="3" opacity="0.9" filter="url(#strongGlow)">
+                    <animate attributeName="r" values="25;35;25" dur="2s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.9;0.4;0.9" dur="2s" repeatCount="indefinite" />
+                </circle>
+                
+                <!-- Inner Energy Core -->
+                <circle cx="600" cy="360" r="15" fill="#00FFFF" opacity="0.6">
+                    <animate attributeName="opacity" values="0.6;1;0.6" dur="1s" repeatCount="indefinite" />
+                </circle>
+                
+                <!-- Secondary Ring -->
+                <circle cx="600" cy="360" r="20" fill="none" stroke="#0080FF" stroke-width="2" opacity="0.7">
+                    <animate attributeName="r" values="20;25;20" dur="1.8s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.7;0.3;0.7" dur="1.8s" repeatCount="indefinite" />
+                </circle>
+                
+                <!-- Floating Particles -->
+                <circle cx="580" cy="345" r="3" fill="#00FFFF" opacity="0.7">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;10,-20;0,0" dur="3s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="620" cy="350" r="2" fill="#0080FF" opacity="0.8">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;-15,-25;0,0" dur="4s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="590" cy="375" r="2" fill="#00FFFF" opacity="0.6">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;15,-10;0,0" dur="3.5s" repeatCount="indefinite" />
+                </circle>
+                
+                <!-- Label -->
+                <text x="600" y="330" class="object-label theme-text">TODAY'S OBJECTIVE</text>
+            </g>
+
+            <!-- Command Map Table - Mission Road Map (Schedule) -->
+            <g id="commandMapTable" class="interactive-object" onclick="openScheduleSection()">
+                <!-- Table Base -->
+                <ellipse cx="200" cy="580" rx="70" ry="18" fill="var(--color-background-darker)" opacity="0.8" />
+                <rect x="150" y="530" width="100" height="50" rx="8" fill="var(--color-glass)" opacity="0.7" />
+                
+                <!-- Holographic Map Surface -->
+                <rect x="160" y="540" width="80" height="30" rx="4" fill="url(#mapTableGradient)" opacity="0.4" />
+                
+                <!-- Map Grid Lines -->
+                <g opacity="0.8">
+                    <line x1="165" y1="545" x2="235" y2="545" stroke="#FF6B35" stroke-width="1" />
+                    <line x1="165" y1="555" x2="235" y2="555" stroke="#FF6B35" stroke-width="1" />
+                    <line x1="165" y1="565" x2="235" y2="565" stroke="#FF6B35" stroke-width="1" />
+                    <line x1="175" y1="540" x2="175" y2="570" stroke="#FF6B35" stroke-width="1" />
+                    <line x1="200" y1="540" x2="200" y2="570" stroke="#FF6B35" stroke-width="1" />
+                    <line x1="225" y1="540" x2="225" y2="570" stroke="#FF6B35" stroke-width="1" />
+                </g>
+                
+                <!-- Mission Checkpoints -->
+                <circle cx="180" cy="550" r="3" fill="#FF8E53" filter="url(#glow)">
+                    <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="200" cy="555" r="3" fill="#FF6B35" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.5;1;0.5" dur="2.5s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="220" cy="560" r="3" fill="#FF8E53" filter="url(#glow)">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.8s" repeatCount="indefinite" />
+                </circle>
+                
+                <!-- Mission Path -->
+                <path d="M 180 550 Q 190 552 200 555 Q 210 558 220 560" 
+                      stroke="#FF6B35" stroke-width="2" fill="none" opacity="0.8">
+                    <animate attributeName="stroke-dasharray" values="0,50;25,25;50,0" dur="3s" repeatCount="indefinite" />
+                </path>
+                
+                <!-- 3D Effect Lines -->
+                <rect x="150" y="530" width="100" height="50" rx="8" fill="none" stroke="#FF6B35" stroke-width="1" opacity="0.6" />
+                
+                <!-- Label -->
+                <text x="200" y="610" class="object-label" fill="#FF6B35">MISSION ROADMAP</text>
+            </g>
+            
+            <!-- Phone Radio Station - Call Section -->
+            <g id="phoneRadio" class="interactive-object" onclick="openCallSection()">
+                <!-- Radio Base -->
+                <rect x="80" y="450" width="60" height="80" rx="8" fill="url(#radioGreenGradient)" opacity="0.3" />
+                <rect x="85" y="455" width="50" height="70" rx="6" fill="url(#radioGreenGradient)" opacity="0.5" />
+                
+                <!-- Radio Screen -->
+                <rect x="95" y="465" width="30" height="20" rx="3" fill="url(#radioGreenGradient)" opacity="0.7">
+                    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
+                </rect>
+                
+                <!-- Screen Display Lines -->
+                <g opacity="0.8">
+                    <line x1="98" y1="470" x2="122" y2="470" stroke="#32CD32" stroke-width="0.5" />
+                    <line x1="98" y1="475" x2="120" y2="475" stroke="#7FFF00" stroke-width="0.5" />
+                    <line x1="98" y1="480" x2="118" y2="480" stroke="#32CD32" stroke-width="0.5" />
+                </g>
+                
+                <!-- Radio Antenna -->
+                <line x1="110" y1="455" x2="110" y2="430" stroke="#32CD32" stroke-width="2" />
+                <line x1="110" y1="430" x2="125" y2="420" stroke="#32CD32" stroke-width="1.5" />
+                <line x1="110" y1="430" x2="95" y2="420" stroke="#32CD32" stroke-width="1.5" />
+                
+                <!-- Signal Waves -->
+                <g opacity="0.7">
+                    <circle cx="110" cy="430" r="15" fill="none" stroke="#32CD32" stroke-width="1">
+                        <animate attributeName="r" values="15;25;15" dur="2s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.7;0.2;0.7" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="110" cy="430" r="20" fill="none" stroke="#7FFF00" stroke-width="1">
+                        <animate attributeName="r" values="20;30;20" dur="2.5s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.5;0.1;0.5" dur="2.5s" repeatCount="indefinite" />
+                    </circle>
+                </g>
+                
+                <!-- Control Knobs -->
+                <circle cx="95" cy="500" r="4" fill="#32CD32" opacity="0.8" />
+                <circle cx="110" cy="500" r="4" fill="#7FFF00" opacity="0.8" />
+                <circle cx="125" cy="500" r="4" fill="#32CD32" opacity="0.8" />
+                
+                <!-- Microphone -->
+                <rect x="105" y="510" width="10" height="15" rx="5" fill="#32CD32" opacity="0.9" />
+                <line x1="110" y1="510" x2="110" y2="505" stroke="#32CD32" stroke-width="1" />
+                
+                <!-- Label -->
+                <text x="110" y="550" class="object-label" fill="#32CD32">COMM STATION</text>
+            </g>
+
+            <!-- Data Core - Insights Section -->
+            <g id="dataCore" class="interactive-object" onclick="openInsightsSection()">
+                <!-- Core Base -->
+                <ellipse cx="950" cy="580" rx="50" ry="15" fill="var(--color-background-darker)" opacity="0.8" />
+                
+                <!-- Rotating Data Cube -->
+                <g transform="translate(950, 520)">
+                    <rect x="-25" y="-25" width="50" height="50" rx="5" fill="url(#dataCoreGradient)" opacity="0.8" filter="url(#strongGlow)">
+                        <animateTransform attributeName="transform" type="rotate" values="0;360" dur="6s" repeatCount="indefinite" />
+                    </rect>
+                    
+                    <!-- Data Streams -->
+                    <g opacity="0.9">
+                        <line x1="-20" y1="-15" x2="20" y2="-15" stroke="#9370DB" stroke-width="1">
+                            <animate attributeName="stroke-dasharray" values="0,40;20,20;40,0" dur="2s" repeatCount="indefinite" />
+                        </line>
+                        <line x1="-20" y1="0" x2="20" y2="0" stroke="#BA55D3" stroke-width="1">
+                            <animate attributeName="stroke-dasharray" values="40,0;20,20;0,40" dur="2.5s" repeatCount="indefinite" />
+                        </line>
+                        <line x1="-20" y1="15" x2="20" y2="15" stroke="#9370DB" stroke-width="1">
+                            <animate attributeName="stroke-dasharray" values="0,40;20,20;40,0" dur="1.8s" repeatCount="indefinite" />
+                        </line>
+                        <!-- Vertical lines -->
+                        <line x1="-15" y1="-20" x2="-15" y2="20" stroke="#BA55D3" stroke-width="1">
+                            <animate attributeName="stroke-dasharray" values="0,40;20,20;40,0" dur="2.2s" repeatCount="indefinite" />
+                        </line>
+                        <line x1="0" y1="-20" x2="0" y2="20" stroke="#9370DB" stroke-width="1">
+                            <animate attributeName="stroke-dasharray" values="40,0;20,20;0,40" dur="2.8s" repeatCount="indefinite" />
+                        </line>
+                        <line x1="15" y1="-20" x2="15" y2="20" stroke="#BA55D3" stroke-width="1">
+                            <animate attributeName="stroke-dasharray" values="0,40;20,20;40,0" dur="2.4s" repeatCount="indefinite" />
+                        </line>
+                    </g>
+                    
+                    <!-- Core Energy -->
+                    <circle cx="0" cy="0" r="8" fill="#BA55D3" opacity="0.6">
+                        <animate attributeName="opacity" values="0.6;1;0.6" dur="1.5s" repeatCount="indefinite" />
+                    </circle>
+                    
+                    <!-- Inner Core -->
+                    <circle cx="0" cy="0" r="4" fill="#9370DB" opacity="0.8">
+                        <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                </g>
+                
+                <!-- Data Pillars -->
+                <rect x="920" y="550" width="8" height="30" rx="4" fill="#9370DB" opacity="0.7">
+                    <animate attributeName="height" values="30;40;30" dur="2s" repeatCount="indefinite" />
+                </rect>
+                <rect x="935" y="545" width="8" height="35" rx="4" fill="#BA55D3" opacity="0.8">
+                    <animate attributeName="height" values="35;45;35" dur="2.3s" repeatCount="indefinite" />
+                </rect>
+                <rect x="965" y="548" width="8" height="32" rx="4" fill="#9370DB" opacity="0.6">
+                    <animate attributeName="height" values="32;42;32" dur="1.9s" repeatCount="indefinite" />
+                </rect>
+                <rect x="980" y="552" width="8" height="28" rx="4" fill="#BA55D3" opacity="0.9">
+                    <animate attributeName="height" values="28;38;28" dur="2.1s" repeatCount="indefinite" />
+                </rect>
+                
+                <!-- Label -->
+                <text x="950" y="610" class="object-label" fill="#9370DB">DATA CORE</text>
+            </g>
+            
+            <!-- Badge Display - Honor Badges -->
+            <g id="badgeDisplay" class="interactive-object" onclick="openBadgesSection()">
+                <!-- Display Base -->
+                <ellipse cx="800" cy="580" rx="35" ry="8" fill="var(--color-background-darker)" opacity="0.8" />
+                
+                <!-- Display Cylinder -->
+                <rect x="780" y="480" width="40" height="100" rx="20" fill="url(#badgeDisplayGradient)" opacity="0.7" filter="url(#strongGlow)" />
+                <rect x="783" y="483" width="34" height="94" rx="17" fill="none" stroke="#FFD700" stroke-width="1.5" opacity="0.8" />
+                
+                <!-- Translucent Panels -->
+                <rect x="785" y="485" width="30" height="90" rx="15" fill="#FFD700" opacity="0.2">
+                    <animate attributeName="opacity" values="0.2;0.4;0.2" dur="4s" repeatCount="indefinite" />
+                </rect>
+                
+                <!-- Floating Holographic Badges -->
+                <g transform="translate(800, 520)">
+                    <!-- Badge 1 -->
+                    <g transform="translate(0, -15)">
+                        <circle r="5" fill="#FFD700" opacity="0.8">
+                            <animateTransform attributeName="transform" type="rotate" values="0;360" dur="8s" repeatCount="indefinite" />
+                        </circle>
+                        <polygon points="0,-3 2,0 0,3 -2,0" fill="#FFA500" opacity="0.9">
+                            <animateTransform attributeName="transform" type="rotate" values="0;360" dur="8s" repeatCount="indefinite" />
+                        </polygon>
+                        <animateTransform attributeName="transform" type="translate" values="0,-15;3,-12;0,-15" dur="6s" repeatCount="indefinite" />
+                    </g>
+                    
+                    <!-- Badge 2 -->
+                    <g transform="translate(0, 0)">
+                        <rect x="-4" y="-4" width="8" height="8" rx="1" fill="#FFD700" opacity="0.7">
+                            <animateTransform attributeName="transform" type="rotate" values="0;360" dur="10s" repeatCount="indefinite" />
+                        </rect>
+                        <circle r="2" fill="#FFA500" opacity="0.9">
+                            <animateTransform attributeName="transform" type="rotate" values="0;360" dur="10s" repeatCount="indefinite" />
+                        </circle>
+                        <animateTransform attributeName="transform" type="translate" values="0,0;-3,3;0,0" dur="7s" repeatCount="indefinite" />
+                    </g>
+                    
+                    <!-- Badge 3 -->
+                    <g transform="translate(0, 15)">
+                        <polygon points="0,-5 4,0 0,5 -4,0" fill="#FFD700" opacity="0.6">
+                            <animateTransform attributeName="transform" type="rotate" values="0;360" dur="12s" repeatCount="indefinite" />
+                        </polygon>
+                        <circle r="2.5" fill="#FFA500" opacity="0.8">
+                            <animateTransform attributeName="transform" type="rotate" values="0;360" dur="12s" repeatCount="indefinite" />
+                        </circle>
+                        <animateTransform attributeName="transform" type="translate" values="0,15;2,12;0,15" dur="8s" repeatCount="indefinite" />
+                    </g>
+                </g>
+                
+                <!-- Energy Containment Field -->
+                <rect x="780" y="480" width="40" height="100" rx="20" fill="none" stroke="#FFD700" stroke-width="1" opacity="0.5">
+                    <animate attributeName="opacity" values="0.5;0.9;0.5" dur="3s" repeatCount="indefinite" />
+                </rect>
+                
+                <!-- Glow Effect -->
+                <circle cx="800" cy="530" r="25" fill="#FFD700" opacity="0.1">
+                    <animate attributeName="opacity" values="0.1;0.3;0.1" dur="4s" repeatCount="indefinite" />
+                </circle>
+                
+                <!-- Label -->
+                <text x="800" y="610" class="object-label" fill="#FFD700">HONOR BADGES</text>
+            </g>
+
+
+
+            <!-- Enhanced Floating Energy Orbs -->
+            <g id="energyOrbs">
+                <circle cx="300" cy="200" r="15" fill="var(--color-accent)" opacity="0.6" filter="url(#strongGlow)">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;30,-20;0,0" dur="6s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite" />
+                </circle>
+                
+                <circle cx="800" cy="180" r="12" fill="var(--color-accent)" opacity="0.4" filter="url(#strongGlow)">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;-25,25;0,0" dur="8s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.4;0.8;0.4" dur="4s" repeatCount="indefinite" />
+                </circle>
+                
+                <circle cx="1000" cy="250" r="18" fill="var(--color-accent)" opacity="0.5" filter="url(#strongGlow)">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;20,30;0,0" dur="7s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.5;0.9;0.5" dur="3.5s" repeatCount="indefinite" />
+                </circle>
+                
+                <!-- Additional smaller orbs -->
+                <circle cx="450" cy="300" r="8" fill="var(--color-accent)" opacity="0.7" filter="url(#glow)">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;-10,15;0,0" dur="5s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.7;1;0.7" dur="2.5s" repeatCount="indefinite" />
+                </circle>
+                
+                <circle cx="750" cy="320" r="10" fill="var(--color-accent)" opacity="0.6" filter="url(#glow)">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;15,-10;0,0" dur="6.5s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.6;0.9;0.6" dur="3.2s" repeatCount="indefinite" />
+                </circle>
+            </g>
+
+
+
+            <!-- Atmospheric Effects -->
+            <g id="atmosphere">
+                <!-- Floating Particles -->
+                <circle cx="400" cy="200" r="2" fill="var(--color-accent)" opacity="0.3">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;50,-30;100,0" dur="15s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="5s" repeatCount="indefinite" />
+                </circle>
+                
+                <circle cx="700" cy="180" r="1.5" fill="var(--color-accent)" opacity="0.4">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;-40,20;-80,0" dur="12s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.4;0.7;0.4" dur="4s" repeatCount="indefinite" />
+                </circle>
+                
+                <circle cx="500" cy="150" r="1" fill="var(--color-accent)" opacity="0.5">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;30,40;60,0" dur="10s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.5;0.9;0.5" dur="3s" repeatCount="indefinite" />
+                </circle>
+            </g>
+
+            <!-- Holo-Fit Mirror - Bobo Customization -->
+            <g id="holoFitMirror" class="interactive-object" onclick="openBoboSection()">
+                <!-- Mirror Base -->
+                <ellipse cx="1100" cy="600" rx="40" ry="10" fill="var(--color-background-darker)" opacity="0.8" />
+                
+                <!-- Mirror Frame -->
+                <rect x="1080" y="450" width="40" height="150" rx="20" fill="url(#mirrorGradient)" opacity="0.6" filter="url(#mirrorGlow)" />
+                <rect x="1083" y="453" width="34" height="144" rx="17" fill="none" stroke="#E0E0E0" stroke-width="1.5" opacity="0.8" />
+                
+                <!-- Mirror Surface -->
+                <rect x="1085" y="455" width="30" height="140" rx="15" fill="url(#mirrorGradient)" opacity="0.3">
+                    <animate attributeName="opacity" values="0.3;0.6;0.3" dur="4s" repeatCount="indefinite" />
+                </rect>
+                
+                <!-- Holographic Reflection Lines -->
+                <g opacity="0.7">
+                    <line x1="1088" y1="470" x2="1112" y2="470" stroke="#FFFFFF" stroke-width="0.8" opacity="0.5">
+                        <animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="1088" y1="490" x2="1112" y2="490" stroke="#E0E0E0" stroke-width="0.8" opacity="0.6">
+                        <animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="1088" y1="510" x2="1112" y2="510" stroke="#FFFFFF" stroke-width="0.8" opacity="0.4">
+                        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="3.5s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="1088" y1="530" x2="1112" y2="530" stroke="#E0E0E0" stroke-width="0.8" opacity="0.7">
+                        <animate attributeName="opacity" values="0.7;1;0.7" dur="2.8s" repeatCount="indefinite" />
+                    </line>
+                </g>
+                
+                <!-- Energy Field -->
+                <rect x="1080" y="450" width="40" height="150" rx="20" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.4">
+                    <animate attributeName="opacity" values="0.4;0.8;0.4" dur="5s" repeatCount="indefinite" />
+                </rect>
+                
+                <!-- Holographic Particles -->
+                <circle cx="1092" cy="470" r="1.5" fill="#FFFFFF" opacity="0.6">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;3,-6;0,0" dur="4s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="1108" cy="490" r="1" fill="#E0E0E0" opacity="0.7">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;-2,-5;0,0" dur="3.5s" repeatCount="indefinite" />
+                </circle>
+                
+                <!-- Label -->
+                <text x="1100" y="630" class="object-label" fill="#FFFFFF">HOLO-FIT MIRROR</text>
+            </g>
+            
+            <!-- Central Command Center - Theme-appropriate solid elements -->
+            <g id="centralCommandCenter">
+                <!-- Main Central Platform -->
+                <ellipse cx="600" cy="500" rx="150" ry="40" fill="url(#commandCenterGradient)" opacity="0.8" />
+                <ellipse cx="600" cy="495" rx="140" ry="35" fill="url(#commandCenterGradient)" opacity="0.6" />
+                
+                <!-- Central Control Panel -->
+                <rect x="520" y="470" width="160" height="60" rx="15" fill="url(#commandCenterGradient)" opacity="0.5" />
+                <rect x="530" y="480" width="140" height="40" rx="10" fill="#2E5A87" opacity="0.8" />
+                
+                <!-- Fixed Interface Elements -->
+                <g id="centralInterface">
+                    <!-- Status Displays -->
+                    <rect x="540" y="490" width="30" height="20" rx="3" fill="#4A90E2" opacity="0.6">
+                        <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />
+                    </rect>
+                    <rect x="580" y="490" width="30" height="20" rx="3" fill="#357ABD" opacity="0.7">
+                        <animate attributeName="opacity" values="0.7;1;0.7" dur="2.5s" repeatCount="indefinite" />
+                    </rect>
+                    <rect x="620" y="490" width="30" height="20" rx="3" fill="#4A90E2" opacity="0.8">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="1.8s" repeatCount="indefinite" />
+                    </rect>
+                    
+                    <!-- Central Display -->
+                    <rect x="560" y="450" width="80" height="15" rx="7" fill="#357ABD" opacity="0.5">
+                        <animate attributeName="opacity" values="0.5;0.9;0.5" dur="3s" repeatCount="indefinite" />
+                    </rect>
+                </g>
+                
+                <!-- Connecting Energy Beam from Beacon -->
+                <rect x="598" y="450" width="4" height="20" rx="2" fill="var(--color-accent)" opacity="0.7">
+                    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
+                </rect>
+                
+                <!-- Platform Support Structures -->
+                <rect x="550" y="530" width="8" height="20" rx="4" fill="var(--color-border)" opacity="0.6" />
+                <rect x="600" y="530" width="8" height="20" rx="4" fill="var(--color-border)" opacity="0.6" />
+                <rect x="650" y="530" width="8" height="20" rx="4" fill="var(--color-border)" opacity="0.6" />
+                
+                <!-- Ambient Lighting -->
+                <ellipse cx="600" cy="500" rx="120" ry="30" fill="var(--color-accent)" opacity="0.1">
+                    <animate attributeName="opacity" values="0.1;0.3;0.1" dur="4s" repeatCount="indefinite" />
+                </ellipse>
+                
+                <!-- Data Flow Indicators -->
+                <g opacity="0.6">
+                    <line x1="540" y1="500" x2="520" y2="500" stroke="var(--color-accent)" stroke-width="2">
+                        <animate attributeName="stroke-dasharray" values="0,20;10,10;20,0" dur="2s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="660" y1="500" x2="680" y2="500" stroke="var(--color-accent)" stroke-width="2">
+                        <animate attributeName="stroke-dasharray" values="0,20;10,10;20,0" dur="2s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="600" y1="470" x2="600" y2="450" stroke="var(--color-accent)" stroke-width="2">
+                        <animate attributeName="stroke-dasharray" values="0,20;10,10;20,0" dur="2s" repeatCount="indefinite" />
+                    </line>
+                </g>
+            </g>
+
+            <!-- Walking Bobo - Same size as landing page with realistic behavior -->
+            <g id="walkingBobo"></g>
+                <g id="boboCharacter" transform="translate(600, 550)">
+                    <!-- Body -->
+                    <rect x="-30" y="20" width="60" height="70" rx="8" fill="var(--color-accent)" opacity="0.9"/>
+                    <!-- Head -->
+                    <rect x="-24" y="-20" width="48" height="40" rx="6" fill="var(--color-accent)" opacity="0.95"/>
+                    <!-- Eyes -->
+                    <circle cx="-12" cy="-4" r="4" fill="var(--color-background)"/>
+                    <circle cx="12" cy="-4" r="4" fill="var(--color-background)"/>
+                    <!-- Eye pupils with random looking -->
+                    <circle id="leftPupil" cx="-12" cy="-4" r="2" fill="var(--color-accent)" />
+                    <circle id="rightPupil" cx="12" cy="-4" r="2" fill="var(--color-accent)" />
+                    <!-- Antenna -->
+                    <line x1="0" y1="-20" x2="0" y2="-30" stroke="var(--color-accent)" stroke-width="2"/>
+                    <circle cx="0" cy="-34" r="4" fill="var(--color-accent)" filter="url(#glow)">
+                        <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    <!-- Arms -->
+                    <rect id="leftArm" x="-40" y="30" width="8" height="24" rx="4" fill="var(--color-accent)" opacity="0.8"/>
+                    <rect id="rightArm" x="32" y="30" width="8" height="24" rx="4" fill="var(--color-accent)" opacity="0.8"/>
+                    <!-- Tracks -->
+                    <rect x="-24" y="94" width="48" height="12" rx="6" fill="var(--color-background-darker)" opacity="0.3"/>
+                </g>
+            </g>
+        </svg>
+
+        <!-- Navigation Overlay -->
+        <div style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 20;">
+            <div style="display: flex; align-items: center; gap: 24px; padding: 16px 32px; background: var(--color-glass); backdrop-filter: blur(20px); border-radius: 50px; border: 1px solid var(--color-border);">
+                <button style="padding: 8px 16px; color: var(--color-foreground); background: none; border: none; cursor: pointer; font-weight: 500;">🏠 Dashboard</button>
+                <button style="padding: 8px 16px; color: var(--color-foreground); background: none; border: none; cursor: pointer; font-weight: 500;">📊 Analytics</button>
+                <button style="padding: 8px 16px; color: var(--color-foreground); background: none; border: none; cursor: pointer; font-weight: 500;">🎯 Habits</button>
+                <button style="padding: 8px 16px; color: var(--color-foreground); background: none; border: none; cursor: pointer; font-weight: 500;">🤖 Bobo</button>
+            </div>
+        </div>
+
+        <!-- Status Display -->
+        <div style="position: absolute; top: 20px; right: 20px; z-index: 20;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--color-glass); backdrop-filter: blur(20px); border-radius: 50px; border: 1px solid var(--color-border);">
+                <div style="width: 12px; height: 12px; background: var(--color-accent); border-radius: 50%; animation: pulse 2s infinite;"></div>
+                <span style="font-size: 14px; color: var(--color-foreground); font-family: monospace;">BASE CAMP ONLINE</span>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        const themes = {
+            dark: {
+                background: '#1A1A1A',
+                backgroundDarker: '#0F0F0F',
+                foreground: '#F9F5F2',
+                foregroundSecondary: '#E5E1DE',
+                accent: '#F9F5F2',
+                accentHover: '#E5E1DE',
+                border: 'rgba(249, 245, 242, 0.15)',
+                glass: 'rgba(249, 245, 242, 0.08)',
+            },
+            light: {
+                background: '#F9F5F2',
+                backgroundDarker: '#E5E1DE',
+                foreground: '#1A1A1A',
+                foregroundSecondary: '#2A2A2A',
+                accent: '#1A1A1A',
+                accentHover: '#2A2A2A',
+                border: 'rgba(26, 26, 26, 0.15)',
+                glass: 'rgba(26, 26, 26, 0.08)',
+            },
+            blue: {
+                background: '#0A1929',
+                backgroundDarker: '#050D17',
+                foreground: '#E3F2FD',
+                foregroundSecondary: '#BBDEFB',
+                accent: '#2196F3',
+                accentHover: '#1976D2',
+                border: 'rgba(33, 150, 243, 0.2)',
+                glass: 'rgba(33, 150, 243, 0.1)',
+            },
+            purple: {
+                background: '#1A0A2E',
+                backgroundDarker: '#0F0520',
+                foreground: '#F3E5F5',
+                foregroundSecondary: '#E1BEE7',
+                accent: '#9C27B0',
+                accentHover: '#7B1FA2',
+                border: 'rgba(156, 39, 176, 0.2)',
+                glass: 'rgba(156, 39, 176, 0.1)',
+            },
+            green: {
+                background: '#0D1B0D',
+                backgroundDarker: '#060D06',
+                foreground: '#E8F5E9',
+                foregroundSecondary: '#C8E6C9',
+                accent: '#4CAF50',
+                accentHover: '#388E3C',
+                border: 'rgba(76, 175, 80, 0.2)',
+                glass: 'rgba(76, 175, 80, 0.1)',
+            },
+            warm: {
+                background: '#2C1810',
+                backgroundDarker: '#1A0F08',
+                foreground: '#FFF3E0',
+                foregroundSecondary: '#FFE0B2',
+                accent: '#FF9800',
+                accentHover: '#F57C00',
+                border: 'rgba(255, 152, 0, 0.2)',
+                glass: 'rgba(255, 152, 0, 0.1)',
+            },
+            pink: {
+                background: '#2D1520',
+                backgroundDarker: '#1A0A12',
+                foreground: '#FFE4F0',
+                foregroundSecondary: '#FFCCE5',
+                accent: '#FF69B4',
+                accentHover: '#FF1493',
+                border: 'rgba(255, 105, 180, 0.2)',
+                glass: 'rgba(255, 105, 180, 0.1)',
+            },
+            light2: {
+                background: '#FFF4E6',
+                backgroundDarker: '#FFE8CC',
+                foreground: '#2C1810',
+                foregroundSecondary: '#5C4033',
+                accent: '#87CEEB',
+                accentHover: '#6BB6D9',
+                border: 'rgba(135, 206, 235, 0.3)',
+                glass: 'rgba(135, 206, 235, 0.15)',
+            },
+            dark2: {
+                background: '#1A1A1A',
+                backgroundDarker: '#0F0F0F',
+                foreground: '#E8E8E8',
+                foregroundSecondary: '#B8B8B8',
+                accent: '#CFFFB1',
+                accentHover: '#B8E89F',
+                border: 'rgba(207, 255, 177, 0.25)',
+                glass: 'rgba(207, 255, 177, 0.1)',
+            },
+            amethyst: {
+                background: '#f8f7fa',
+                backgroundDarker: '#f1eff5',
+                foreground: '#3d3c4f',
+                foregroundSecondary: '#6b6880',
+                accent: '#8a79ab',
+                accentHover: '#a995c9',
+                border: 'rgba(138, 121, 171, 0.2)',
+                glass: 'rgba(138, 121, 171, 0.08)',
+            },
+            amethystDark: {
+                background: '#1a1823',
+                backgroundDarker: '#16141e',
+                foreground: '#e0ddef',
+                foregroundSecondary: '#a09aad',
+                accent: '#a995c9',
+                accentHover: '#c0aee0',
+                border: 'rgba(169, 149, 201, 0.2)',
+                glass: 'rgba(169, 149, 201, 0.08)',
+            },
+            candyland: {
+                background: '#f7f9fa',
+                backgroundDarker: '#e8eef0',
+                foreground: '#333333',
+                foregroundSecondary: '#6e6e6e',
+                accent: '#ffc0cb',
+                accentHover: '#ffb3c1',
+                border: 'rgba(255, 192, 203, 0.3)',
+                glass: 'rgba(255, 192, 203, 0.1)',
+            },
+            candylandDark: {
+                background: '#1a1d23',
+                backgroundDarker: '#14161a',
+                foreground: '#e5e5e5',
+                foregroundSecondary: '#a3a3a3',
+                accent: '#ff99cc',
+                accentHover: '#ffb3d9',
+                border: 'rgba(255, 153, 204, 0.3)',
+                glass: 'rgba(255, 153, 204, 0.1)',
+            },
+            kodama: {
+                background: '#e4d7b0',
+                backgroundDarker: '#e2d1a2',
+                foreground: '#5c4b3e',
+                foregroundSecondary: '#85766a',
+                accent: '#9db18c',
+                accentHover: '#8a9f7b',
+                border: 'rgba(157, 177, 140, 0.3)',
+                glass: 'rgba(157, 177, 140, 0.1)',
+            },
+            kodamaDark: {
+                background: '#3a3529',
+                backgroundDarker: '#2a2521',
+                foreground: '#ede4d4',
+                foregroundSecondary: '#a8a096',
+                accent: '#8a9f7b',
+                accentHover: '#9db18c',
+                border: 'rgba(138, 159, 123, 0.3)',
+                glass: 'rgba(138, 159, 123, 0.1)',
+            },
+            notebook: {
+                background: '#f9f9f9',
+                backgroundDarker: '#f0f0f0',
+                foreground: '#3a3a3a',
+                foregroundSecondary: '#505050',
+                accent: '#606060',
+                accentHover: '#4a4a4a',
+                border: 'rgba(96, 96, 96, 0.2)',
+                glass: 'rgba(96, 96, 96, 0.05)',
+            },
+            notebookDark: {
+                background: '#2b2b2b',
+                backgroundDarker: '#212121',
+                foreground: '#dcdcdc',
+                foregroundSecondary: '#a0a0a0',
+                accent: '#b0b0b0',
+                accentHover: '#c0c0c0',
+                border: 'rgba(176, 176, 176, 0.2)',
+                glass: 'rgba(176, 176, 176, 0.05)',
+            },
+            mocha: {
+                background: '#F1F0E5',
+                backgroundDarker: '#ebd6cb',
+                foreground: '#56453F',
+                foregroundSecondary: '#8A655A',
+                accent: '#A37764',
+                accentHover: '#8A655A',
+                border: 'rgba(163, 119, 100, 0.3)',
+                glass: 'rgba(163, 119, 100, 0.1)',
+            },
+            mochaDark: {
+                background: '#2d2521',
+                backgroundDarker: '#1f1a17',
+                foreground: '#F1F0E5',
+                foregroundSecondary: '#c5aa9b',
+                accent: '#C39E88',
+                accentHover: '#BAAB92',
+                border: 'rgba(195, 158, 136, 0.3)',
+                glass: 'rgba(195, 158, 136, 0.1)',
+            },
+            vintage: {
+                background: '#f5f1e6',
+                backgroundDarker: '#ece5d8',
+                foreground: '#4a3f35',
+                foregroundSecondary: '#7d6b56',
+                accent: '#a67c52',
+                accentHover: '#8d6e4c',
+                border: 'rgba(166, 124, 82, 0.3)',
+                glass: 'rgba(166, 124, 82, 0.1)',
+            },
+            vintageDark: {
+                background: '#2d2621',
+                backgroundDarker: '#1f1a17',
+                foreground: '#ece5d8',
+                foregroundSecondary: '#c5bcac',
+                accent: '#c0a080',
+                accentHover: '#b3906f',
+                border: 'rgba(192, 160, 128, 0.3)',
+                glass: 'rgba(192, 160, 128, 0.1)',
+            },
+            haven: {
+                background: '#fdfcf9',
+                backgroundDarker: '#f3eee4',
+                foreground: '#0f1e38',
+                foregroundSecondary: '#5a4d3c',
+                accent: '#b89b76',
+                accentHover: '#8a7457',
+                border: 'rgba(184, 155, 118, 0.3)',
+                glass: 'rgba(184, 155, 118, 0.1)',
+            },
+            havenDark: {
+                background: '#000000',
+                backgroundDarker: '#0f1e38',
+                foreground: '#f5f1e6',
+                foregroundSecondary: '#b8b4ab',
+                accent: '#d8b98f',
+                accentHover: '#b89b76',
+                border: 'rgba(216, 185, 143, 0.3)',
+                glass: 'rgba(216, 185, 143, 0.1)',
+            },
+            bubblegum: {
+                background: '#f6e6ee',
+                backgroundDarker: '#f8d8ea',
+                foreground: '#5b5b5b',
+                foregroundSecondary: '#7a7a7a',
+                accent: '#d04f99',
+                accentHover: '#e670ab',
+                border: 'rgba(208, 79, 153, 0.3)',
+                glass: 'rgba(208, 79, 153, 0.1)',
+            },
+            bubblegumDark: {
+                background: '#12242e',
+                backgroundDarker: '#101f28',
+                foreground: '#f3e3ea',
+                foregroundSecondary: '#e4a2b1',
+                accent: '#fbe2a7',
+                accentHover: '#50afb6',
+                border: 'rgba(251, 226, 167, 0.3)',
+                glass: 'rgba(251, 226, 167, 0.1)',
+            },
+            retroArcade: {
+                background: '#fdf6e3',
+                backgroundDarker: '#eee8d5',
+                foreground: '#073642',
+                foregroundSecondary: '#586e75',
+                accent: '#d33682',
+                accentHover: '#cb4b16',
+                border: 'rgba(211, 54, 130, 0.3)',
+                glass: 'rgba(211, 54, 130, 0.1)',
+            },
+            retroArcadeDark: {
+                background: '#002b36',
+                backgroundDarker: '#073642',
+                foreground: '#93a1a1',
+                foregroundSecondary: '#839496',
+                accent: '#d33682',
+                accentHover: '#cb4b16',
+                border: 'rgba(211, 54, 130, 0.3)',
+                glass: 'rgba(211, 54, 130, 0.1)',
+            }
+        };
+
+        function setTheme(themeName) {
+            const theme = themes[themeName];
+            if (!theme) return;
+
+            const root = document.documentElement;
+            Object.entries(theme).forEach(([key, value]) => {
+                root.style.setProperty(`--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`, value);
+            });
+
+            // Update active button
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update body background
+            document.body.style.background = theme.background;
+        }
+
+        // Add pulse animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Interactive object functions
+        function openHabitsSection() {
+            console.log('Opening Habits Section - Today\'s Objective');
+            // TODO: Implement navigation to habits section
+            alert('🎯 Opening Today\'s Objective - Habits Section');
+        }
+
+        function openScheduleSection() {
+            console.log('Opening Schedule Section - Mission Roadmap');
+            // TODO: Implement navigation to schedule section
+            alert('🗺️ Opening Mission Roadmap - Schedule Section');
+        }
+
+        function openCallSection() {
+            console.log('Opening Call Section - Communication Station');
+            // TODO: Implement navigation to call section
+            alert('📞 Opening Communication Station - Call Section');
+        }
+
+        function openBoboSection() {
+            console.log('Opening Bobo Section - Holo-Fit Mirror');
+            // TODO: Implement navigation to bobo customization section
+            alert('🤖 Opening Holo-Fit Mirror - Bobo Customization');
+        }
+
+        function openInsightsSection() {
+            console.log('Opening Insights Section - Data Core');
+            // TODO: Implement navigation to insights section
+            alert('📊 Opening Data Core - Insights Section');
+        }
+
+        function openRewardsSection() {
+            console.log('Opening Rewards Section - Merit Vault');
+            // TODO: Implement navigation to rewards section
+            alert('🏆 Opening Merit Vault - Rewards Section');
+        }
+
+        function openBadgesSection() {
+            console.log('Opening Badges Section - Honor Badges');
+            // TODO: Implement navigation to badges section
+            alert('🏅 Opening Honor Badges - Achievement Display');
+        }
+
+        // Realistic Bobo Behavior System
+        class BoboAI {
+            constructor() {
+                this.bobo = document.getElementById('boboCharacter');
+                this.leftPupil = document.getElementById('leftPupil');
+                this.rightPupil = document.getElementById('rightPupil');
+                this.leftArm = document.getElementById('leftArm');
+                this.rightArm = document.getElementById('rightArm');
+                
+                this.currentX = 600;
+                this.currentY = 550;
+                this.isWalking = false;
+                this.isIdling = true;
+                
+                // Possible positions for Bobo to walk to
+                this.positions = [
+                    { x: 300, y: 550 },
+                    { x: 450, y: 550 },
+                    { x: 600, y: 550 },
+                    { x: 750, y: 550 },
+                    { x: 500, y: 580 },
+                    { x: 350, y: 580 },
+                    { x: 650, y: 580 }
+                ];
+                
+                this.startBehavior();
+            }
+            
+            startBehavior() {
+                this.scheduleNextAction();
+                this.startEyeMovement();
+            }
+            
+            scheduleNextAction() {
+                if (this.isWalking) return;
+                
+                // Random idle time between 3-8 seconds
+                const idleTime = Math.random() * 5000 + 3000;
+                
+                setTimeout(() => {
+                    if (Math.random() > 0.3) { // 70% chance to walk
+                        this.startWalking();
+                    } else {
+                        this.scheduleNextAction(); // Continue idling
+                    }
+                }, idleTime);
+            }
+            
+            startWalking() {
+                if (this.isWalking) return;
+                
+                this.isWalking = true;
+                this.isIdling = false;
+                
+                // Choose random destination
+                const availablePositions = this.positions.filter(pos => 
+                    Math.abs(pos.x - this.currentX) > 50 || Math.abs(pos.y - this.currentY) > 20
+                );
+                
+                if (availablePositions.length === 0) {
+                    this.isWalking = false;
+                    this.isIdling = true;
+                    this.scheduleNextAction();
+                    return;
+                }
+                
+                const destination = availablePositions[Math.floor(Math.random() * availablePositions.length)];
+                const distance = Math.sqrt(Math.pow(destination.x - this.currentX, 2) + Math.pow(destination.y - this.currentY, 2));
+                const walkTime = (distance / 100) * 1000; // Adjust speed
+                
+                // Start walking animation
+                this.animateWalk();
+                
+                // Move to destination
+                this.bobo.style.transition = `transform ${walkTime}ms linear`;
+                this.bobo.style.transform = `translate(${destination.x}px, ${destination.y}px)`;
+                
+                this.currentX = destination.x;
+                this.currentY = destination.y;
+                
+                // Stop walking after reaching destination
+                setTimeout(() => {
+                    this.stopWalking();
+                    this.isWalking = false;
+                    this.isIdling = true;
+                    this.scheduleNextAction();
+                }, walkTime);
+            }
+            
+            animateWalk() {
+                if (!this.isWalking) return;
+                
+                // Arm swinging animation
+                this.leftArm.style.transition = 'transform 0.5s ease-in-out';
+                this.rightArm.style.transition = 'transform 0.5s ease-in-out';
+                
+                let armSwing = 0;
+                const swingInterval = setInterval(() => {
+                    if (!this.isWalking) {
+                        clearInterval(swingInterval);
+                        return;
+                    }
+                    
+                    armSwing = armSwing === 0 ? 1 : 0;
+                    const leftRotation = armSwing === 0 ? 'rotate(15deg)' : 'rotate(-15deg)';
+                    const rightRotation = armSwing === 0 ? 'rotate(-15deg)' : 'rotate(15deg)';
+                    
+                    this.leftArm.style.transformOrigin = 'center top';
+                    this.rightArm.style.transformOrigin = 'center top';
+                    this.leftArm.style.transform = leftRotation;
+                    this.rightArm.style.transform = rightRotation;
+                }, 500);
+            }
+            
+            stopWalking() {
+                // Reset arms to neutral position
+                this.leftArm.style.transform = 'rotate(0deg)';
+                this.rightArm.style.transform = 'rotate(0deg)';
+            }
+            
+            startEyeMovement() {
+                setInterval(() => {
+                    if (Math.random() > 0.7) { // 30% chance to look around
+                        this.lookAround();
+                    }
+                }, 2000);
+                
+                // Blinking
+                setInterval(() => {
+                    if (Math.random() > 0.8) { // 20% chance to blink
+                        this.blink();
+                    }
+                }, 1500);
+            }
+            
+            lookAround() {
+                const directions = [
+                    { left: -14, right: 10 },   // Look left
+                    { left: -10, right: 14 },   // Look right
+                    { left: -12, right: 12 },   // Look center
+                    { left: -13, right: 11 },   // Slight left
+                    { left: -11, right: 13 }    // Slight right
+                ];
+                
+                const direction = directions[Math.floor(Math.random() * directions.length)];
+                
+                this.leftPupil.style.transition = 'cx 0.3s ease';
+                this.rightPupil.style.transition = 'cx 0.3s ease';
+                
+                this.leftPupil.setAttribute('cx', direction.left);
+                this.rightPupil.setAttribute('cx', direction.right);
+                
+                // Return to center after a moment
+                setTimeout(() => {
+                    this.leftPupil.setAttribute('cx', -12);
+                    this.rightPupil.setAttribute('cx', 12);
+                }, Math.random() * 2000 + 1000);
+            }
+            
+            blink() {
+                const leftEye = this.bobo.querySelector('circle[cx="-12"][cy="-4"][r="4"]');
+                const rightEye = this.bobo.querySelector('circle[cx="12"][cy="-4"][r="4"]');
+                
+                leftEye.style.transition = 'r 0.1s ease';
+                rightEye.style.transition = 'r 0.1s ease';
+                
+                leftEye.setAttribute('r', '1');
+                rightEye.setAttribute('r', '1');
+                
+                setTimeout(() => {
+                    leftEye.setAttribute('r', '4');
+                    rightEye.setAttribute('r', '4');
+                }, 150);
+            }
+        }
+        
+        // Initialize Bobo AI when page loads
+        window.addEventListener('load', () => {
+            new BoboAI();
+        });
+    </script>
+</body>
+</html>

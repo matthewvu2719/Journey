@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
 import { api } from '../services/api'
-import TimeBudgetWidget from './TimeBudgetWidget'
 import Analytics from './Analytics'
 
 export default function AnalyticsInsights({ habits, logs, onRefresh }) {
   const [stats, setStats] = useState(null)
-  const [activeTab, setActiveTab] = useState('overview') // overview, recommendations, ml-insights
 
   useEffect(() => {
     loadStats()
@@ -20,148 +18,79 @@ export default function AnalyticsInsights({ habits, logs, onRefresh }) {
     }
   }
 
-  const handleCreateHabit = async (habitData) => {
-    try {
-      await api.createHabit({ ...habitData, user_id: 'default_user' })
-      onRefresh()
-    } catch (error) {
-      console.error('Failed to create habit:', error)
-    }
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold text-light">Analytics & AI Insights</h2>
-        <p className="text-light/60 mt-1">Track your progress and get personalized recommendations</p>
+        <h2 className="text-3xl font-bold text-light">Bobo's Progress Report</h2>
+        <p className="text-light/60 mt-1">Hey there! I've been analyzing your awesome habit journey - let me show you how amazing you're doing! 🎉</p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-            activeTab === 'overview'
-              ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
-              : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
-          }`}
-        >
-          Overview
-        </button>
-        <button
-          onClick={() => setActiveTab('ml-insights')}
-          className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-            activeTab === 'ml-insights'
-              ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
-              : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
-          }`}
-        >
-          ML Insights
-        </button>
-      </div>
-
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          <Analytics habits={habits} logs={logs} />
-        </div>
-      )}
-
-      {/* ML Insights Tab */}
-      {activeTab === 'ml-insights' && (
-        <div className="space-y-6">
-          {/* Time Budget Widget */}
-          <TimeBudgetWidget />
-
-          {/* Performance Trends */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="glass rounded-xl p-6 border border-[var(--color-border)]">
-              <h3 className="text-lg font-bold text-[var(--color-foreground)] mb-4">Performance Trends</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--color-foreground-secondary)]">Completion Rate</span>
-                  <span className="font-semibold text-[var(--color-accent)]">
-                    {habits.length > 0 ? Math.round((logs.length / (habits.length * 7)) * 100) : 0}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--color-foreground-secondary)]">Active Streak</span>
-                  <span className="font-semibold text-[var(--color-accent)]">
-                    {stats?.current_streak || 0} days
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--color-foreground-secondary)]">Best Category</span>
-                  <span className="font-semibold text-[var(--color-accent)]">
-                    {habits[0]?.category || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--color-foreground-secondary)]">Total Habits</span>
-                  <span className="font-semibold text-[var(--color-accent)]">
-                    {habits.length}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="glass rounded-xl p-6 border border-[var(--color-border)]">
-              <h3 className="text-lg font-bold text-[var(--color-foreground)] mb-4">Success Metrics</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--color-foreground-secondary)]">Total Completions</span>
-                  <span className="font-semibold text-[var(--color-accent)]">{logs.length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--color-foreground-secondary)]">This Week</span>
-                  <span className="font-semibold text-[var(--color-accent)]">
-                    {stats?.logs_this_week || 0}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--color-foreground-secondary)]">Longest Streak</span>
-                  <span className="font-semibold text-[var(--color-accent)]">
-                    {stats?.longest_streak || 0} days
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--color-foreground-secondary)]">Average per Day</span>
-                  <span className="font-semibold text-[var(--color-accent)]">
-                    {habits.length > 0 ? Math.round(logs.length / 7) : 0}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ML Model Info */}
+      {/* Analytics Content */}
+      <div className="space-y-6">
+        <Analytics habits={habits} logs={logs} />
+        
+        {/* Performance Trends and Success Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="glass rounded-xl p-6 border border-[var(--color-border)]">
-            <h3 className="text-lg font-bold text-[var(--color-foreground)] mb-2">Machine Learning Models</h3>
-            <p className="text-sm text-[var(--color-foreground-secondary)] mb-4">
-              Our AI uses 4 machine learning models to provide personalized insights:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-[var(--color-glass)] rounded-lg p-4 border border-[var(--color-border)]">
-                <div className="font-semibold text-[var(--color-accent)]">Duration Predictor</div>
-                <div className="text-xs text-[var(--color-foreground-secondary)]">Random Forest - 85% accuracy</div>
+            <h3 className="text-lg font-bold text-[var(--color-foreground)] mb-4">How You're Crushing It</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-foreground-secondary)]">Your Success Rate</span>
+                <span className="font-semibold text-[var(--color-accent)]">
+                  {habits.length > 0 ? Math.round((logs.length / (habits.length * 7)) * 100) : 0}%
+                </span>
               </div>
-              <div className="bg-[var(--color-glass)] rounded-lg p-4 border border-[var(--color-border)]">
-                <div className="font-semibold text-[var(--color-accent)]">Difficulty Estimator</div>
-                <div className="text-xs text-[var(--color-foreground-secondary)]">Gradient Boosting - 78% accuracy</div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-foreground-secondary)]">Current Streak 🔥</span>
+                <span className="font-semibold text-[var(--color-accent)]">
+                  {stats?.current_streak || 0} days
+                </span>
               </div>
-              <div className="bg-[var(--color-glass)] rounded-lg p-4 border border-[var(--color-border)]">
-                <div className="font-semibold text-[var(--color-accent)]">Time Budget Analyzer</div>
-                <div className="text-xs text-[var(--color-foreground-secondary)]">Pattern Analysis</div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-foreground-secondary)]">Your Favorite Category</span>
+                <span className="font-semibold text-[var(--color-accent)]">
+                  {habits[0]?.category || 'Let\'s add some!'}
+                </span>
               </div>
-              <div className="bg-[var(--color-glass)] rounded-lg p-4 border border-[var(--color-border)]">
-                <div className="font-semibold text-[var(--color-accent)]">Recommendation Engine</div>
-                <div className="text-xs text-[var(--color-foreground-secondary)]">Content-Based Filtering</div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-foreground-secondary)]">Habits We're Building</span>
+                <span className="font-semibold text-[var(--color-accent)]">
+                  {habits.length}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="glass rounded-xl p-6 border border-[var(--color-border)]">
+            <h3 className="text-lg font-bold text-[var(--color-foreground)] mb-4">Your Amazing Achievements</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-foreground-secondary)]">Total Wins So Far!</span>
+                <span className="font-semibold text-[var(--color-accent)]">{logs.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-foreground-secondary)]">This Week's Victories</span>
+                <span className="font-semibold text-[var(--color-accent)]">
+                  {stats?.logs_this_week || 0}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-foreground-secondary)]">Best Streak Ever! 🌟</span>
+                <span className="font-semibold text-[var(--color-accent)]">
+                  {stats?.longest_streak || 0} days
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-foreground-secondary)]">Daily Average Power</span>
+                <span className="font-semibold text-[var(--color-accent)]">
+                  {habits.length > 0 ? Math.round(logs.length / 7) : 0}
+                </span>
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

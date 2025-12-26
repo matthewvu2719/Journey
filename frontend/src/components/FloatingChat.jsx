@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from 'react'
 import { api } from '../services/api'
 import RobotMascot from './RobotMascot'
 import { useBobo } from '../contexts/BoboContext'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function FloatingChat({ habits, logs, onAction }) {
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const { getEquippedItems } = useBobo()
   const equippedItems = getEquippedItems()
@@ -52,8 +54,9 @@ export default function FloatingChat({ habits, logs, onAction }) {
     setLoading(true)
 
     try {
-      // Use advanced agent chat
-      const response = await api.agentChat(userMessage, { habits, logs })
+      // Use advanced agent chat with user ID and timezone
+      const userId = user?.user_id || 'default_user'
+      const response = await api.agentChat(userMessage, { habits, logs }, userId)
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: response.content || response.response,

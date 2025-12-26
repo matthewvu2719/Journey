@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="80" viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Hat base -->
+  <path d="M 10 60 Q 10 45 25 40 L 95 40 Q 110 45 110 60 L 110 70 Q 110 75 105 75 L 15 75 Q 10 75 10 70 Z" 
+        fill="#2C1810" stroke="#1A0F08" stroke-width="2"/>
+  
+  <!-- Hat brim -->
+  <ellipse cx="60" cy="70" rx="55" ry="8" fill="#1A0F08"/>
+  
+  <!-- Hat main body -->
+  <path d="M 25 40 Q 30 20 45 15 Q 60 10 75 15 Q 90 20 95 40" 
+        fill="#2C1810" stroke="#1A0F08" stroke-width="2"/>
+  
+  <!-- Skull and crossbones -->
+  <g transform="translate(60, 30)">
+    <!-- Skull -->
+    <circle cx="0" cy="0" r="8" fill="#F5F5DC"/>
+    <!-- Eye sockets -->
+    <circle cx="-3" cy="-2" r="2" fill="#000"/>
+    <circle cx="3" cy="-2" r="2" fill="#000"/>
+    <!-- Nose -->
+    <path d="M 0 1 L -1 4 L 1 4 Z" fill="#000"/>
+    <!-- Mouth -->
+    <rect x="-3" y="4" width="6" height="1" fill="#000"/>
+    <rect x="-2" y="5" width="1" height="1" fill="#000"/>
+    <rect x="0" y="5" width="1" height="1" fill="#000"/>
+    <rect x="2" y="5" width="1" height="1" fill="#000"/>
+    
+    <!-- Crossbones -->
+    <g transform="rotate(45)">
+      <rect x="-8" y="-1" width="16" height="2" fill="#F5F5DC"/>
+      <circle cx="-8" cy="0" r="2" fill="#F5F5DC"/>
+      <circle cx="8" cy="0" r="2" fill="#F5F5DC"/>
+    </g>
+    <g transform="rotate(-45)">
+      <rect x="-8" y="-1" width="16" height="2" fill="#F5F5DC"/>
+      <circle cx="-8" cy="0" r="2" fill="#F5F5DC"/>
+      <circle cx="8" cy="0" r="2" fill="#F5F5DC"/>
+    </g>
+  </g>
+  
+  <!-- Hat feather -->
+  <path d="M 85 25 Q 95 15 105 20 Q 100 30 90 35 Q 88 32 85 25" 
+        fill="#8B0000" stroke="#660000" stroke-width="1"/>
+  
+  <!-- Hat buckle/decoration -->
+  <rect x="45" y="65" width="30" height="8" rx="2" fill="#FFD700" stroke="#DAA520" stroke-width="1"/>
+  <rect x="48" y="67" width="24" height="4" fill="#DAA520"/>
+</svg>

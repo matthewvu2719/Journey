@@ -34,7 +34,35 @@ function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true)
-      // Get start of current week (Monday)
+      
+      // Try to use the enhanced dashboard API first for better performance
+      try {
+        console.log('[DASHBOARD PAGE] Trying enhanced dashboard API...')
+        const dashboardData = await api.getDashboardData()
+        
+        if (dashboardData.habits && dashboardData.completions) {
+          // Enhanced API provides habits and today's completions
+          setHabits(dashboardData.habits)
+          
+          // We need this week's completions, so get additional data if needed
+          const today = new Date()
+          const dayOfWeek = today.getDay()
+          const monday = new Date(today)
+          monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+          const startDate = monday.toISOString().split('T')[0]
+          
+          // Get full week's completions for schedule view
+          const weekCompletions = await api.getCompletions({ start_date: startDate })
+          setLogs(weekCompletions)
+          
+          console.log('[DASHBOARD PAGE] Enhanced API success')
+          return
+        }
+      } catch (enhancedError) {
+        console.log('[DASHBOARD PAGE] Enhanced API failed, using fallback:', enhancedError.message)
+      }
+      
+      // Fallback: Use individual API calls
       const today = new Date()
       const dayOfWeek = today.getDay()
       const monday = new Date(today)
@@ -94,7 +122,7 @@ function Dashboard() {
     setLogs(prev => [...prev, optimisticCompletion])
     
     try {
-      // Create completion in background
+      // Create completion with enhanced API (includes automatic stats update)
       const newCompletion = await api.createCompletion(completionData)
       
       // Replace optimistic completion with real one
@@ -102,6 +130,7 @@ function Dashboard() {
         log.id === optimisticCompletion.id ? newCompletion : log
       ))
       
+      console.log('[DASHBOARD PAGE] Completion created with enhanced API')
       return newCompletion
     } catch (error) {
       // Remove optimistic completion on error
@@ -131,8 +160,9 @@ function Dashboard() {
     setLogs(prev => prev.filter(log => log.id !== completion.id))
     
     try {
-      // Delete completion in background
+      // Delete completion with enhanced API (includes automatic stats update)
       await api.deleteCompletion(completion.id)
+      console.log('[DASHBOARD PAGE] Completion deleted with enhanced API')
       return true
     } catch (error) {
       // Restore completion on error
@@ -255,6 +285,16 @@ function Dashboard() {
                   Insights
                 </button>
                 <button
+                  onClick={() => handleSectionChange('rewards')}
+                  className={`px-6 py-2 font-semibold transition rounded-lg ${
+                    currentSection === 'rewards'
+                      ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+                      : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
+                  }`}
+                >
+                  Rewards
+                </button>
+                <button
                   onClick={() => handleSectionChange('bobo')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'bobo'
@@ -294,8 +334,8 @@ function Dashboard() {
               <div className="space-y-6">
                 {/* Header */}
                 <div>
-                  <h2 className="text-3xl font-bold text-light">AI Voice Call Schedule</h2>
-                  <p className="text-light/60 mt-1">Set up automated check-in calls from your AI habit coach</p>
+                  <h2 className="text-3xl font-bold text-light">Set up call or notification schedules</h2>
+                  <p className="text-light/60 mt-1">Hey! I'd love to call you about your awesome habit journey!</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -308,31 +348,31 @@ function Dashboard() {
                   <div className="space-y-6">
                     {/* How It Works */}
                     <div className="glass rounded-xl p-6 border border-light/20">
-                      <h3 className="text-lg font-bold text-light mb-3">How It Works</h3>
+                      <h3 className="text-lg font-bold text-light mb-3">How Our Calls Work</h3>
                       <ol className="space-y-2 text-sm text-light/80">
                         <li className="flex items-start">
                           <span className="font-semibold mr-2">1.</span>
-                          <span>Choose Web Call (free) or Phone Call (premium)</span>
+                          <span>Pick your style - Web Call (totally free!) or Phone Call (premium fun!)</span>
                         </li>
                         <li className="flex items-start">
                           <span className="font-semibold mr-2">2.</span>
-                          <span>Set your preferred call times</span>
+                          <span>Tell me when you'd like to call - I'll remember!</span>
                         </li>
                         <li className="flex items-start">
                           <span className="font-semibold mr-2">3.</span>
-                          <span>Bobo calls you for natural voice conversations</span>
+                          <span>I'll call you for friendly conversations about your progress!</span>
                         </li>
                         <li className="flex items-start">
                           <span className="font-semibold mr-2">4.</span>
-                          <span>Get personalized encouragement and habit tracking</span>
+                          <span>Get my personal cheering and habit tips just for you!</span>
                         </li>
                       </ol>
                     </div>
 
                     {/* Call History */}
                     <div className="glass rounded-xl p-6">
-                      <h3 className="text-lg font-bold text-light mb-4">Recent Calls</h3>
-                      <p className="text-light/50 text-sm">Call history will appear here after your first call.</p>
+                      <h3 className="text-lg font-bold text-light mb-4">Our Call History</h3>
+                      <p className="text-light/50 text-sm">Our conversation memories will show up here after we have our first call! Can't wait!</p>
                     </div>
                   </div>
                 </div>
@@ -346,8 +386,11 @@ function Dashboard() {
                   logs={logs}
                   onRefresh={loadData}
                 />
-                <AchievementProgress />
               </div>
+            )}
+
+            {currentSection === 'rewards' && (
+              <AchievementProgress />
             )}
 
             {currentSection === 'bobo' && (

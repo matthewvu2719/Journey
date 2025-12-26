@@ -79,17 +79,11 @@ const VoiceCallSettings = ({ userId }) => {
 
   return (
     <div className="max-w-2xl mx-auto p-8 glass rounded-2xl">
-      <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 text-light">
-        <Phone className="w-6 h-6" />
-        Voice Call Settings
-      </h2>
-      <p className="text-light/60 mb-8 text-sm">
-        Configure how Bobo can reach you for check-ins
-      </p>
+
 
       {/* Call Method Selection */}
       <div className="mb-6">
-        <label className="block text-sm font-medium mb-3 text-light/80">Call Method</label>
+        <label className="block text-sm font-medium mb-3 text-light/80">How Should I Reach You?</label>
         <div className="grid grid-cols-2 gap-4">
           {/* WebRTC Option */}
           <button
@@ -101,8 +95,8 @@ const VoiceCallSettings = ({ userId }) => {
             }`}
           >
             <Globe className={`w-8 h-8 mx-auto mb-2 ${preferences.call_method === 'webrtc' ? 'text-[var(--color-accent)]' : 'text-[var(--color-foreground-secondary)]'}`} />
-            <div className="font-semibold text-[var(--color-foreground)]">Web Call</div>
-            <div className="text-xs text-[var(--color-foreground-secondary)] mt-1">Free • In-app</div>
+            <div className="font-semibold text-[var(--color-foreground)]">Web Chat</div>
+            <div className="text-xs text-[var(--color-foreground-secondary)] mt-1">Free • Right here!</div>
           </button>
 
           {/* Twilio Option */}
@@ -116,7 +110,7 @@ const VoiceCallSettings = ({ userId }) => {
           >
             <Phone className={`w-8 h-8 mx-auto mb-2 ${preferences.call_method === 'twilio' ? 'text-[var(--color-accent)]' : 'text-[var(--color-foreground-secondary)]'}`} />
             <div className="font-semibold text-[var(--color-foreground)]">Phone Call</div>
-            <div className="text-xs text-[var(--color-foreground-secondary)] mt-1">Premium • Real phone</div>
+            <div className="text-xs text-[var(--color-foreground-secondary)] mt-1">Premium • I'll call you!</div>
           </button>
         </div>
       </div>
@@ -124,7 +118,7 @@ const VoiceCallSettings = ({ userId }) => {
       {/* Phone Number (for Twilio) */}
       {preferences.call_method === 'twilio' && (
         <div className="mb-6">
-          <label className="block text-sm font-medium mb-2 text-[var(--color-foreground)]/80">Phone Number</label>
+          <label className="block text-sm font-medium mb-2 text-[var(--color-foreground)]/80">Your Phone Number</label>
           <input
             type="tel"
             value={preferences.phone_number}
@@ -135,7 +129,7 @@ const VoiceCallSettings = ({ userId }) => {
               focus:border-[var(--color-accent)]/40 text-[var(--color-foreground)] 
               placeholder-[var(--color-foreground-secondary)]"
           />
-          <p className="text-xs text-[var(--color-foreground-secondary)] mt-2">Include country code (e.g., +1 for US)</p>
+          <p className="text-xs text-[var(--color-foreground-secondary)] mt-2">Don't forget your country code! (like +1 for US)</p>
         </div>
       )}
 
@@ -143,7 +137,7 @@ const VoiceCallSettings = ({ userId }) => {
       <div className="mb-6 flex items-center justify-between p-4 bg-[var(--color-glass)] border border-[var(--color-border)] rounded-xl">
         <div className="flex items-center gap-2">
           <Bell className="w-5 h-5 text-[var(--color-foreground-secondary)]" />
-          <span className="font-medium text-[var(--color-foreground)]">Allow Bobo to call me</span>
+          <span className="font-medium text-[var(--color-foreground)]">Yes, I want Bobo to call me!</span>
         </div>
         <button
           onClick={() => setPreferences(prev => ({ ...prev, allow_calls: !prev.allow_calls }))}
@@ -164,19 +158,19 @@ const VoiceCallSettings = ({ userId }) => {
         <div className="flex items-center justify-between mb-3">
           <label className="block text-sm font-medium flex items-center gap-2 text-[var(--color-foreground)]/80">
             <Clock className="w-4 h-4" />
-            Preferred Call Times
+            When Should I Call You?
           </label>
           <button
             onClick={addPreferredTime}
             className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent)]/80 font-medium transition-colors"
           >
-            + Add Time
+            + Add Another Time
           </button>
         </div>
 
         {preferences.preferred_times.length === 0 ? (
           <p className="text-sm text-[var(--color-foreground-secondary)] text-center py-6 bg-[var(--color-glass)] rounded-lg border border-[var(--color-border)]">
-            No preferred times set. Bobo can call anytime.
+            No specific times yet? That's okay! I can call you anytime!
           </p>
         ) : (
           <div className="space-y-3">
@@ -225,13 +219,13 @@ const VoiceCallSettings = ({ userId }) => {
           disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl 
           transition-all duration-200"
       >
-        {saving ? 'Saving...' : 'Save Preferences'}
+        {saving ? 'Saving Your Preferences...' : 'Save My Chat Settings'}
       </button>
 
       {/* Info Box */}
       <div className="mt-6 p-4 bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 rounded-xl">
         <p className="text-sm text-[var(--color-foreground)]">
-          <strong>How it works:</strong> Bobo will {preferences.call_method === 'webrtc' ? 'send you a notification' : 'call your phone'} at your preferred times to check in on your habits and provide motivation.
+          <strong>Here's how it works:</strong> I'll {preferences.call_method === 'webrtc' ? 'send you a fun notification' : 'give you a friendly phone call'} at your favorite times to chat about your awesome habits and cheer you on!
         </p>
       </div>
     </div>
