@@ -14,16 +14,16 @@ function Login() {
   const { isAuthenticated } = useAuth()
   const [currentView, setCurrentView] = useState('login')
 
-  // Redirect to dashboard if already authenticated
+  // Redirect to main page if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard', { replace: true })
+      navigate('/main', { replace: true })
     }
   }, [isAuthenticated, navigate])
 
   const handleSuccess = () => {
-    // Redirect to dashboard after successful authentication
-    navigate('/dashboard', { replace: true })
+    // Redirect to main page after successful authentication
+    navigate('/main', { replace: true })
   }
 
   const switchToSignup = () => {

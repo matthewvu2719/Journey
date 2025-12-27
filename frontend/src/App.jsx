@@ -3,7 +3,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { BoboProvider } from './contexts/BoboContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicRoute from './components/PublicRoute'
-import Dashboard from './pages/Dashboard'
+import Landing from './pages/Landing'
+import MainPage from './pages/MainPage'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 
@@ -17,7 +18,7 @@ const RootRedirect = () => {
   if (loading) {
     setTimeout(() => {
       if (loading) {
-        console.warn('Auth loading timeout - proceeding to login')
+        console.warn('Auth loading timeout - proceeding to landing')
       }
     }, 3000)
     
@@ -31,7 +32,7 @@ const RootRedirect = () => {
     )
   }
   
-  return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+  return <Navigate to={isAuthenticated ? "/main" : "/"} replace />
 }
 
 /**
@@ -43,10 +44,10 @@ function App() {
       <AuthProvider>
         <BoboProvider>
           <Routes>
-            {/* Root route - redirect based on auth status */}
-            <Route path="/" element={<RootRedirect />} />
+            {/* Root route - Landing page for unauthenticated users */}
+            <Route path="/" element={<Landing />} />
             
-            {/* Public routes - redirect to dashboard if authenticated */}
+            {/* Public routes - redirect to main if authenticated */}
             <Route 
               path="/login" 
               element={
@@ -66,16 +67,19 @@ function App() {
             
             {/* Protected routes - require authentication */}
             <Route 
-              path="/dashboard" 
+              path="/main" 
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <MainPage />
                 </ProtectedRoute>
               } 
             />
             
-            {/* Catch all - redirect to login */}
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            {/* Legacy dashboard route - redirect to main */}
+            <Route path="/dashboard" element={<Navigate to="/main" replace />} />
+            
+            {/* Catch all - redirect to root */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BoboProvider>
       </AuthProvider>

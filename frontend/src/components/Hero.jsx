@@ -138,10 +138,6 @@ export default function Hero({ onExplore, habits = [], completions = [], achieve
 
   return (
     <div className="relative flex items-center justify-center px-6 py-20 min-h-screen overflow-hidden">
-      {/* User Profile - Top Right */}
-      <div className="absolute top-6 right-6 z-20">
-        <UserProfile />
-      </div>
       {/* Floating Background Cards */}
       <div className="absolute inset-0 pointer-events-none">
         {visibleCards.map((card) => (

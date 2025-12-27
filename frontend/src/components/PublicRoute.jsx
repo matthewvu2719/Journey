@@ -3,15 +3,15 @@ import { useAuth } from '../contexts/AuthContext'
 
 /**
  * PublicRoute component that prevents authenticated users from accessing public pages
- * Redirects to dashboard if user is already authenticated
+ * Redirects to main page if user is already authenticated
  * Shows loading spinner while checking auth status
  * Used for login and signup pages
  * 
  * @param {Object} props
  * @param {React.ReactNode} props.children - Child components to render when not authenticated
- * @param {string} props.redirectTo - Path to redirect to when authenticated (default: '/dashboard')
+ * @param {string} props.redirectTo - Path to redirect to when authenticated (default: '/main')
  */
-const PublicRoute = ({ children, redirectTo = '/dashboard' }) => {
+const PublicRoute = ({ children, redirectTo = '/main' }) => {
   const { isAuthenticated, loading } = useAuth()
 
   // Show loading spinner while checking authentication
@@ -26,7 +26,7 @@ const PublicRoute = ({ children, redirectTo = '/dashboard' }) => {
     )
   }
 
-  // Redirect to dashboard if already authenticated
+  // Redirect to main page if already authenticated
   if (isAuthenticated) {
     return <Navigate to={redirectTo} replace />
   }
