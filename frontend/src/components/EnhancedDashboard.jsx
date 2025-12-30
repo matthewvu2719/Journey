@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../services/api'
 import HabitForm from './HabitForm'
 import HabitCompletionModal from './HabitCompletionModal'
+import HabitDetailModal from './HabitDetailModal'
 import { NumberTicker } from './ui/NumberTicker'
 import { Confetti } from './ui/Confetti'
 import { ShimmerButton } from './ui/ShimmerButton'
@@ -27,6 +28,8 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
   const [celebrationDance, setCelebrationDance] = useState(null)
   const [achievementToShow, setAchievementToShow] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [detailModalHabit, setDetailModalHabit] = useState(null)
+  const [detailModalTimeOfDay, setDetailModalTimeOfDay] = useState(null)
 
   // Use custom hooks for local completion tracking and instant stats
   const { addCompletion, removeCompletion, isCompleted: isLocallyCompleted, revertCompletion } = useLocalCompletions(logs)
@@ -109,15 +112,9 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
       return
     }
     
-    // For atomic habits, complete immediately
-    if (habit.habit_type === 'atomic') {
-      handleQuickComplete(habitId, timeOfDay)
-      return
-    }
-    
-    // For big habits, show the modal
-    setCompletingHabit(habit)
-    setCompletingTimeOfDay(timeOfDay)
+    // Show detail modal for all habits now
+    setDetailModalHabit(habit)
+    setDetailModalTimeOfDay(timeOfDay)
   }
 
   const handleUndoCompletion = (habitId, timeOfDay) => {
@@ -344,6 +341,35 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
     }
   }
 
+  const handleDetailModalComplete = (habitId, timeOfDay) => {
+    const habit = habits.find(h => h.id === habitId)
+    
+    // For atomic habits, complete immediately
+    if (habit.habit_type === 'atomic') {
+      handleQuickComplete(habitId, timeOfDay)
+    } else {
+      // For big habits, show the completion modal
+      setCompletingHabit(habit)
+      setCompletingTimeOfDay(timeOfDay)
+      // Close detail modal
+      setDetailModalHabit(null)
+      setDetailModalTimeOfDay(null)
+    }
+  }
+
+  const handleDetailModalHelp = (habitId, timeOfDay) => {
+    // This will be implemented in later phases
+    console.log('Help requested for habit:', habitId, 'at', timeOfDay)
+    // For now, just close the modal
+    setDetailModalHabit(null)
+    setDetailModalTimeOfDay(null)
+  }
+
+  const handleDetailModalClose = () => {
+    setDetailModalHabit(null)
+    setDetailModalTimeOfDay(null)
+  }
+
 
 
   return (
@@ -484,6 +510,17 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         isVisible={completingHabit && completingTimeOfDay}
       />
 
+      {/* Habit Detail Modal */}
+      <HabitDetailModal
+        habit={detailModalHabit}
+        timeOfDay={detailModalTimeOfDay}
+        logs={logs}
+        onComplete={handleDetailModalComplete}
+        onHelp={handleDetailModalHelp}
+        onClose={handleDetailModalClose}
+        isVisible={detailModalHabit && detailModalTimeOfDay}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <BlurFade delay={0}>
           <div className="glass rounded-xl p-6">
@@ -621,7 +658,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
                                   : 'bg-light text-dark hover:bg-light/90'
                               }`}
                             >
-                              {isCompletedByTimeName(habit.id, timeOfDay) ? '✓ Done (click to undo)' : 'Complete'}
+                              {isCompletedByTimeName(habit.id, timeOfDay) ? '✓ Done (click to undo)' : 'View Details'}
                             </ShimmerButton>
                           </div>
                         </div>

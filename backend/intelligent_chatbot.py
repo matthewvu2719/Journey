@@ -395,6 +395,357 @@ Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and 
             ),
             'action': None
         }
+    
+    async def get_friction_solutions(
+        self,
+        habit: Dict[str, Any],
+        friction_type: str,
+        user_context: Dict[str, Any],
+        additional_context: str = None,
+        friction_history: list = None
+    ) -> Dict[str, Any]:
+        """Generate AI-powered solutions for habit friction using Groq"""
+        
+        if not self.ai_enabled:
+            return self._fallback_friction_response(friction_type, habit["name"])
+        
+        # Journey-themed obstacle descriptions
+        obstacle_descriptions = {
+            "distraction": {
+                "name": "Distraction Detour 📱🛤️",
+                "description": "Side paths that lead you away from your main journey",
+                "bobo_greeting": "Watch out! There's a distraction detour ahead! Let me help you find the right path back to your journey!"
+            },
+            "low-energy": {
+                "name": "Energy Drain Valley 🔋⛰️",
+                "description": "A challenging terrain that makes every step harder",
+                "bobo_greeting": "We're entering Energy Drain Valley! Let me help you find a better route or recharge your batteries!"
+            },
+            "complexity": {
+                "name": "Maze Mountain 🧩🏔️",
+                "description": "Overwhelming terrain with no clear path forward",
+                "bobo_greeting": "Maze Mountain is making this journey too complicated! Let me map out the simplest route for you!"
+            },
+            "forgetfulness": {
+                "name": "Memory Fog 🧠🌫️",
+                "description": "Cloudy conditions that obscure your journey markers",
+                "bobo_greeting": "Memory Fog is rolling in! Don't worry, I'll be your navigation system and keep you on track!"
+            }
+        }
+        
+        obstacle = obstacle_descriptions.get(friction_type, obstacle_descriptions["distraction"])
+        
+        # Build context for AI
+        habit_info = f"""
+Habit: {habit['name']} ({habit.get('category', 'General')})
+Type: {habit.get('habit_type', 'standard')}
+Duration: {habit.get('estimated_duration', 'Not specified')} minutes
+Difficulty: {habit.get('difficulty', 'medium')}
+Priority: {habit.get('priority', 5)}/10
+"""
+        
+        user_patterns = f"""
+Recent completions: {user_context.get('recent_completions_count', 0)}
+Most successful energy level: {user_context.get('most_successful_energy', 'Unknown')}
+Most successful time: {user_context.get('most_successful_time', 'Unknown')}
+Energy patterns: {user_context.get('energy_patterns', {})}
+Time success rates: {user_context.get('time_success_rates', {})}
+"""
+        
+        # Create friction-specific system prompts
+        system_prompts = {
+            'distraction': f"""
+You are Bobo, a helpful 8-year-old robot companion! The user is struggling with distractions while trying to do "{habit['name']}".
+
+CONTEXT:
+{habit_info}
+
+USER PATTERNS:
+{user_patterns}
+
+ADDITIONAL CONTEXT: {additional_context or 'None provided'}
+
+Your job is to provide 3-4 specific, actionable solutions to overcome distractions. Use simple, encouraging language like a helpful kid would!
+
+IMPORTANT: You MUST respond with valid JSON in exactly this format:
+{{
+    "bobo_message": "Your encouraging message about overcoming distractions",
+    "solutions": [
+        {{
+            "title": "Solution title",
+            "description": "What to do",
+            "action_type": "environment",
+            "action_data": {{"specific": "details"}},
+            "confidence_score": 0.8
+        }},
+        {{
+            "title": "Another solution title", 
+            "description": "Another solution",
+            "action_type": "pomodoro",
+            "action_data": {{"duration": 25}},
+            "confidence_score": 0.9
+        }}
+    ],
+    "recommended_actions": ["action1", "action2"]
+}}
+
+Include these types of solutions:
+- Environment modifications (remove distractions) - action_type: "environment"
+- Technology solutions (apps, timers, phone settings) - action_type: "technology"
+- Mindset techniques (focus tricks) - action_type: "mindset"
+- Suggest a focused pomodoro session if appropriate - action_type: "pomodoro"
+
+Keep responses encouraging and use adventure/journey metaphors about overcoming obstacles. Make it sound fun and achievable!
+""",
+            
+            'low-energy': f"""
+You are Bobo, helping the user overcome low energy for "{habit['name']}".
+
+CONTEXT:
+{habit_info}
+
+USER PATTERNS:
+{user_patterns}
+
+ADDITIONAL CONTEXT: {additional_context or 'None provided'}
+
+IMPORTANT: You MUST respond with valid JSON in exactly this format:
+{{
+    "bobo_message": "Your encouraging message about recharging energy",
+    "solutions": [
+        {{
+            "title": "Solution title",
+            "description": "What to do",
+            "action_type": "reschedule",
+            "action_data": {{"suggested_time": "morning"}},
+            "confidence_score": 0.8
+        }}
+    ],
+    "recommended_actions": ["action1", "action2"]
+}}
+
+Provide solutions for low energy:
+1. If big habit: Suggest reducing duration by 50% - action_type: "reduce"
+2. If atomic habit: Recommend rescheduling to peak energy time - action_type: "reschedule"
+3. Energy boosting techniques - action_type: "energy_boost"
+4. Minimum viable version of the habit - action_type: "minimum_version"
+
+Use adventure/journey metaphors about recharging and finding better paths.
+""",
+            
+            'complexity': f"""
+You are Bobo, helping break down the complex habit "{habit['name']}" into manageable pieces.
+
+CONTEXT:
+{habit_info}
+
+USER PATTERNS:
+{user_patterns}
+
+ADDITIONAL CONTEXT: {additional_context or 'None provided'}
+
+IMPORTANT: You MUST respond with valid JSON in exactly this format:
+{{
+    "bobo_message": "Your encouraging message about simplifying the journey",
+    "solutions": [
+        {{
+            "title": "Break Into Mini-Steps",
+            "description": "Split this habit into smaller, easier tasks",
+            "action_type": "breakdown",
+            "action_data": {{"subtasks": ["Step 1: Prepare", "Step 2: Start small", "Step 3: Build up"]}},
+            "confidence_score": 0.9
+        }}
+    ],
+    "recommended_actions": ["Start with the smallest step", "Build momentum gradually"]
+}}
+
+Break this habit into 3-5 smaller, atomic subtasks that:
+1. Maintain the original habit's intent
+2. Can be completed in 5-15 minutes each
+3. Build upon each other logically
+4. Feel achievable and non-overwhelming
+
+Present as a journey map with clear waypoints to the destination. Use action_type: "breakdown".
+""",
+            
+            'forgetfulness': f"""
+You are Bobo, helping the user remember to do "{habit['name']}".
+
+CONTEXT:
+{habit_info}
+
+USER PATTERNS:
+{user_patterns}
+
+ADDITIONAL CONTEXT: {additional_context or 'None provided'}
+
+IMPORTANT: You MUST respond with valid JSON in exactly this format:
+{{
+    "bobo_message": "Your encouraging message about navigation and memory",
+    "solutions": [
+        {{
+            "title": "Set Smart Reminders",
+            "description": "Use your phone or calendar to remind you",
+            "action_type": "reminder",
+            "action_data": {{"reminder_type": "phone_notification"}},
+            "confidence_score": 0.8
+        }}
+    ],
+    "recommended_actions": ["Set up reminders", "Use visual triggers"]
+}}
+
+Provide memory and reminder solutions with these action types:
+- Smart reminder systems - action_type: "reminder"
+- Visual cues and triggers - action_type: "visual_cue"
+- Habit stacking (linking to existing habits) - action_type: "habit_stack"
+- Environmental setup - action_type: "environment"
+
+Use journey metaphors about navigation markers and trail signs.
+"""
+        }
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": system_prompts[friction_type]},
+                    {"role": "user", "content": f"Help me overcome {friction_type} with my {habit['name']} habit. {additional_context or ''}"}
+                ],
+                max_tokens=800,
+                temperature=0.7
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+            # Try to parse JSON response
+            try:
+                import json
+                import re
+                
+                # Clean the response to extract JSON
+                cleaned_response = ai_response.strip()
+                
+                # Try to find JSON block if wrapped in markdown
+                json_match = re.search(r'```json\s*(\{.*?\})\s*```', cleaned_response, re.DOTALL)
+                if json_match:
+                    cleaned_response = json_match.group(1)
+                
+                # Try to find JSON block without markdown
+                if not cleaned_response.startswith('{'):
+                    json_match = re.search(r'(\{.*\})', cleaned_response, re.DOTALL)
+                    if json_match:
+                        cleaned_response = json_match.group(1)
+                
+                parsed_response = json.loads(cleaned_response)
+                
+                # Add the journey-themed greeting
+                parsed_response["bobo_message"] = obstacle["bobo_greeting"] + " " + parsed_response.get("bobo_message", "")
+                
+                return parsed_response
+                
+            except (json.JSONDecodeError, AttributeError) as e:
+                print(f"JSON parsing failed: {e}")
+                print(f"Raw response: {ai_response[:200]}...")
+                
+                # Enhanced fallback - try to extract key information
+                return {
+                    "bobo_message": obstacle["bobo_greeting"] + " " + ai_response[:300] + ("..." if len(ai_response) > 300 else ""),
+                    "solutions": [
+                        {
+                            "title": f"AI Solution for {obstacle['name']}",
+                            "description": ai_response[:400] + ("..." if len(ai_response) > 400 else ""),
+                            "action_type": friction_type.replace('-', '_'),
+                            "action_data": {"raw_response": ai_response},
+                            "confidence_score": 0.7
+                        }
+                    ],
+                    "recommended_actions": ["Try the suggested approach", "Let me know how it goes!"]
+                }
+                
+        except Exception as e:
+            print(f"Error generating friction solutions: {e}")
+            return self._fallback_friction_response(friction_type, habit["name"])
+    
+    def _fallback_friction_response(self, friction_type: str, habit_name: str) -> Dict[str, Any]:
+        """Fallback friction solutions when AI is not available"""
+        
+        fallback_solutions = {
+            "distraction": {
+                "bobo_message": "I'll help you stay focused on your journey! Here are some tried-and-true ways to avoid distractions:",
+                "solutions": [
+                    {
+                        "title": "Create a Distraction-Free Zone",
+                        "description": "Put your phone in another room and clear your workspace of anything that might pull your attention away.",
+                        "action_type": "environment",
+                        "action_data": {"remove_phone": True, "clear_workspace": True},
+                        "confidence_score": 0.8
+                    },
+                    {
+                        "title": "Try a Focused Pomodoro Session",
+                        "description": "Set a timer for 25 minutes and focus only on your habit. Take a 5-minute break after!",
+                        "action_type": "pomodoro",
+                        "action_data": {"duration": 25, "break_duration": 5},
+                        "confidence_score": 0.9
+                    }
+                ],
+                "recommended_actions": ["Start with environment setup", "Use pomodoro timer"]
+            },
+            "low-energy": {
+                "bobo_message": "Energy Drain Valley is tough! Let's find ways to recharge or take an easier path:",
+                "solutions": [
+                    {
+                        "title": "Try a Shorter Version",
+                        "description": "Do just half the usual time or effort. Something is better than nothing!",
+                        "action_type": "reduce",
+                        "action_data": {"reduction_factor": 0.5},
+                        "confidence_score": 0.8
+                    },
+                    {
+                        "title": "Reschedule to Your Peak Time",
+                        "description": "Move this habit to when you usually have more energy, like morning or after a meal.",
+                        "action_type": "reschedule",
+                        "action_data": {"suggested_time": "morning"},
+                        "confidence_score": 0.7
+                    }
+                ],
+                "recommended_actions": ["Reduce difficulty temporarily", "Find better timing"]
+            },
+            "complexity": {
+                "bobo_message": "Maze Mountain looks scary! Let's break it into smaller, easier steps:",
+                "solutions": [
+                    {
+                        "title": "Break Into Mini-Steps",
+                        "description": f"Split '{habit_name}' into 3-5 smaller tasks that take 5-10 minutes each.",
+                        "action_type": "breakdown",
+                        "action_data": {"suggested_subtasks": ["Step 1: Prepare", "Step 2: Start small", "Step 3: Build up"]},
+                        "confidence_score": 0.8
+                    }
+                ],
+                "recommended_actions": ["Start with the smallest step", "Build momentum gradually"]
+            },
+            "forgetfulness": {
+                "bobo_message": "Memory Fog is tricky! Let's set up some navigation markers:",
+                "solutions": [
+                    {
+                        "title": "Set Smart Reminders",
+                        "description": "Use your phone or calendar to remind you at the right time and place.",
+                        "action_type": "reminder",
+                        "action_data": {"reminder_type": "phone_notification"},
+                        "confidence_score": 0.8
+                    },
+                    {
+                        "title": "Create Visual Cues",
+                        "description": "Put something where you'll see it that reminds you of your habit.",
+                        "action_type": "visual_cue",
+                        "action_data": {"cue_type": "visual_reminder"},
+                        "confidence_score": 0.7
+                    }
+                ],
+                "recommended_actions": ["Set up reminders", "Use visual triggers"]
+            }
+        }
+        
+        return fallback_solutions.get(friction_type, fallback_solutions["distraction"])
 
 
 # Global instance - will be initialized in main.py with database client

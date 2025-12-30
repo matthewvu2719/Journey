@@ -13,7 +13,8 @@ from models import (
     CompletionCreate, Completion, CompleteHabitRequest,
     UserAvailability, UserAvailabilityCreate,
     ChatMessage, ChatResponse, AnalyticsResponse,
-    DailyCapacity, DailyCapacityCreate, DailyCapacityUpdate, DailyCapacityBulkUpdate, DayOfWeek
+    DailyCapacity, DailyCapacityCreate, DailyCapacityUpdate, DailyCapacityBulkUpdate, DayOfWeek,
+    FrictionHelpRequest, FrictionHelpResponse, FrictionSession, FrictionType
 )
 from database import SupabaseClient
 from ml_engine import MLEngine
@@ -940,6 +941,534 @@ async def complete_habit_legacy(
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# FRICTION HELPER ENDPOINTS
+# ============================================================================
+
+@app.post("/api/habits/{habit_id}/friction-help")
+async def get_friction_help(
+    habit_id: int,
+    request: FrictionHelpRequest,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get AI-powered friction help for a specific habit"""
+    try:
+        user_id = user_id if user_id else "default_user"
+        
+        # Validate friction type
+        valid_friction_types = ["distraction", "low-energy", "complexity", "forgetfulness"]
+        if request.friction_type not in valid_friction_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid friction type. Must be one of: {', '.join(valid_friction_types)}"
+            )
+        
+        # Get habit data
+        habit = db.get_habit(habit_id)
+        if not habit:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        
+        # Gather user context for AI
+        user_context = db.get_user_ml_context(user_id, habit_id)
+        
+        # Get friction history for context
+        friction_history = db.get_user_friction_history(user_id, habit_id, limit=5)
+        
+        # Generate AI solutions using intelligent chatbot
+        ai_response = await intelligent_chatbot.get_friction_solutions(
+            habit=habit,
+            friction_type=request.friction_type,
+            user_context=user_context,
+            additional_context=request.additional_context,
+            friction_history=friction_history
+        )
+        
+        # Create friction session record
+        session_data = {
+            "user_id": user_id,
+            "habit_id": habit_id,
+            "friction_type": request.friction_type,
+            "solutions_provided": ai_response.get("solutions", []),
+            "created_at": datetime.now().isoformat()
+        }
+        
+        session = db.create_friction_session(session_data)
+        
+        # Prepare response
+        response = {
+            "friction_type": request.friction_type,
+            "habit_name": habit["name"],
+            "bobo_message": ai_response.get("bobo_message", "I'm here to help you overcome this obstacle!"),
+            "solutions": ai_response.get("solutions", []),
+            "recommended_actions": ai_response.get("recommended_actions", []),
+            "user_context": {
+                "recent_completions": user_context.get("recent_completions_count", 0),
+                "most_successful_time": user_context.get("most_successful_time"),
+                "most_successful_energy": user_context.get("most_successful_energy"),
+                "success_patterns": user_context.get("time_success_rates", {})
+            },
+            "session_id": session["id"],
+            "generated_at": datetime.now().isoformat()
+        }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error generating friction help: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to generate friction help")
+
+
+@app.post("/api/friction-sessions/{session_id}/feedback")
+async def update_friction_feedback(
+    session_id: int,
+    action_taken: str,
+    was_helpful: bool,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Update friction session with user feedback"""
+    try:
+        success = db.update_friction_session_feedback(session_id, action_taken, was_helpful)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Friction session not found")
+        
+        return {"success": True, "message": "Feedback recorded"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating friction feedback: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update feedback")
+
+
+@app.get("/api/users/{user_id}/energy-patterns")
+async def get_energy_patterns(
+    user_id: str,
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Get user's energy patterns for ML-powered scheduling optimization"""
+    try:
+        # Ensure user can only access their own data
+        if current_user_id and user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get completion logs for energy analysis
+        completion_logs = db.get_completions(user_id=user_id, limit=100)
+        
+        # Initialize ML engine and perform advanced energy analysis
+        ml_engine = MLEngine()
+        energy_analysis = ml_engine.analyze_energy_patterns(
+            user_id=user_id,
+            completion_logs=completion_logs,
+            days_back=30
+        )
+        
+        # Get user habits for schedule optimization
+        habits = db.get_habits(user_id)
+        
+        # Generate optimal schedule recommendations
+        schedule_optimization = ml_engine.generate_optimal_schedule(
+            habits=habits,
+            energy_patterns=energy_analysis
+        )
+        
+        # Extract key insights for API response
+        time_patterns = energy_analysis.get("time_energy_patterns", {})
+        optimal_windows = energy_analysis.get("optimal_windows", {})
+        
+        # Map to legacy format for backward compatibility
+        peak_times = optimal_windows.get("peak_performance_times", ["morning"])
+        low_periods = optimal_windows.get("low_energy_periods", ["night"])
+        
+        # Calculate success rates by time
+        time_success_rates = {
+            time: data.get("success_rate", 0.5)
+            for time, data in time_patterns.items()
+        }
+        
+        # Energy distribution from patterns
+        energy_distribution = {}
+        for time, data in time_patterns.items():
+            energy_dist = data.get("energy_distribution_before", {})
+            for energy, count in energy_dist.items():
+                energy_distribution[energy] = energy_distribution.get(energy, 0) + count
+        
+        response = {
+            "user_id": user_id,
+            "analysis_period_days": energy_analysis.get("analysis_period_days", 30),
+            "data_points": energy_analysis.get("data_points", 0),
+            "confidence_score": energy_analysis.get("confidence_score", 0.0),
+            
+            # Core energy patterns
+            "peak_energy_times": peak_times,
+            "low_energy_periods": low_periods,
+            "energy_distribution": energy_distribution,
+            "time_success_rates": time_success_rates,
+            
+            # Advanced analysis
+            "time_energy_patterns": time_patterns,
+            "day_energy_patterns": energy_analysis.get("day_energy_patterns", {}),
+            "energy_trends": energy_analysis.get("energy_trends", {}),
+            "optimal_windows": optimal_windows,
+            
+            # Recommendations
+            "recommendations": {
+                "energy_based": energy_analysis.get("recommendations", []),
+                "optimal_scheduling": f"Schedule important habits during {', '.join(peak_times)} for best results",
+                "avoid_periods": f"Consider rescheduling from {', '.join(low_periods)} if struggling",
+                "energy_boost_needed": len([t for t in time_patterns.values() if t.get("typical_energy_before") == "low"]) > 0
+            },
+            
+            # Schedule optimization
+            "schedule_optimization": {
+                "total_habits": len(habits),
+                "optimizable_habits": len([r for r in schedule_optimization.get("schedule", []) if r["reschedule_benefit"]["improvement"] > 5]),
+                "average_success_probability": schedule_optimization.get("optimization_summary", {}).get("average_success_probability", 0.5),
+                "top_recommendations": schedule_optimization.get("schedule", [])[:5]  # Top 5 recommendations
+            },
+            
+            "generated_at": energy_analysis.get("generated_at")
+        }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting energy patterns: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to get energy patterns")
+
+
+@app.post("/api/users/{user_id}/habits/{habit_id}/reschedule-suggestion")
+async def get_reschedule_suggestion(
+    user_id: str,
+    habit_id: int,
+    struggles: List[str],
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Get AI-powered rescheduling suggestions based on current struggles"""
+    try:
+        # Ensure user can only access their own data
+        if current_user_id and user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get habit data
+        habit = db.get_habit(habit_id)
+        if not habit:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        
+        # Get completion logs for energy analysis
+        completion_logs = db.get_completions(user_id=user_id, habit_id=habit_id, limit=50)
+        
+        # Initialize ML engine and get energy patterns
+        ml_engine = MLEngine()
+        energy_analysis = ml_engine.analyze_energy_patterns(
+            user_id=user_id,
+            completion_logs=completion_logs,
+            days_back=30
+        )
+        
+        # Get reschedule suggestions
+        reschedule_suggestion = ml_engine.suggest_habit_reschedule(
+            habit=habit,
+            current_struggles=struggles,
+            energy_patterns=energy_analysis
+        )
+        
+        return reschedule_suggestion
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting reschedule suggestion: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to get reschedule suggestion")
+
+
+# ============================================================================
+# JOURNEY OBSTACLE TRACKING ENDPOINTS
+# ============================================================================
+
+@app.post("/api/users/{user_id}/habits/{habit_id}/obstacle-encounter")
+async def create_obstacle_encounter(
+    user_id: str,
+    habit_id: int,
+    obstacle_type: str,
+    severity: str = "medium",
+    user_description: str = None,
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Create an obstacle encounter record"""
+    try:
+        # Ensure user can only create their own obstacle encounters
+        if current_user_id and user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Validate obstacle type
+        valid_obstacle_types = ["distraction_detour", "energy_drain_valley", "maze_mountain", "memory_fog"]
+        if obstacle_type not in valid_obstacle_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid obstacle type. Must be one of: {', '.join(valid_obstacle_types)}"
+            )
+        
+        # Validate severity
+        valid_severities = ["low", "medium", "high"]
+        if severity not in valid_severities:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid severity. Must be one of: {', '.join(valid_severities)}"
+            )
+        
+        # Get habit to validate it exists
+        habit = db.get_habit(habit_id)
+        if not habit:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        
+        # Get user's current success streak for context
+        obstacle_stats = db.get_user_obstacle_stats(user_id)
+        
+        # Get appropriate Bobo message for the obstacle
+        from achievement_engine import AchievementEngine
+        achievement_engine = AchievementEngine(db)
+        bobo_message = achievement_engine.get_obstacle_message(obstacle_type, 'encounter')
+        
+        # Create obstacle encounter
+        encounter_data = {
+            "user_id": user_id,
+            "habit_id": habit_id,
+            "obstacle_type": obstacle_type,
+            "severity": severity,
+            "user_description": user_description,
+            "bobo_response": bobo_message,
+            "previous_success_streak": obstacle_stats.get('current_success_streak', 0),
+            "journey_stage": "beginning" if obstacle_stats.get('journey_level', 1) <= 10 else 
+                           "middle" if obstacle_stats.get('journey_level', 1) <= 50 else "advanced"
+        }
+        
+        encounter = db.create_obstacle_encounter(encounter_data)
+        
+        return {
+            "encounter_id": encounter["id"],
+            "obstacle_type": obstacle_type,
+            "bobo_message": bobo_message,
+            "severity": severity,
+            "journey_context": {
+                "level": obstacle_stats.get('journey_level', 1),
+                "experience": obstacle_stats.get('journey_experience', 0),
+                "previous_streak": obstacle_stats.get('current_success_streak', 0)
+            },
+            "created_at": encounter["encountered_at"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating obstacle encounter: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to create obstacle encounter")
+
+
+@app.post("/api/obstacle-encounters/{encounter_id}/resolve")
+async def resolve_obstacle_encounter(
+    encounter_id: int,
+    was_overcome: bool,
+    solution_used: str = None,
+    time_to_resolve: int = None,
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Resolve an obstacle encounter and update statistics"""
+    try:
+        # Update obstacle resolution
+        success = db.update_obstacle_resolution(
+            encounter_id=encounter_id,
+            was_overcome=was_overcome,
+            solution_used=solution_used,
+            time_to_resolve=time_to_resolve
+        )
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Obstacle encounter not found")
+        
+        # Get encounter details to update stats
+        encounters = db.get_obstacle_history(current_user_id or "default_user", limit=1)
+        if not encounters:
+            raise HTTPException(status_code=404, detail="Encounter not found")
+        
+        encounter = encounters[0]
+        obstacle_type = encounter.get("obstacle_type")
+        user_id = encounter.get("user_id")
+        
+        # Update obstacle statistics
+        db.update_obstacle_stats(user_id, obstacle_type, was_overcome)
+        
+        # Check for journey achievements
+        from achievement_engine import AchievementEngine
+        achievement_engine = AchievementEngine(db)
+        
+        unlocked_achievements = []
+        if was_overcome:
+            # Get appropriate Bobo message for overcoming obstacle
+            bobo_message = achievement_engine.get_obstacle_message(obstacle_type, 'overcome')
+            
+            # Check for journey achievements
+            unlocked_achievements = achievement_engine.check_journey_achievements(user_id, obstacle_type)
+        else:
+            bobo_message = "🤖 That's okay! Every obstacle is a learning opportunity. I'm here to help you try again! 💪"
+        
+        # Get updated stats
+        updated_stats = db.get_user_obstacle_stats(user_id)
+        
+        return {
+            "success": True,
+            "was_overcome": was_overcome,
+            "bobo_message": bobo_message,
+            "updated_stats": updated_stats,
+            "unlocked_achievements": unlocked_achievements,
+            "resolved_at": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error resolving obstacle encounter: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to resolve obstacle encounter")
+
+
+@app.get("/api/users/{user_id}/obstacle-stats")
+async def get_user_obstacle_stats(
+    user_id: str,
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Get user's obstacle statistics and journey progress"""
+    try:
+        # Ensure user can only access their own stats
+        if current_user_id and user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get obstacle statistics
+        stats = db.get_user_obstacle_stats(user_id)
+        
+        # Get recent obstacle history
+        history = db.get_obstacle_history(user_id, limit=10)
+        
+        # Get journey achievements
+        achievements = db.get_user_journey_achievements(user_id)
+        
+        # Calculate additional insights
+        total_encountered = stats.get('total_obstacles_encountered', 0)
+        total_overcome = stats.get('total_obstacles_overcome', 0)
+        
+        success_rate = (total_overcome / total_encountered * 100) if total_encountered > 0 else 0
+        
+        # Journey progress calculation
+        journey_level = stats.get('journey_level', 1)
+        journey_experience = stats.get('journey_experience', 0)
+        experience_to_next_level = ((journey_level * 100) - journey_experience) if journey_level < 100 else 0
+        
+        return {
+            "user_id": user_id,
+            "obstacle_stats": stats,
+            "success_rate": round(success_rate, 1),
+            "journey_progress": {
+                "level": journey_level,
+                "experience": journey_experience,
+                "experience_to_next_level": experience_to_next_level,
+                "progress_percentage": min((journey_experience % 100), 100)
+            },
+            "recent_history": history,
+            "achievements": achievements,
+            "milestones": {
+                "first_obstacle_overcome": total_overcome >= 1,
+                "obstacle_master": total_overcome >= 5,
+                "journey_champion": total_overcome >= 25,
+                "persistence_legend": stats.get('current_success_streak', 0) >= 30
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting obstacle stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get obstacle stats")
+
+
+@app.get("/api/users/{user_id}/obstacle-history")
+async def get_obstacle_history(
+    user_id: str,
+    limit: int = 20,
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Get user's obstacle encounter history"""
+    try:
+        # Ensure user can only access their own history
+        if current_user_id and user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get obstacle history
+        history = db.get_obstacle_history(user_id, limit)
+        
+        # Add obstacle type descriptions for frontend
+        obstacle_descriptions = {
+            "distraction_detour": {
+                "name": "Distraction Detour",
+                "icon": "📱🛤️",
+                "description": "Side paths that lead away from your journey"
+            },
+            "energy_drain_valley": {
+                "name": "Energy Drain Valley", 
+                "icon": "🔋⛰️",
+                "description": "Challenging terrain that drains your energy"
+            },
+            "maze_mountain": {
+                "name": "Maze Mountain",
+                "icon": "🧩🏔️", 
+                "description": "Complex obstacles with no clear path"
+            },
+            "memory_fog": {
+                "name": "Memory Fog",
+                "icon": "🧠🌫️",
+                "description": "Cloudy conditions that obscure your markers"
+            }
+        }
+        
+        # Enhance history with descriptions
+        enhanced_history = []
+        for encounter in history:
+            obstacle_type = encounter.get("obstacle_type")
+            enhanced_encounter = {
+                **encounter,
+                "obstacle_info": obstacle_descriptions.get(obstacle_type, {
+                    "name": obstacle_type.replace("_", " ").title(),
+                    "icon": "🚧",
+                    "description": "Journey obstacle"
+                })
+            }
+            enhanced_history.append(enhanced_encounter)
+        
+        return {
+            "user_id": user_id,
+            "history": enhanced_history,
+            "total_count": len(history)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting obstacle history: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get obstacle history")
 
 
 # ============================================================================

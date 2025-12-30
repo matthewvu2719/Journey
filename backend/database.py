@@ -1247,7 +1247,8 @@ class SupabaseClient:
         user_id: Optional[str] = None,
         habit_id: Optional[int] = None,
         start_date: Optional[date] = None,
-        end_date: Optional[date] = None
+        end_date: Optional[date] = None,
+        limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Get habit completions with filters - optimized version"""
         if self.mock_mode:
@@ -1264,6 +1265,8 @@ class SupabaseClient:
             if end_date:
                 end_date_str = end_date.isoformat() if hasattr(end_date, 'isoformat') else str(end_date)
                 completions = [c for c in completions if c.get("completed_date", "") <= end_date_str]
+            if limit:
+                completions = completions[:limit]
             return completions
         
         try:
@@ -1282,6 +1285,10 @@ class SupabaseClient:
             
             # Add ordering for consistent results and better performance
             query = query.order("completed_date", desc=True).order("id", desc=True)
+            
+            # Apply limit if specified
+            if limit:
+                query = query.limit(limit)
             
             response = query.execute()
             results = response.data or []
@@ -3287,6 +3294,389 @@ class SupabaseClient:
             print(f"Error deleting daily success rate: {e}")
             return False
 
+
+
+    # ========================================================================
+    # FRICTION HELPER SYSTEM
+    # ========================================================================
+    
+    def create_friction_session(self, session_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a friction help session record"""
+        if self.mock_mode:
+            session = {
+                **session_data,
+                "id": self.next_id,
+                "created_at": datetime.now().isoformat()
+            }
+            # Mock storage would go here
+            self.next_id += 1
+            return session
+        
+        try:
+            response = self.client.table("friction_sessions").insert(session_data).execute()
+            return response.data[0]
+        except Exception as e:
+            print(f"Error creating friction session: {e}")
+            raise
+    
+    def get_user_friction_history(self, user_id: str, habit_id: Optional[int] = None, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get user's friction help history for context"""
+        if self.mock_mode:
+            # Mock implementation
+            return []
+        
+        try:
+            query = self.client.table("friction_sessions").select("*").eq("user_id", user_id)
+            
+            if habit_id:
+                query = query.eq("habit_id", habit_id)
+            
+            response = query.order("created_at", desc=True).limit(limit).execute()
+            return response.data
+        except Exception as e:
+            print(f"Error getting friction history: {e}")
+            return []
+    
+    def get_user_ml_context(self, user_id: str, habit_id: Optional[int] = None) -> Dict[str, Any]:
+        """Gather ML context for friction help (completion patterns, energy levels, etc.)"""
+        try:
+            # Get recent completions for pattern analysis
+            recent_completions = self.get_completions(
+                user_id=user_id,
+                habit_id=habit_id,
+                limit=30  # Last 30 completions
+            )
+            
+            # Analyze completion patterns
+            energy_patterns = {}
+            mood_patterns = {}
+            time_patterns = {}
+            
+            for completion in recent_completions:
+                # Energy level analysis
+                energy_before = completion.get('energy_level_before')
+                energy_after = completion.get('energy_level_after')
+                if energy_before:
+                    energy_patterns[energy_before] = energy_patterns.get(energy_before, 0) + 1
+                
+                # Mood analysis
+                mood_before = completion.get('mood_before')
+                mood_after = completion.get('mood_after')
+                if mood_before:
+                    mood_patterns[mood_before] = mood_patterns.get(mood_before, 0) + 1
+                
+                # Time of day analysis
+                time_of_day_id = completion.get('time_of_day_id')
+                if time_of_day_id:
+                    time_patterns[time_of_day_id] = time_patterns.get(time_of_day_id, 0) + 1
+            
+            # Get habit-specific data if habit_id provided
+            habit_data = None
+            if habit_id:
+                habit_data = self.get_habit(habit_id)
+            
+            # Calculate success rates by time of day
+            time_success_rates = {}
+            for time_id, count in time_patterns.items():
+                total_attempts = len([c for c in recent_completions if c.get('time_of_day_id') == time_id])
+                if total_attempts > 0:
+                    time_success_rates[time_id] = count / total_attempts
+            
+            return {
+                'recent_completions_count': len(recent_completions),
+                'energy_patterns': energy_patterns,
+                'mood_patterns': mood_patterns,
+                'time_patterns': time_patterns,
+                'time_success_rates': time_success_rates,
+                'habit_data': habit_data,
+                'most_successful_energy': max(energy_patterns.items(), key=lambda x: x[1])[0] if energy_patterns else None,
+                'most_successful_time': max(time_success_rates.items(), key=lambda x: x[1])[0] if time_success_rates else None,
+                'analysis_date': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            print(f"Error gathering ML context: {e}")
+            return {
+                'recent_completions_count': 0,
+                'energy_patterns': {},
+                'mood_patterns': {},
+                'time_patterns': {},
+                'time_success_rates': {},
+                'habit_data': None,
+                'most_successful_energy': None,
+                'most_successful_time': None,
+                'analysis_date': datetime.now().isoformat(),
+                'error': str(e)
+            }
+    
+    def update_friction_session_feedback(self, session_id: int, action_taken: str, was_helpful: bool) -> bool:
+        """Update friction session with user feedback"""
+        if self.mock_mode:
+            return True
+        
+        try:
+            response = self.client.table("friction_sessions").update({
+                "action_taken": action_taken,
+                "was_helpful": was_helpful,
+                "updated_at": datetime.now().isoformat()
+            }).eq("id", session_id).execute()
+            
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error updating friction session feedback: {e}")
+            return False
+
+
+    # ============================================================================
+    # JOURNEY OBSTACLE TRACKING SYSTEM
+    # ============================================================================
+    
+    def create_obstacle_encounter(self, encounter_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create an obstacle encounter record"""
+        if self.mock_mode:
+            encounter = {
+                **encounter_data,
+                "id": self.next_id,
+                "encountered_at": datetime.now().isoformat()
+            }
+            if not hasattr(self, 'mock_obstacle_encounters'):
+                self.mock_obstacle_encounters = []
+            self.mock_obstacle_encounters.append(encounter)
+            self.next_id += 1
+            return encounter
+        
+        try:
+            response = self.client.table("obstacle_encounters").insert(encounter_data).execute()
+            return response.data[0]
+        except Exception as e:
+            print(f"Error creating obstacle encounter: {e}")
+            raise
+    
+    def update_obstacle_resolution(
+        self, 
+        encounter_id: int, 
+        was_overcome: bool, 
+        solution_used: str = None,
+        time_to_resolve: int = None
+    ) -> bool:
+        """Update obstacle encounter with resolution details"""
+        if self.mock_mode:
+            if hasattr(self, 'mock_obstacle_encounters'):
+                for encounter in self.mock_obstacle_encounters:
+                    if encounter.get("id") == encounter_id:
+                        encounter.update({
+                            "was_overcome": was_overcome,
+                            "solution_used": solution_used,
+                            "time_to_resolve": time_to_resolve,
+                            "resolved_at": datetime.now().isoformat()
+                        })
+                        return True
+            return False
+        
+        try:
+            update_data = {
+                "was_overcome": was_overcome,
+                "resolved_at": datetime.now().isoformat()
+            }
+            if solution_used:
+                update_data["solution_used"] = solution_used
+            if time_to_resolve:
+                update_data["time_to_resolve"] = time_to_resolve
+            
+            response = self.client.table("obstacle_encounters").update(update_data).eq("id", encounter_id).execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error updating obstacle resolution: {e}")
+            return False
+    
+    def get_user_obstacle_stats(self, user_id: str) -> Dict[str, Any]:
+        """Get user's obstacle statistics"""
+        if self.mock_mode:
+            # Mock obstacle stats
+            return {
+                'user_id': user_id,
+                'total_obstacles_encountered': 0,
+                'total_obstacles_overcome': 0,
+                'current_success_streak': 0,
+                'longest_success_streak': 0,
+                'distraction_detours_overcome': 0,
+                'energy_valleys_overcome': 0,
+                'maze_mountains_overcome': 0,
+                'memory_fogs_overcome': 0,
+                'journey_level': 1,
+                'journey_experience': 0,
+                'obstacle_badges_earned': [],
+                'journey_milestones_reached': [],
+                'last_updated': datetime.now().isoformat()
+            }
+        
+        try:
+            response = self.client.table("obstacle_stats").select("*").eq("user_id", user_id).execute()
+            
+            if response.data:
+                return response.data[0]
+            else:
+                # Create initial stats record
+                initial_stats = {
+                    'user_id': user_id,
+                    'total_obstacles_encountered': 0,
+                    'total_obstacles_overcome': 0,
+                    'current_success_streak': 0,
+                    'longest_success_streak': 0,
+                    'distraction_detours_overcome': 0,
+                    'energy_valleys_overcome': 0,
+                    'maze_mountains_overcome': 0,
+                    'memory_fogs_overcome': 0,
+                    'journey_level': 1,
+                    'journey_experience': 0,
+                    'obstacle_badges_earned': [],
+                    'journey_milestones_reached': [],
+                    'last_updated': datetime.now().isoformat()
+                }
+                
+                create_response = self.client.table("obstacle_stats").insert(initial_stats).execute()
+                return create_response.data[0]
+                
+        except Exception as e:
+            print(f"Error getting obstacle stats: {e}")
+            return {}
+    
+    def update_obstacle_stats(self, user_id: str, obstacle_type: str, was_overcome: bool) -> bool:
+        """Update user's obstacle statistics after encounter resolution"""
+        try:
+            current_stats = self.get_user_obstacle_stats(user_id)
+            
+            # Update counters
+            current_stats['total_obstacles_encountered'] += 1
+            
+            if was_overcome:
+                current_stats['total_obstacles_overcome'] += 1
+                
+                # Update obstacle-specific counters
+                obstacle_map = {
+                    'distraction_detour': 'distraction_detours_overcome',
+                    'energy_drain_valley': 'energy_valleys_overcome', 
+                    'maze_mountain': 'maze_mountains_overcome',
+                    'memory_fog': 'memory_fogs_overcome'
+                }
+                
+                if obstacle_type in obstacle_map:
+                    stat_key = obstacle_map[obstacle_type]
+                    current_stats[stat_key] = current_stats.get(stat_key, 0) + 1
+                
+                # Update success streak
+                current_stats['current_success_streak'] += 1
+                if current_stats['current_success_streak'] > current_stats.get('longest_success_streak', 0):
+                    current_stats['longest_success_streak'] = current_stats['current_success_streak']
+                
+                # Add experience points
+                current_stats['journey_experience'] = current_stats.get('journey_experience', 0) + 10
+                
+                # Level up calculation (every 100 XP)
+                new_level = (current_stats['journey_experience'] // 100) + 1
+                current_stats['journey_level'] = min(new_level, 100)
+                
+            else:
+                # Reset success streak if obstacle not overcome
+                current_stats['current_success_streak'] = 0
+            
+            current_stats['last_updated'] = datetime.now().isoformat()
+            
+            if self.mock_mode:
+                return True
+            
+            # Update in database
+            response = self.client.table("obstacle_stats").update(current_stats).eq("user_id", user_id).execute()
+            return len(response.data) > 0
+            
+        except Exception as e:
+            print(f"Error updating obstacle stats: {e}")
+            return False
+    
+    def get_obstacle_history(self, user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get user's obstacle encounter history"""
+        if self.mock_mode:
+            if hasattr(self, 'mock_obstacle_encounters'):
+                user_encounters = [e for e in self.mock_obstacle_encounters if e.get("user_id") == user_id]
+                return sorted(user_encounters, key=lambda x: x.get("encountered_at", ""), reverse=True)[:limit]
+            return []
+        
+        try:
+            response = self.client.table("obstacle_encounters")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("encountered_at", desc=True)\
+                .limit(limit)\
+                .execute()
+            
+            return response.data
+        except Exception as e:
+            print(f"Error getting obstacle history: {e}")
+            return []
+    
+    def create_journey_achievement(self, achievement_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a journey achievement record"""
+        if self.mock_mode:
+            achievement = {
+                **achievement_data,
+                "id": self.next_id,
+                "created_at": datetime.now().isoformat()
+            }
+            if not hasattr(self, 'mock_journey_achievements'):
+                self.mock_journey_achievements = []
+            self.mock_journey_achievements.append(achievement)
+            self.next_id += 1
+            return achievement
+        
+        try:
+            response = self.client.table("journey_achievements").insert(achievement_data).execute()
+            return response.data[0]
+        except Exception as e:
+            print(f"Error creating journey achievement: {e}")
+            raise
+    
+    def unlock_journey_achievement(self, achievement_id: int) -> bool:
+        """Mark a journey achievement as unlocked"""
+        if self.mock_mode:
+            if hasattr(self, 'mock_journey_achievements'):
+                for achievement in self.mock_journey_achievements:
+                    if achievement.get("id") == achievement_id:
+                        achievement.update({
+                            "is_unlocked": True,
+                            "unlocked_at": datetime.now().isoformat()
+                        })
+                        return True
+            return False
+        
+        try:
+            response = self.client.table("journey_achievements").update({
+                "is_unlocked": True,
+                "unlocked_at": datetime.now().isoformat()
+            }).eq("id", achievement_id).execute()
+            
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error unlocking journey achievement: {e}")
+            return False
+    
+    def get_user_journey_achievements(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get user's journey achievements"""
+        if self.mock_mode:
+            if hasattr(self, 'mock_journey_achievements'):
+                return [a for a in self.mock_journey_achievements if a.get("user_id") == user_id]
+            return []
+        
+        try:
+            response = self.client.table("journey_achievements")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .execute()
+            
+            return response.data
+        except Exception as e:
+            print(f"Error getting journey achievements: {e}")
+            return []
 
 
     # ============================================================================

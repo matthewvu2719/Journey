@@ -259,6 +259,146 @@ class DailyCapacityBulkUpdate(BaseModel):
 
 
 # ============================================================================
+# JOURNEY OBSTACLE SYSTEM MODELS
+# ============================================================================
+
+class ObstacleType(str, Enum):
+    """Journey-themed obstacle types that map to friction types"""
+    distraction_detour = "distraction_detour"  # Maps to distraction
+    energy_drain_valley = "energy_drain_valley"  # Maps to low-energy
+    maze_mountain = "maze_mountain"  # Maps to complexity
+    memory_fog = "memory_fog"  # Maps to forgetfulness
+
+
+class ObstacleEncounter(BaseModel):
+    """Track when users encounter obstacles on their journey"""
+    id: Optional[int] = None
+    user_id: str
+    habit_id: int
+    obstacle_type: ObstacleType
+    friction_session_id: Optional[int] = None  # Link to friction session
+    
+    # Journey context
+    journey_stage: str = Field("beginning", description="beginning, middle, advanced")
+    previous_success_streak: int = Field(0, ge=0, description="Days of success before obstacle")
+    
+    # Obstacle details
+    severity: str = Field("medium", description="low, medium, high")
+    user_description: Optional[str] = None
+    bobo_response: Optional[str] = None
+    
+    # Resolution tracking
+    was_overcome: Optional[bool] = None
+    solution_used: Optional[str] = None
+    time_to_resolve: Optional[int] = None  # Minutes
+    
+    # Timestamps
+    encountered_at: datetime = Field(default_factory=datetime.now)
+    resolved_at: Optional[datetime] = None
+
+
+class ObstacleStats(BaseModel):
+    """User's obstacle statistics for journey progress tracking"""
+    id: Optional[int] = None
+    user_id: str
+    
+    # Overall obstacle stats
+    total_obstacles_encountered: int = Field(0, ge=0)
+    total_obstacles_overcome: int = Field(0, ge=0)
+    current_success_streak: int = Field(0, ge=0)
+    longest_success_streak: int = Field(0, ge=0)
+    
+    # Obstacle type breakdown
+    distraction_detours_overcome: int = Field(0, ge=0)
+    energy_valleys_overcome: int = Field(0, ge=0)
+    maze_mountains_overcome: int = Field(0, ge=0)
+    memory_fogs_overcome: int = Field(0, ge=0)
+    
+    # Journey progress
+    journey_level: int = Field(1, ge=1, le=100, description="User's journey mastery level")
+    journey_experience: int = Field(0, ge=0, description="Experience points earned")
+    
+    # Achievement tracking
+    obstacle_badges_earned: List[str] = Field(default_factory=list)
+    journey_milestones_reached: List[str] = Field(default_factory=list)
+    
+    # Timestamps
+    last_updated: datetime = Field(default_factory=datetime.now)
+
+
+class JourneyAchievement(BaseModel):
+    """Journey-specific achievements for obstacle mastery"""
+    id: Optional[int] = None
+    user_id: str
+    achievement_type: str  # 'obstacle_master', 'journey_warrior', 'persistence_champion'
+    achievement_name: str
+    achievement_description: str
+    
+    # Achievement criteria
+    obstacle_type: Optional[ObstacleType] = None
+    required_count: int = Field(1, ge=1)
+    current_progress: int = Field(0, ge=0)
+    
+    # Rewards
+    reward_type: str  # 'badge', 'title', 'bobo_message', 'special_animation'
+    reward_data: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Status
+    is_unlocked: bool = Field(False)
+    unlocked_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+# ============================================================================
+# FRICTION HELPER MODELS
+# ============================================================================
+
+class FrictionType(str, Enum):
+    distraction = "distraction"
+    low_energy = "low-energy"
+    complexity = "complexity"
+    forgetfulness = "forgetfulness"
+
+
+class FrictionHelpRequest(BaseModel):
+    """Request for friction help"""
+    friction_type: FrictionType
+    additional_context: Optional[str] = None
+
+
+class FrictionSolution(BaseModel):
+    """Individual friction solution"""
+    title: str
+    description: str
+    action_type: str  # 'pomodoro', 'reschedule', 'breakdown', 'environment', 'reduce'
+    action_data: Optional[Dict[str, Any]] = None
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+
+
+class FrictionHelpResponse(BaseModel):
+    """Response with AI-generated friction solutions"""
+    friction_type: FrictionType
+    habit_name: str
+    bobo_message: str
+    solutions: List[FrictionSolution]
+    recommended_actions: List[str]
+    user_context: Dict[str, Any]
+    generated_at: datetime = Field(default_factory=datetime.now)
+
+
+class FrictionSession(BaseModel):
+    """Track friction help sessions for analytics"""
+    id: Optional[int] = None
+    user_id: str
+    habit_id: int
+    friction_type: FrictionType
+    solutions_provided: List[Dict[str, Any]]
+    action_taken: Optional[str] = None
+    was_helpful: Optional[bool] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+# ============================================================================
 # DAILY SUCCESS RATE MODELS
 # ============================================================================
 

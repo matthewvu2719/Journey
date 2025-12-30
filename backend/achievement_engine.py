@@ -33,6 +33,50 @@ class AchievementEngine:
             'description': 'Complete 100% of this month\'s habits',
             'reward_type': 'theme',
             'check_frequency': 'monthly'
+        },
+        
+        # Journey Obstacle Achievements
+        'obstacle_navigator': {
+            'name': 'Obstacle Navigator',
+            'description': 'Overcome your first journey obstacle',
+            'reward_type': 'journey_badge',
+            'check_frequency': 'immediate'
+        },
+        'distraction_master': {
+            'name': 'Distraction Detour Master',
+            'description': 'Overcome 5 Distraction Detours',
+            'reward_type': 'special_hat',
+            'check_frequency': 'immediate'
+        },
+        'energy_warrior': {
+            'name': 'Energy Valley Warrior',
+            'description': 'Overcome 5 Energy Drain Valleys',
+            'reward_type': 'special_costume',
+            'check_frequency': 'immediate'
+        },
+        'maze_solver': {
+            'name': 'Maze Mountain Solver',
+            'description': 'Overcome 5 Maze Mountains',
+            'reward_type': 'special_color',
+            'check_frequency': 'immediate'
+        },
+        'memory_keeper': {
+            'name': 'Memory Fog Keeper',
+            'description': 'Overcome 5 Memory Fogs',
+            'reward_type': 'special_dance',
+            'check_frequency': 'immediate'
+        },
+        'journey_champion': {
+            'name': 'Journey Champion',
+            'description': 'Overcome 25 obstacles across all types',
+            'reward_type': 'champion_theme',
+            'check_frequency': 'immediate'
+        },
+        'persistence_legend': {
+            'name': 'Persistence Legend',
+            'description': 'Maintain a 30-day success streak after overcoming obstacles',
+            'reward_type': 'legend_title',
+            'check_frequency': 'daily'
         }
     }
     
@@ -66,6 +110,89 @@ class AchievementEngine:
         {'id': 'robot', 'name': 'Robot Dance', 'description': 'Classic robot moves'}
     ]
     
+    # Journey-Specific Reward Libraries
+    JOURNEY_BADGES = [
+        {'id': 'navigator', 'name': 'Journey Navigator', 'description': 'First obstacle overcome', 'icon': '🧭'},
+        {'id': 'pathfinder', 'name': 'Pathfinder', 'description': 'Found your way through challenges', 'icon': '🗺️'},
+        {'id': 'trailblazer', 'name': 'Trailblazer', 'description': 'Blazing new paths to success', 'icon': '🔥'},
+        {'id': 'explorer', 'name': 'Explorer', 'description': 'Exploring new possibilities', 'icon': '🔍'},
+        {'id': 'adventurer', 'name': 'Adventurer', 'description': 'Embracing the journey', 'icon': '⚔️'},
+        {'id': 'pioneer', 'name': 'Pioneer', 'description': 'Leading the way forward', 'icon': '🚀'},
+        {'id': 'wayfinder', 'name': 'Wayfinder', 'description': 'Always finding the right path', 'icon': '⭐'},
+        {'id': 'champion', 'name': 'Journey Champion', 'description': 'Master of all obstacles', 'icon': '👑'}
+    ]
+    
+    OBSTACLE_MESSAGES = {
+        'distraction_detour': {
+            'encounter': [
+                "🛤️ Looks like there's a Distraction Detour ahead! Don't worry, I'll help you find the right path back to your journey! 🤖",
+                "📱 Uh oh! A wild Distraction Detour appeared! Let's navigate around it together! 🧭",
+                "🎯 I see a Distraction Detour trying to pull you off course! Time to show it who's boss! 💪"
+            ],
+            'overcome': [
+                "🎉 Amazing! You navigated that Distraction Detour like a pro! Your focus is getting stronger! 🧠✨",
+                "🏆 Wow! You just conquered that Distraction Detour! Nothing can stop you now! 🚀",
+                "⭐ Incredible! You stayed on your journey path despite the distractions! You're becoming unstoppable! 💎"
+            ]
+        },
+        'energy_drain_valley': {
+            'encounter': [
+                "🔋⛰️ We've entered Energy Drain Valley! Don't worry, I know the secret paths to recharge your batteries! 🤖",
+                "😴 Energy Drain Valley is making things tough, but together we can find your power source! ⚡",
+                "🌄 This Energy Valley looks challenging, but I believe in your inner strength! Let's climb together! 💪"
+            ],
+            'overcome': [
+                "🔥 YES! You powered through Energy Drain Valley like a champion! Your energy is radiating! ✨",
+                "⚡ Incredible! You found your energy reserves and conquered that valley! You're glowing! 🌟",
+                "🏔️ Amazing! You climbed out of Energy Drain Valley stronger than ever! What a warrior! 🛡️"
+            ]
+        },
+        'maze_mountain': {
+            'encounter': [
+                "🧩🏔️ Maze Mountain is looking pretty complex! Good thing I'm here to help map out the simplest route! 🗺️",
+                "🌀 This Maze Mountain seems overwhelming, but we'll break it down step by step! 🤖",
+                "🧭 Maze Mountain ahead! Don't worry, every maze has a solution - let's find yours! 💡"
+            ],
+            'overcome': [
+                "🎯 BRILLIANT! You solved Maze Mountain like a puzzle master! Your problem-solving skills are incredible! 🧠",
+                "🗺️ Wow! You navigated through Maze Mountain with such skill! You're becoming a true pathfinder! 🧭",
+                "🏆 Outstanding! You turned that complex Maze Mountain into simple steps! Genius! ⭐"
+            ]
+        },
+        'memory_fog': {
+            'encounter': [
+                "🧠🌫️ Memory Fog is rolling in! Don't worry, I'll be your navigation system and keep you on track! 🤖",
+                "💭 I see Memory Fog clouding your path! Good thing I never forget - let me guide you! 🧭",
+                "🌫️ Memory Fog is trying to confuse you, but together we'll clear the way! 💪"
+            ],
+            'overcome': [
+                "🧠✨ Fantastic! You cleared that Memory Fog and remembered your way! Your mind is sharp! 🔍",
+                "💡 Amazing! You cut through Memory Fog like a lighthouse beam! So brilliant! 🌟",
+                "🎯 Perfect! You overcame Memory Fog and stayed on course! Your focus is incredible! 🏆"
+            ]
+        }
+    }
+    
+    SPECIAL_JOURNEY_HATS = [
+        {'id': 'navigator_cap', 'name': 'Navigator Cap', 'description': 'For overcoming distraction detours', 'icon': '🧭'},
+        {'id': 'energy_crown', 'name': 'Energy Crown', 'description': 'For conquering energy valleys', 'icon': '⚡'},
+        {'id': 'puzzle_hat', 'name': 'Puzzle Master Hat', 'description': 'For solving maze mountains', 'icon': '🧩'},
+        {'id': 'memory_helmet', 'name': 'Memory Keeper Helmet', 'description': 'For clearing memory fog', 'icon': '🧠'}
+    ]
+    
+    SPECIAL_JOURNEY_COSTUMES = [
+        {'id': 'pathfinder_cloak', 'name': 'Pathfinder Cloak', 'description': 'Flows like the wind on your journey', 'icon': '🌟'},
+        {'id': 'energy_armor', 'name': 'Energy Armor', 'description': 'Protects and amplifies your energy', 'icon': '⚡'},
+        {'id': 'wisdom_robes', 'name': 'Wisdom Robes', 'description': 'For the wise obstacle overcomer', 'icon': '🧙'},
+        {'id': 'champion_cape', 'name': 'Champion Cape', 'description': 'For the ultimate journey champion', 'icon': '👑'}
+    ]
+    
+    SPECIAL_JOURNEY_DANCES = [
+        {'id': 'obstacle_victory', 'name': 'Obstacle Victory Dance', 'description': 'Triumphant celebration of overcoming challenges'},
+        {'id': 'pathfinder_spin', 'name': 'Pathfinder Spin', 'description': 'Spinning like a compass finding true north'},
+        {'id': 'energy_surge', 'name': 'Energy Surge Dance', 'description': 'Pulsing with renewed energy and power'},
+        {'id': 'champion_march', 'name': 'Champion March', 'description': 'Marching forward as a true journey champion'}
+    ]
 
     
     HATS = [
@@ -741,3 +868,329 @@ class AchievementEngine:
                 return len(completions)
         except:
             return 0
+    # ============================================================================
+    # JOURNEY OBSTACLE ACHIEVEMENT METHODS
+    # ============================================================================
+    
+    def check_journey_achievements(self, user_id: str, obstacle_type: str = None) -> List[Dict]:
+        """
+        Check journey-specific achievements after obstacle encounters
+        
+        Args:
+            user_id: User identifier
+            obstacle_type: Type of obstacle overcome (optional)
+            
+        Returns:
+            List of newly unlocked journey achievements
+        """
+        unlocked = []
+        
+        try:
+            # Get user's obstacle stats
+            obstacle_stats = self._get_obstacle_stats(user_id)
+            
+            # Check obstacle navigator (first obstacle)
+            if obstacle_stats['total_obstacles_overcome'] == 1:
+                reward = self._unlock_journey_badge(user_id, 'navigator')
+                if reward:
+                    unlocked.append(reward)
+            
+            # Check obstacle-specific mastery achievements
+            if obstacle_type:
+                mastery_reward = self._check_obstacle_mastery(user_id, obstacle_type, obstacle_stats)
+                if mastery_reward:
+                    unlocked.append(mastery_reward)
+            
+            # Check journey champion (25 total obstacles)
+            if obstacle_stats['total_obstacles_overcome'] == 25:
+                reward = self._unlock_champion_theme(user_id)
+                if reward:
+                    unlocked.append(reward)
+            
+            # Check persistence legend (30-day streak after obstacles)
+            if obstacle_stats['current_success_streak'] >= 30 and obstacle_stats['total_obstacles_overcome'] >= 5:
+                reward = self._unlock_legend_title(user_id)
+                if reward:
+                    unlocked.append(reward)
+            
+            return unlocked
+            
+        except Exception as e:
+            print(f"Error checking journey achievements: {e}")
+            return []
+    
+    def _check_obstacle_mastery(self, user_id: str, obstacle_type: str, stats: Dict) -> Optional[Dict]:
+        """Check if user has mastered a specific obstacle type (5 overcome)"""
+        
+        # Map obstacle types to achievement types and stats
+        mastery_map = {
+            'distraction_detour': {
+                'achievement': 'distraction_master',
+                'stat_key': 'distraction_detours_overcome',
+                'reward_method': '_unlock_special_hat'
+            },
+            'energy_drain_valley': {
+                'achievement': 'energy_warrior', 
+                'stat_key': 'energy_valleys_overcome',
+                'reward_method': '_unlock_special_costume'
+            },
+            'maze_mountain': {
+                'achievement': 'maze_solver',
+                'stat_key': 'maze_mountains_overcome', 
+                'reward_method': '_unlock_special_color'
+            },
+            'memory_fog': {
+                'achievement': 'memory_keeper',
+                'stat_key': 'memory_fogs_overcome',
+                'reward_method': '_unlock_special_dance'
+            }
+        }
+        
+        if obstacle_type not in mastery_map:
+            return None
+        
+        mastery_info = mastery_map[obstacle_type]
+        overcome_count = stats.get(mastery_info['stat_key'], 0)
+        
+        # Check if user just reached mastery (exactly 5)
+        if overcome_count == 5:
+            # Check if already unlocked
+            if not self._is_achievement_unlocked(user_id, mastery_info['achievement']):
+                reward_method = getattr(self, mastery_info['reward_method'])
+                return reward_method(user_id, obstacle_type)
+        
+        return None
+    
+    def _get_obstacle_stats(self, user_id: str) -> Dict:
+        """Get user's obstacle statistics from database"""
+        try:
+            # This would query the obstacle_stats table
+            # For now, return mock data structure
+            return {
+                'total_obstacles_encountered': 0,
+                'total_obstacles_overcome': 0,
+                'current_success_streak': 0,
+                'longest_success_streak': 0,
+                'distraction_detours_overcome': 0,
+                'energy_valleys_overcome': 0,
+                'maze_mountains_overcome': 0,
+                'memory_fogs_overcome': 0,
+                'journey_level': 1,
+                'journey_experience': 0
+            }
+        except Exception as e:
+            print(f"Error getting obstacle stats: {e}")
+            return {}
+    
+    def _unlock_journey_badge(self, user_id: str, badge_type: str) -> Optional[Dict]:
+        """Unlock a journey-specific badge"""
+        try:
+            badge = next((b for b in self.JOURNEY_BADGES if b['id'] == badge_type), None)
+            if not badge:
+                return None
+            
+            reward_data = {
+                'achievement_type': 'obstacle_navigator',
+                'achievement_name': 'Obstacle Navigator',
+                'reward_type': 'journey_badge',
+                'reward': badge,
+                'message': f"🧭 {badge['name']} badge unlocked! {badge['description']} {badge['icon']}",
+                'bobo_message': "🎉 Wow! You just earned your first Journey Badge! You're becoming a true obstacle navigator! 🧭✨"
+            }
+            
+            # Save to database
+            self._save_journey_reward(user_id, 'badge', badge, 'obstacle_navigator')
+            
+            return reward_data
+            
+        except Exception as e:
+            print(f"Error unlocking journey badge: {e}")
+            return None
+    
+    def _unlock_special_hat(self, user_id: str, obstacle_type: str) -> Optional[Dict]:
+        """Unlock special hat for obstacle mastery"""
+        try:
+            hat_map = {
+                'distraction_detour': 'navigator_cap',
+                'energy_drain_valley': 'energy_crown',
+                'maze_mountain': 'puzzle_hat',
+                'memory_fog': 'memory_helmet'
+            }
+            
+            hat_id = hat_map.get(obstacle_type)
+            if not hat_id:
+                return None
+            
+            hat = next((h for h in self.SPECIAL_JOURNEY_HATS if h['id'] == hat_id), None)
+            if not hat:
+                return None
+            
+            achievement_name = self.ACHIEVEMENT_TYPES['distraction_master']['name']
+            
+            reward_data = {
+                'achievement_type': 'distraction_master',
+                'achievement_name': achievement_name,
+                'reward_type': 'special_hat',
+                'reward': hat,
+                'message': f"🎩 {hat['name']} unlocked! {hat['description']} {hat['icon']}",
+                'bobo_message': f"🏆 AMAZING! You've mastered those obstacles and earned the {hat['name']}! You look so cool! {hat['icon']}"
+            }
+            
+            self._save_journey_reward(user_id, 'hat', hat, 'distraction_master')
+            return reward_data
+            
+        except Exception as e:
+            print(f"Error unlocking special hat: {e}")
+            return None
+    
+    def _unlock_special_costume(self, user_id: str, obstacle_type: str) -> Optional[Dict]:
+        """Unlock special costume for obstacle mastery"""
+        try:
+            costume = random.choice(self.SPECIAL_JOURNEY_COSTUMES)
+            
+            reward_data = {
+                'achievement_type': 'energy_warrior',
+                'achievement_name': 'Energy Valley Warrior',
+                'reward_type': 'special_costume',
+                'reward': costume,
+                'message': f"👘 {costume['name']} unlocked! {costume['description']} {costume['icon']}",
+                'bobo_message': f"⚡ WOW! You're now an Energy Valley Warrior with the {costume['name']}! So powerful! {costume['icon']}"
+            }
+            
+            self._save_journey_reward(user_id, 'costume', costume, 'energy_warrior')
+            return reward_data
+            
+        except Exception as e:
+            print(f"Error unlocking special costume: {e}")
+            return None
+    
+    def _unlock_special_color(self, user_id: str, obstacle_type: str) -> Optional[Dict]:
+        """Unlock special color for obstacle mastery"""
+        try:
+            # Use existing color system but mark as special
+            available_colors = self._get_available_colors(user_id)
+            if not available_colors:
+                return None
+            
+            color = random.choice(available_colors)
+            
+            reward_data = {
+                'achievement_type': 'maze_solver',
+                'achievement_name': 'Maze Mountain Solver',
+                'reward_type': 'special_color',
+                'reward': color,
+                'message': f"🎨 Special {color['name']} color unlocked! {color['description']}",
+                'bobo_message': f"🧩 BRILLIANT! You solved those maze mountains and unlocked the special {color['name']} color! So smart! ✨"
+            }
+            
+            self._save_bobo_item(user_id, 'color', color, 'maze_solver')
+            return reward_data
+            
+        except Exception as e:
+            print(f"Error unlocking special color: {e}")
+            return None
+    
+    def _unlock_special_dance(self, user_id: str, obstacle_type: str) -> Optional[Dict]:
+        """Unlock special dance for obstacle mastery"""
+        try:
+            dance = random.choice(self.SPECIAL_JOURNEY_DANCES)
+            
+            reward_data = {
+                'achievement_type': 'memory_keeper',
+                'achievement_name': 'Memory Fog Keeper',
+                'reward_type': 'special_dance',
+                'reward': dance,
+                'message': f"💃 {dance['name']} unlocked! {dance['description']}",
+                'bobo_message': f"🧠 FANTASTIC! You cleared all that memory fog and earned the {dance['name']}! Let's dance! 💃"
+            }
+            
+            self._save_journey_reward(user_id, 'dance', dance, 'memory_keeper')
+            return reward_data
+            
+        except Exception as e:
+            print(f"Error unlocking special dance: {e}")
+            return None
+    
+    def _unlock_champion_theme(self, user_id: str) -> Optional[Dict]:
+        """Unlock champion theme for overcoming 25 obstacles"""
+        try:
+            champion_theme = {
+                'id': 'journey_champion',
+                'name': 'Journey Champion',
+                'description': 'Ultimate theme for obstacle masters',
+                'colors': ['gold', 'platinum', 'diamond'],
+                'effects': ['sparkles', 'glow', 'victory_aura']
+            }
+            
+            reward_data = {
+                'achievement_type': 'journey_champion',
+                'achievement_name': 'Journey Champion',
+                'reward_type': 'champion_theme',
+                'reward': champion_theme,
+                'message': "👑 Journey Champion Theme unlocked! You are the ultimate obstacle master!",
+                'bobo_message': "🏆 OH WOW! You're now a JOURNEY CHAMPION! This special theme shows everyone how amazing you are! 👑✨"
+            }
+            
+            self._save_journey_reward(user_id, 'theme', champion_theme, 'journey_champion')
+            return reward_data
+            
+        except Exception as e:
+            print(f"Error unlocking champion theme: {e}")
+            return None
+    
+    def _unlock_legend_title(self, user_id: str) -> Optional[Dict]:
+        """Unlock legend title for 30-day streak after obstacles"""
+        try:
+            legend_title = {
+                'id': 'persistence_legend',
+                'name': 'Persistence Legend',
+                'description': 'Legendary persistence through all obstacles',
+                'title_text': 'The Unstoppable',
+                'special_effects': ['legend_glow', 'persistence_aura']
+            }
+            
+            reward_data = {
+                'achievement_type': 'persistence_legend',
+                'achievement_name': 'Persistence Legend',
+                'reward_type': 'legend_title',
+                'reward': legend_title,
+                'message': "🌟 Persistence Legend title unlocked! You are truly unstoppable!",
+                'bobo_message': "⭐ INCREDIBLE! You're now a PERSISTENCE LEGEND! Nothing can stop you on your journey! You're my hero! 🦸"
+            }
+            
+            self._save_journey_reward(user_id, 'title', legend_title, 'persistence_legend')
+            return reward_data
+            
+        except Exception as e:
+            print(f"Error unlocking legend title: {e}")
+            return None
+    
+    def _save_journey_reward(self, user_id: str, reward_type: str, reward_data: Dict, achievement_type: str):
+        """Save journey-specific reward to database"""
+        try:
+            # This would save to a journey_rewards or bobo_items table
+            # For now, just log the reward
+            print(f"Journey reward saved: {user_id} earned {reward_type} - {reward_data['name']}")
+        except Exception as e:
+            print(f"Error saving journey reward: {e}")
+    
+    def _is_achievement_unlocked(self, user_id: str, achievement_type: str) -> bool:
+        """Check if user has already unlocked a specific achievement"""
+        try:
+            # This would query the achievements table
+            # For now, return False to allow testing
+            return False
+        except Exception as e:
+            print(f"Error checking achievement status: {e}")
+            return False
+    
+    def get_obstacle_message(self, obstacle_type: str, message_type: str) -> str:
+        """Get Bobo message for obstacle encounter or overcome"""
+        try:
+            messages = self.OBSTACLE_MESSAGES.get(obstacle_type, {}).get(message_type, [])
+            if messages:
+                return random.choice(messages)
+            return "🤖 I'm here to help you on your journey! Let's overcome this obstacle together! 💪"
+        except Exception as e:
+            print(f"Error getting obstacle message: {e}")
+            return "🤖 You've got this! I believe in you! 🌟"

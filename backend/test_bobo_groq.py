@@ -97,6 +97,84 @@ def test_bobo_groq():
     print("✅ All tests passed! Bobo is ready to chat with Groq AI!")
     return True
 
+async def test_friction_helper_integration():
+    """Test friction helper integration as part of Task 2.2"""
+    
+    print("\n🎯 Testing Friction Helper Integration (Task 2.2)")
+    print("=" * 60)
+    
+    try:
+        db = SupabaseClient()
+        chatbot = get_intelligent_chatbot(db)
+        
+        if not chatbot or not chatbot.ai_enabled:
+            print("❌ Groq AI not properly initialized for friction helper")
+            return False
+        
+        # Test habit and context
+        test_habit = {
+            'id': 1,
+            'name': 'Daily Exercise',
+            'category': 'fitness',
+            'estimated_duration': 30,
+            'difficulty': 'medium'
+        }
+        
+        test_context = {
+            'recent_completions_count': 15,
+            'most_successful_energy': 'high',
+            'most_successful_time': 'morning',
+            'energy_patterns': {'high': 10, 'medium': 5}
+        }
+        
+        # Test each friction type
+        friction_types = ["distraction", "low-energy", "complexity", "forgetfulness"]
+        
+        for friction_type in friction_types:
+            print(f"\n🔍 Testing {friction_type} friction solutions...")
+            
+            result = await chatbot.get_friction_solutions(
+                habit=test_habit,
+                friction_type=friction_type,
+                user_context=test_context,
+                additional_context=f"Having trouble with {friction_type}"
+            )
+            
+            # Validate response structure
+            if not all(key in result for key in ['bobo_message', 'solutions']):
+                print(f"   ❌ Invalid response structure for {friction_type}")
+                return False
+            
+            print(f"   ✅ {friction_type.title()} solutions generated successfully")
+            print(f"   ✅ Bobo message: {result['bobo_message'][:80]}...")
+            print(f"   ✅ Solutions count: {len(result['solutions'])}")
+        
+        print("\n✅ All friction helper tests passed!")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Friction helper test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 if __name__ == "__main__":
-    success = test_bobo_groq()
-    sys.exit(0 if success else 1)
+    import asyncio
+    
+    # Run basic Groq tests
+    basic_success = test_bobo_groq()
+    
+    # Run friction helper tests
+    friction_success = asyncio.run(test_friction_helper_integration())
+    
+    overall_success = basic_success and friction_success
+    
+    if overall_success:
+        print("\n🎉 ALL TESTS PASSED!")
+        print("✅ Basic Groq AI Integration - COMPLETE")
+        print("✅ Friction Helper Integration - COMPLETE") 
+        print("🚀 Task 2.2: Groq AI Integration is FULLY IMPLEMENTED!")
+    else:
+        print("\n❌ Some tests failed!")
+    
+    sys.exit(0 if overall_success else 1)
