@@ -88,8 +88,36 @@ class Habit(HabitBase):
     is_active: bool = True
     created_at: datetime
     
+    # Breakdown relationship fields
+    parent_habit_id: Optional[int] = None
+    is_subtask: bool = False
+    breakdown_order: Optional[int] = None
+    
     class Config:
         from_attributes = True
+
+
+# ============================================================================
+# HABIT BREAKDOWN MODELS
+# ============================================================================
+
+class HabitBreakdownRequest(BaseModel):
+    """Request to break down a habit into subtasks"""
+    subtasks: List[str] = Field(..., min_items=2, max_items=10)
+    preserve_original: bool = Field(False, description="Keep original habit active")
+    
+class HabitBreakdownResponse(BaseModel):
+    """Response after breaking down a habit"""
+    original_habit_id: int
+    subtask_ids: List[int]
+    breakdown_session_id: str
+    can_rollback: bool = True
+    created_at: datetime
+
+class HabitBreakdownRollback(BaseModel):
+    """Request to rollback a habit breakdown"""
+    breakdown_session_id: str
+    restore_original: bool = Field(True, description="Restore original habit")
 
 
 # ============================================================================

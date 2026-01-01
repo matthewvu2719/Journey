@@ -964,23 +964,10 @@ class AchievementEngine:
     def _get_obstacle_stats(self, user_id: str) -> Dict:
         """Get user's obstacle statistics from database"""
         try:
-            # This would query the obstacle_stats table
-            # For now, return mock data structure
-            return {
-                'total_obstacles_encountered': 0,
-                'total_obstacles_overcome': 0,
-                'current_success_streak': 0,
-                'longest_success_streak': 0,
-                'distraction_detours_overcome': 0,
-                'energy_valleys_overcome': 0,
-                'maze_mountains_overcome': 0,
-                'memory_fogs_overcome': 0,
-                'journey_level': 1,
-                'journey_experience': 0
-            }
+            return self.db.get_obstacle_encounter_stats(user_id)
         except Exception as e:
             print(f"Error getting obstacle stats: {e}")
-            return {}
+            return self.db._get_default_obstacle_stats()
     
     def _unlock_journey_badge(self, user_id: str, badge_type: str) -> Optional[Dict]:
         """Unlock a journey-specific badge"""
@@ -1168,18 +1155,25 @@ class AchievementEngine:
     def _save_journey_reward(self, user_id: str, reward_type: str, reward_data: Dict, achievement_type: str):
         """Save journey-specific reward to database"""
         try:
-            # This would save to a journey_rewards or bobo_items table
-            # For now, just log the reward
-            print(f"Journey reward saved: {user_id} earned {reward_type} - {reward_data['name']}")
+            achievement_data = {
+                'achievement_type': achievement_type,
+                'reward_type': reward_type,
+                'reward_data': reward_data,
+                'unlocked_at': datetime.now().isoformat()
+            }
+            
+            success = self.db.save_journey_achievement(user_id, achievement_data)
+            if success:
+                print(f"Journey reward saved: {user_id} earned {reward_type} - {reward_data['name']}")
+            return success
         except Exception as e:
             print(f"Error saving journey reward: {e}")
+            return False
     
     def _is_achievement_unlocked(self, user_id: str, achievement_type: str) -> bool:
         """Check if user has already unlocked a specific achievement"""
         try:
-            # This would query the achievements table
-            # For now, return False to allow testing
-            return False
+            return self.db.check_journey_achievement_unlocked(user_id, achievement_type)
         except Exception as e:
             print(f"Error checking achievement status: {e}")
             return False

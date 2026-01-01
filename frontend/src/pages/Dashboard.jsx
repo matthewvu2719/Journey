@@ -7,6 +7,7 @@ import FloatingChat from '../components/FloatingChat'
 
 import EnhancedDashboard from '../components/EnhancedDashboard'
 import AchievementProgress from '../components/AchievementProgress'
+import JourneyAchievementProgress from '../components/JourneyAchievementProgress'
 import AchievementNotification from '../components/AchievementNotification'
 import BoboCustomization from '../components/BoboCustomization'
 import BoboTestPanel from '../components/BoboTestPanel'
@@ -295,6 +296,16 @@ function Dashboard() {
                   Rewards
                 </button>
                 <button
+                  onClick={() => handleSectionChange('journey')}
+                  className={`px-6 py-2 font-semibold transition rounded-lg ${
+                    currentSection === 'journey'
+                      ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
+                      : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
+                  }`}
+                >
+                  🧭 Journey
+                </button>
+                <button
                   onClick={() => handleSectionChange('bobo')}
                   className={`px-6 py-2 font-semibold transition rounded-lg ${
                     currentSection === 'bobo'
@@ -391,6 +402,10 @@ function Dashboard() {
 
             {currentSection === 'rewards' && (
               <AchievementProgress />
+            )}
+
+            {currentSection === 'journey' && (
+              <JourneyAchievementProgress />
             )}
 
             {currentSection === 'bobo' && (

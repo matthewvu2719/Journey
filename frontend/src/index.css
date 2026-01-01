@@ -297,3 +297,65 @@ select option {
     gap: 1rem;
   }
 }
+/* Solution View Animations */
+@keyframes solution-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.solution-fade-in {
+  animation: solution-fade-in 0.5s ease-out forwards;
+}
+
+/* Enhanced typing animation for AI responses */
+.typing-animation {
+  animation: typing 1.5s ease-in-out infinite;
+}
+
+@keyframes typing {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Solution card hover effects */
+.solution-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.solution-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  transition: left 0.5s;
+}
+
+.solution-card:hover::before {
+  left: 100%;
+}
+
+/* Confidence score animations */
+@keyframes confidence-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% { 
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+.confidence-high {
+  animation: confidence-pulse 2s ease-in-out infinite;
+}

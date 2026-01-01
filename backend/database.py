@@ -239,6 +239,208 @@ class SupabaseClient:
         
         self.client.table("habits").delete().eq("id", habit_id).execute()
         return True
+
+    # ========================================================================
+    # HABIT BREAKDOWN METHODS
+    # ========================================================================
+    
+    def create_habit_breakdown(self, habit_id: int, subtasks: List[str], user_id: str, preserve_original: bool = False) -> Dict[str, Any]:
+        """Break down a habit into subtasks"""
+        import uuid
+        from datetime import datetime
+        
+        if self.mock_mode:
+            # Mock implementation
+            original_habit = next((h for h in self.mock_habits if h["id"] == habit_id), None)
+            if not original_habit:
+                raise Exception("Habit not found")
+            
+            breakdown_session_id = str(uuid.uuid4())
+            subtask_ids = []
+            
+            for i, subtask_name in enumerate(subtasks):
+                subtask_id = self.next_id
+                self.next_id += 1
+                
+                subtask = {
+                    **original_habit,
+                    "id": subtask_id,
+                    "name": subtask_name,
+                    "parent_habit_id": habit_id,
+                    "is_subtask": True,
+                    "breakdown_order": i + 1,
+                    "breakdown_session_id": breakdown_session_id,
+                    "created_at": datetime.now().isoformat()
+                }
+                
+                self.mock_habits.append(subtask)
+                subtask_ids.append(subtask_id)
+            
+            # Deactivate original habit unless preserving
+            if not preserve_original:
+                for habit in self.mock_habits:
+                    if habit["id"] == habit_id:
+                        habit["is_active"] = False
+                        break
+            
+            return {
+                "original_habit_id": habit_id,
+                "subtask_ids": subtask_ids,
+                "breakdown_session_id": breakdown_session_id,
+                "can_rollback": True,
+                "created_at": datetime.now()
+            }
+        
+        try:
+            # Get original habit
+            original_habit = self.get_habit(habit_id)
+            if not original_habit:
+                raise Exception("Habit not found")
+            
+            breakdown_session_id = str(uuid.uuid4())
+            subtask_ids = []
+            
+            # Create subtasks
+            for i, subtask_name in enumerate(subtasks):
+                subtask_data = {
+                    "user_id": user_id,
+                    "name": subtask_name,
+                    "description": f"Subtask {i+1} of '{original_habit['name']}'",
+                    "habit_type": "atomic",  # Subtasks are always atomic
+                    "category": original_habit["category"],
+                    "priority": original_habit["priority"],
+                    "difficulty": "easy",  # Subtasks should be easier
+                    "estimated_duration": max(5, (original_habit.get("estimated_duration", 30) // len(subtasks))),
+                    "parent_habit_id": habit_id,
+                    "is_subtask": True,
+                    "breakdown_order": i + 1,
+                    "breakdown_session_id": breakdown_session_id,
+                    "days": original_habit.get("days", []),
+                    "times_of_day": original_habit.get("times_of_day", [])
+                }
+                
+                subtask = self.create_habit(subtask_data)
+                subtask_ids.append(subtask["id"])
+            
+            # Deactivate original habit unless preserving
+            if not preserve_original:
+                self.update_habit(habit_id, {"is_active": False})
+            
+            # Create breakdown record
+            breakdown_record = {
+                "original_habit_id": habit_id,
+                "subtask_ids": subtask_ids,
+                "breakdown_session_id": breakdown_session_id,
+                "user_id": user_id,
+                "preserve_original": preserve_original,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            # Store breakdown record (you might want to create a separate table for this)
+            self.client.table("habit_breakdowns").insert(breakdown_record).execute()
+            
+            return {
+                "original_habit_id": habit_id,
+                "subtask_ids": subtask_ids,
+                "breakdown_session_id": breakdown_session_id,
+                "can_rollback": True,
+                "created_at": datetime.now()
+            }
+            
+        except Exception as e:
+            print(f"Error creating habit breakdown: {e}")
+            raise
+    
+    def get_habit_breakdown(self, breakdown_session_id: str) -> Optional[Dict[str, Any]]:
+        """Get breakdown information by session ID"""
+        if self.mock_mode:
+            # Mock implementation - find breakdown by session ID
+            breakdown_habits = [h for h in self.mock_habits if h.get("breakdown_session_id") == breakdown_session_id]
+            if not breakdown_habits:
+                return None
+            
+            parent_id = breakdown_habits[0].get("parent_habit_id")
+            return {
+                "breakdown_session_id": breakdown_session_id,
+                "original_habit_id": parent_id,
+                "subtask_ids": [h["id"] for h in breakdown_habits],
+                "can_rollback": True
+            }
+        
+        try:
+            response = self.client.table("habit_breakdowns").select("*").eq("breakdown_session_id", breakdown_session_id).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error getting habit breakdown: {e}")
+            return None
+    
+    def rollback_habit_breakdown(self, breakdown_session_id: str, restore_original: bool = True) -> bool:
+        """Rollback a habit breakdown"""
+        if self.mock_mode:
+            # Mock implementation
+            breakdown_habits = [h for h in self.mock_habits if h.get("breakdown_session_id") == breakdown_session_id]
+            if not breakdown_habits:
+                return False
+            
+            parent_id = breakdown_habits[0].get("parent_habit_id")
+            
+            # Remove subtasks
+            self.mock_habits = [h for h in self.mock_habits if h.get("breakdown_session_id") != breakdown_session_id]
+            
+            # Restore original habit if requested
+            if restore_original and parent_id:
+                for habit in self.mock_habits:
+                    if habit["id"] == parent_id:
+                        habit["is_active"] = True
+                        break
+            
+            return True
+        
+        try:
+            # Get breakdown info
+            breakdown = self.get_habit_breakdown(breakdown_session_id)
+            if not breakdown:
+                return False
+            
+            # Delete subtasks
+            for subtask_id in breakdown["subtask_ids"]:
+                self.delete_habit(subtask_id)
+            
+            # Restore original habit if requested
+            if restore_original:
+                self.update_habit(breakdown["original_habit_id"], {"is_active": True})
+            
+            # Delete breakdown record
+            self.client.table("habit_breakdowns").delete().eq("breakdown_session_id", breakdown_session_id).execute()
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error rolling back habit breakdown: {e}")
+            return False
+    
+    def get_habit_subtasks(self, parent_habit_id: int) -> List[Dict[str, Any]]:
+        """Get all subtasks for a parent habit"""
+        if self.mock_mode:
+            return [h for h in self.mock_habits if h.get("parent_habit_id") == parent_habit_id and h.get("is_subtask")]
+        
+        try:
+            response = self.client.table("habits").select("*").eq("parent_habit_id", parent_habit_id).eq("is_subtask", True).order("breakdown_order").execute()
+            return response.data
+        except Exception as e:
+            print(f"Error getting habit subtasks: {e}")
+            return []
+    
+    def get_habit_with_subtasks(self, habit_id: int) -> Dict[str, Any]:
+        """Get a habit with its subtasks if any"""
+        habit = self.get_habit(habit_id)
+        if not habit:
+            return None
+        
+        subtasks = self.get_habit_subtasks(habit_id)
+        habit["subtasks"] = subtasks
+        
+        return habit
     
     def get_habits_for_today(self, user_id: str, time_of_day: Optional[str] = None, timezone_offset: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get habits scheduled for today, optionally filtered by time of day - optimized version"""
@@ -4199,7 +4401,6 @@ class SupabaseClient:
             
             # Step 3: Try to store calculated results (but don't fail if storage fails)
             try:
-                # Try to store in database (non-blocking)
                 stored_result = self.save_daily_success_rate(
                     user_id=user_id,
                     target_date=target_date,
@@ -4207,40 +4408,246 @@ class SupabaseClient:
                     completed_instances=validated_calculated_stats['completed_today'],
                     time_remaining=validated_calculated_stats['time_remaining']
                 )
-                
+
                 if stored_result:
+                    validated_calculated_stats['source'] = 'calculated_and_cached'
                     print(f"[DEBUG] Successfully stored calculated stats: {stored_result}")
-                    validated_calculated_stats['source'] = 'calculated_and_stored'
                 else:
-                    print(f"[DEBUG] Failed to store calculated stats, but continuing with calculated data")
-                
+                    validated_calculated_stats['source'] = 'calculated_not_cached'
+                    print(f"[WARNING] save_daily_success_rate returned no data; returning calculated stats only")
+
             except Exception as storage_error:
+                validated_calculated_stats['source'] = 'calculated_cache_failed'
                 print(f"[WARNING] Failed to store calculated stats: {storage_error}")
-                # Continue anyway - we still have the calculated data
-                print(f"[DEBUG] Continuing with calculated data without storage")
-            
+
             return validated_calculated_stats
+
+        except Exception as calc_error:
+            print(f"[ERROR] Real-time calculation failed: {calc_error}")
+            return self._get_safe_default_stats()
+
+    
+    # ============================================================================
+    # JOURNEY ACHIEVEMENT METHODS
+    # ============================================================================
+    
+    def record_obstacle_encounter(self, user_id: str, obstacle_type: str, encounter_data: Dict[str, Any]) -> bool:
+        """Record an obstacle encounter in the database"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_obstacle_encounters'):
+                self.mock_obstacle_encounters = []
             
-        except Exception as calculation_error:
-            print(f"[ERROR] Primary calculation fallback failed: {calculation_error}")
-            import traceback
-            traceback.print_exc()
+            encounter = {
+                'id': len(self.mock_obstacle_encounters) + 1,
+                'user_id': user_id,
+                'obstacle_type': obstacle_type,
+                'encountered_at': datetime.now().isoformat(),
+                'resolved_at': None,
+                'was_overcome': False,
+                **encounter_data
+            }
+            self.mock_obstacle_encounters.append(encounter)
+            return True
+        
+        try:
+            encounter_record = {
+                'user_id': user_id,
+                'obstacle_type': obstacle_type,
+                'encountered_at': datetime.now().isoformat(),
+                'resolved_at': None,
+                'was_overcome': False,
+                **encounter_data
+            }
             
-            # Step 3: Try enhanced basic fallback calculation
-            try:
-                print(f"[DEBUG] Attempting enhanced basic fallback calculation")
-                fallback_stats = self._fallback_basic_stats_calculation(user_id, target_date, timezone_offset)
-                fallback_stats['source'] = 'fallback_calculation'
-                return fallback_stats
+            response = self.client.table("obstacle_encounters").insert(encounter_record).execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error recording obstacle encounter: {e}")
+            return False
+    
+    def resolve_obstacle_encounter(self, encounter_id: int, was_overcome: bool, resolution_data: Dict[str, Any] = None) -> bool:
+        """Mark an obstacle encounter as resolved"""
+        if self.mock_mode:
+            if hasattr(self, 'mock_obstacle_encounters'):
+                for encounter in self.mock_obstacle_encounters:
+                    if encounter['id'] == encounter_id:
+                        encounter['resolved_at'] = datetime.now().isoformat()
+                        encounter['was_overcome'] = was_overcome
+                        if resolution_data:
+                            encounter.update(resolution_data)
+                        return True
+            return False
+        
+        try:
+            update_data = {
+                'resolved_at': datetime.now().isoformat(),
+                'was_overcome': was_overcome
+            }
+            if resolution_data:
+                update_data.update(resolution_data)
+            
+            response = self.client.table("obstacle_encounters")\
+                .update(update_data)\
+                .eq("id", encounter_id)\
+                .execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error resolving obstacle encounter: {e}")
+            return False
+    
+    def save_journey_achievement(self, user_id: str, achievement_data: Dict[str, Any]) -> bool:
+        """Save a journey achievement to the database"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_journey_achievements'):
+                self.mock_journey_achievements = []
+            
+            achievement = {
+                'id': len(self.mock_journey_achievements) + 1,
+                'user_id': user_id,
+                'created_at': datetime.now().isoformat(),
+                **achievement_data
+            }
+            self.mock_journey_achievements.append(achievement)
+            return True
+        
+        try:
+            achievement_record = {
+                'user_id': user_id,
+                'created_at': datetime.now().isoformat(),
+                **achievement_data
+            }
+            
+            response = self.client.table("journey_achievements").insert(achievement_record).execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error saving journey achievement: {e}")
+            return False
+    
+    def check_journey_achievement_unlocked(self, user_id: str, achievement_type: str) -> bool:
+        """Check if a user has already unlocked a specific journey achievement"""
+        if self.mock_mode:
+            if hasattr(self, 'mock_journey_achievements'):
+                return any(
+                    a['user_id'] == user_id and a.get('achievement_type') == achievement_type 
+                    for a in self.mock_journey_achievements
+                )
+            return False
+        
+        try:
+            response = self.client.table("journey_achievements")\
+                .select("id")\
+                .eq("user_id", user_id)\
+                .eq("achievement_type", achievement_type)\
+                .execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error checking journey achievement: {e}")
+            return False
+    
+    def get_obstacle_encounter_stats(self, user_id: str) -> Dict[str, Any]:
+        """Get detailed obstacle encounter statistics for journey achievements"""
+        if self.mock_mode:
+            if hasattr(self, 'mock_obstacle_encounters'):
+                user_encounters = [e for e in self.mock_obstacle_encounters if e['user_id'] == user_id]
+                overcome_encounters = [e for e in user_encounters if e.get('was_overcome', False)]
                 
-            except Exception as fallback_error:
-                print(f"[ERROR] Fallback calculation also failed: {fallback_error}")
-                import traceback
-                traceback.print_exc()
-                
-                # Final fallback: return safe default values
-                print(f"[WARNING] All calculation methods failed, returning safe defaults")
-                return self._get_safe_default_stats()
+                # Calculate stats by obstacle type
+                stats = {
+                    'total_obstacles_encountered': len(user_encounters),
+                    'total_obstacles_overcome': len(overcome_encounters),
+                    'distraction_detours_overcome': len([e for e in overcome_encounters if e['obstacle_type'] == 'distraction_detour']),
+                    'energy_valleys_overcome': len([e for e in overcome_encounters if e['obstacle_type'] == 'energy_drain_valley']),
+                    'maze_mountains_overcome': len([e for e in overcome_encounters if e['obstacle_type'] == 'maze_mountain']),
+                    'memory_fogs_overcome': len([e for e in overcome_encounters if e['obstacle_type'] == 'memory_fog']),
+                    'current_success_streak': 0,  # Would need more complex calculation
+                    'longest_success_streak': 0,
+                    'journey_level': min(len(overcome_encounters) // 5 + 1, 100),
+                    'journey_experience': len(overcome_encounters) * 10
+                }
+                return stats
+            return self._get_default_obstacle_stats()
+        
+        try:
+            # Get all encounters for user
+            encounters_response = self.client.table("obstacle_encounters")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("encountered_at", desc=False)\
+                .execute()
+            
+            encounters = encounters_response.data
+            overcome_encounters = [e for e in encounters if e.get('was_overcome', False)]
+            
+            # Calculate stats by obstacle type
+            stats = {
+                'total_obstacles_encountered': len(encounters),
+                'total_obstacles_overcome': len(overcome_encounters),
+                'distraction_detours_overcome': len([e for e in overcome_encounters if e['obstacle_type'] == 'distraction_detour']),
+                'energy_valleys_overcome': len([e for e in overcome_encounters if e['obstacle_type'] == 'energy_drain_valley']),
+                'maze_mountains_overcome': len([e for e in overcome_encounters if e['obstacle_type'] == 'maze_mountain']),
+                'memory_fogs_overcome': len([e for e in overcome_encounters if e['obstacle_type'] == 'memory_fog']),
+                'current_success_streak': self._calculate_current_streak(encounters),
+                'longest_success_streak': self._calculate_longest_streak(encounters),
+                'journey_level': min(len(overcome_encounters) // 5 + 1, 100),
+                'journey_experience': len(overcome_encounters) * 10
+            }
+            return stats
+        except Exception as e:
+            print(f"Error getting obstacle encounter stats: {e}")
+            return self._get_default_obstacle_stats()
+    
+    def _get_default_obstacle_stats(self) -> Dict[str, Any]:
+        """Return default obstacle stats structure"""
+        return {
+            'total_obstacles_encountered': 0,
+            'total_obstacles_overcome': 0,
+            'distraction_detours_overcome': 0,
+            'energy_valleys_overcome': 0,
+            'maze_mountains_overcome': 0,
+            'memory_fogs_overcome': 0,
+            'current_success_streak': 0,
+            'longest_success_streak': 0,
+            'journey_level': 1,
+            'journey_experience': 0
+        }
+    
+    def _calculate_current_streak(self, encounters: List[Dict]) -> int:
+        """Calculate current success streak from most recent encounters"""
+        if not encounters:
+            return 0
+        
+        # Sort by date descending (most recent first)
+        sorted_encounters = sorted(encounters, key=lambda x: x['encountered_at'], reverse=True)
+        
+        streak = 0
+        for encounter in sorted_encounters:
+            if encounter.get('was_overcome', False):
+                streak += 1
+            else:
+                break
+        
+        return streak
+    
+    def _calculate_longest_streak(self, encounters: List[Dict]) -> int:
+        """Calculate longest success streak from all encounters"""
+        if not encounters:
+            return 0
+        
+        # Sort by date ascending (oldest first)
+        sorted_encounters = sorted(encounters, key=lambda x: x['encountered_at'])
+        
+        longest_streak = 0
+        current_streak = 0
+        
+        for encounter in sorted_encounters:
+            if encounter.get('was_overcome', False):
+                current_streak += 1
+                longest_streak = max(longest_streak, current_streak)
+            else:
+                current_streak = 0
+        
+        return longest_streak
+                    
 
     def _get_safe_default_stats(self) -> Dict[str, Any]:
         """Return safe default statistics when all other methods fail"""

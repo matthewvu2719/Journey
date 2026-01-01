@@ -14,7 +14,8 @@ from models import (
     UserAvailability, UserAvailabilityCreate,
     ChatMessage, ChatResponse, AnalyticsResponse,
     DailyCapacity, DailyCapacityCreate, DailyCapacityUpdate, DailyCapacityBulkUpdate, DayOfWeek,
-    FrictionHelpRequest, FrictionHelpResponse, FrictionSession, FrictionType
+    FrictionHelpRequest, FrictionHelpResponse, FrictionSession, FrictionType,
+    HabitBreakdownRequest, HabitBreakdownResponse, HabitBreakdownRollback
 )
 from database import SupabaseClient
 from ml_engine import MLEngine
@@ -395,6 +396,149 @@ async def delete_habit(habit_id: int, user_id: str = Depends(get_user_id_optiona
         
         success = db.delete_habit(habit_id)
         return {"message": "Habit deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# HABIT BREAKDOWN ENDPOINTS
+# ============================================================================
+
+@app.post("/api/habits/{habit_id}/breakdown", response_model=HabitBreakdownResponse)
+async def create_habit_breakdown(
+    habit_id: int,
+    request: HabitBreakdownRequest,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Break down a habit into subtasks"""
+    try:
+        # Verify habit exists and user owns it
+        existing = db.get_habit(habit_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        if existing.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        # Check if habit is already a subtask
+        if existing.get("is_subtask"):
+            raise HTTPException(status_code=400, detail="Cannot break down a subtask")
+        
+        # Create breakdown
+        breakdown = db.create_habit_breakdown(
+            habit_id=habit_id,
+            subtasks=request.subtasks,
+            user_id=user_id,
+            preserve_original=request.preserve_original
+        )
+        
+        return breakdown
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/habits/{habit_id}/subtasks")
+async def get_habit_subtasks(
+    habit_id: int,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get all subtasks for a habit"""
+    try:
+        # Verify habit exists and user owns it
+        existing = db.get_habit(habit_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        if existing.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        subtasks = db.get_habit_subtasks(habit_id)
+        return {"habit_id": habit_id, "subtasks": subtasks}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/habits/{habit_id}/with-subtasks")
+async def get_habit_with_subtasks(
+    habit_id: int,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get a habit with its subtasks"""
+    try:
+        # Verify habit exists and user owns it
+        existing = db.get_habit(habit_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        if existing.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        habit_with_subtasks = db.get_habit_with_subtasks(habit_id)
+        return habit_with_subtasks
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/breakdowns/{breakdown_session_id}")
+async def get_habit_breakdown(
+    breakdown_session_id: str,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get breakdown information by session ID"""
+    try:
+        breakdown = db.get_habit_breakdown(breakdown_session_id)
+        if not breakdown:
+            raise HTTPException(status_code=404, detail="Breakdown session not found")
+        
+        # Verify user owns the original habit
+        original_habit = db.get_habit(breakdown["original_habit_id"])
+        if not original_habit or original_habit.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        return breakdown
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/breakdowns/{breakdown_session_id}/rollback")
+async def rollback_habit_breakdown(
+    breakdown_session_id: str,
+    request: HabitBreakdownRollback,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Rollback a habit breakdown"""
+    try:
+        # Verify breakdown exists and user owns it
+        breakdown = db.get_habit_breakdown(breakdown_session_id)
+        if not breakdown:
+            raise HTTPException(status_code=404, detail="Breakdown session not found")
+        
+        original_habit = db.get_habit(breakdown["original_habit_id"])
+        if not original_habit or original_habit.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        # Perform rollback
+        success = db.rollback_habit_breakdown(
+            breakdown_session_id=breakdown_session_id,
+            restore_original=request.restore_original
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to rollback breakdown")
+        
+        return {"message": "Breakdown rolled back successfully", "breakdown_session_id": breakdown_session_id}
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -2020,6 +2164,168 @@ async def check_achievement_claimed(
         return {"claimed": claimed}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to check claimed status: {str(e)}")
+
+
+# ============================================================================
+# JOURNEY ACHIEVEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/journey/achievements/check")
+async def check_journey_achievements(
+    obstacle_type: Optional[str] = None,
+    user_id: str = Depends(get_user_id)
+):
+    """
+    Check for newly unlocked journey achievements after obstacle encounters
+    
+    Args:
+        obstacle_type: Type of obstacle overcome (optional)
+        
+    Returns:
+        List of newly unlocked journey achievements with rewards
+    """
+    try:
+        from achievement_engine import AchievementEngine
+        achievement_engine = AchievementEngine(db)
+        
+        unlocked_achievements = achievement_engine.check_journey_achievements(user_id, obstacle_type)
+        
+        return {
+            "unlocked_achievements": unlocked_achievements,
+            "count": len(unlocked_achievements)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to check journey achievements: {str(e)}")
+
+
+@app.get("/api/journey/achievements")
+async def get_user_journey_achievements(user_id: str = Depends(get_user_id)):
+    """
+    Get all journey achievements unlocked by the user
+    
+    Returns:
+        List of journey achievements with rewards and unlock dates
+    """
+    try:
+        achievements = db.get_user_journey_achievements(user_id)
+        return {
+            "achievements": achievements,
+            "total_count": len(achievements)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get journey achievements: {str(e)}")
+
+
+@app.get("/api/journey/progress")
+async def get_journey_progress(user_id: str = Depends(get_user_id)):
+    """
+    Get user's journey progress including obstacle stats and achievement progress
+    
+    Returns:
+        Comprehensive journey progress data
+    """
+    try:
+        # Get obstacle statistics
+        obstacle_stats = db.get_obstacle_encounter_stats(user_id)
+        
+        # Get journey achievements
+        achievements = db.get_user_journey_achievements(user_id)
+        
+        # Calculate progress towards next achievements
+        progress_data = {
+            "obstacle_stats": obstacle_stats,
+            "achievements_unlocked": len(achievements),
+            "journey_level": obstacle_stats.get('journey_level', 1),
+            "journey_experience": obstacle_stats.get('journey_experience', 0),
+            "progress_to_next_level": (obstacle_stats.get('journey_experience', 0) % 50) / 50 * 100,
+            "achievement_progress": {
+                "navigator_unlocked": any(a.get('achievement_type') == 'obstacle_navigator' for a in achievements),
+                "distraction_master_progress": f"{obstacle_stats.get('distraction_detours_overcome', 0)}/5",
+                "energy_warrior_progress": f"{obstacle_stats.get('energy_valleys_overcome', 0)}/5",
+                "maze_solver_progress": f"{obstacle_stats.get('maze_mountains_overcome', 0)}/5",
+                "memory_keeper_progress": f"{obstacle_stats.get('memory_fogs_overcome', 0)}/5",
+                "champion_progress": f"{obstacle_stats.get('total_obstacles_overcome', 0)}/25",
+                "legend_progress": f"{obstacle_stats.get('current_success_streak', 0)}/30"
+            }
+        }
+        
+        return progress_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get journey progress: {str(e)}")
+
+
+@app.post("/api/journey/obstacle/encounter")
+async def record_obstacle_encounter(
+    obstacle_data: dict,
+    user_id: str = Depends(get_user_id)
+):
+    """
+    Record a new obstacle encounter
+    
+    Args:
+        obstacle_data: Dictionary containing obstacle type and encounter details
+        
+    Returns:
+        Success status and encounter ID
+    """
+    try:
+        obstacle_type = obstacle_data.get('obstacle_type')
+        if not obstacle_type:
+            raise HTTPException(status_code=400, detail="obstacle_type is required")
+        
+        # Record the encounter
+        success = db.record_obstacle_encounter(user_id, obstacle_type, obstacle_data)
+        
+        if success:
+            return {"success": True, "message": "Obstacle encounter recorded"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to record obstacle encounter")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to record obstacle encounter: {str(e)}")
+
+
+@app.post("/api/journey/obstacle/resolve/{encounter_id}")
+async def resolve_obstacle_encounter(
+    encounter_id: int,
+    resolution_data: dict,
+    user_id: str = Depends(get_user_id)
+):
+    """
+    Resolve an obstacle encounter (mark as overcome or not)
+    
+    Args:
+        encounter_id: ID of the encounter to resolve
+        resolution_data: Dictionary containing was_overcome and other resolution details
+        
+    Returns:
+        Success status and any newly unlocked achievements
+    """
+    try:
+        was_overcome = resolution_data.get('was_overcome', False)
+        
+        # Resolve the encounter
+        success = db.resolve_obstacle_encounter(encounter_id, was_overcome, resolution_data)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to resolve obstacle encounter")
+        
+        # Check for journey achievements if obstacle was overcome
+        unlocked_achievements = []
+        if was_overcome:
+            obstacle_type = resolution_data.get('obstacle_type')
+            if obstacle_type:
+                from achievement_engine import AchievementEngine
+                achievement_engine = AchievementEngine(db)
+                unlocked_achievements = achievement_engine.check_journey_achievements(user_id, obstacle_type)
+        
+        return {
+            "success": True,
+            "message": "Obstacle encounter resolved",
+            "unlocked_achievements": unlocked_achievements,
+            "achievement_count": len(unlocked_achievements)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to resolve obstacle encounter: {str(e)}")
 
 
 # ============================================================================

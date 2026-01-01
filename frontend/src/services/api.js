@@ -377,6 +377,36 @@ export const api = {
   },
 
   // ============================================================================
+  // JOURNEY ACHIEVEMENTS
+  // ============================================================================
+
+  checkJourneyAchievements: async (obstacleType = null) => {
+    const params = obstacleType ? { obstacle_type: obstacleType } : {}
+    const { data } = await client.post('/api/journey/achievements/check', null, { params })
+    return data
+  },
+
+  getJourneyAchievements: async () => {
+    const { data } = await client.get('/api/journey/achievements')
+    return data
+  },
+
+  getJourneyProgress: async () => {
+    const { data } = await client.get('/api/journey/progress')
+    return data
+  },
+
+  recordObstacleEncounter: async (obstacleData) => {
+    const { data } = await client.post('/api/journey/obstacle/encounter', obstacleData)
+    return data
+  },
+
+  resolveObstacleEncounter: async (encounterId, resolutionData) => {
+    const { data } = await client.post(`/api/journey/obstacle/resolve/${encounterId}`, resolutionData)
+    return data
+  },
+
+  // ============================================================================
   // TESTING
   // ============================================================================
   
@@ -417,6 +447,63 @@ export const api = {
 
   calculateDailySuccessRate: async (date) => {
     const { data } = await client.post(`/api/success-rates/calculate/${date}`)
+    return data
+  },
+
+  // ============================================================================
+  // FRICTION HELPER
+  // ============================================================================
+  
+  getFrictionHelp: async (habitId, request) => {
+    const { data } = await client.post(`/api/habits/${habitId}/friction-help`, request)
+    return data
+  },
+
+  updateFrictionFeedback: async (sessionId, actionTaken, wasHelpful) => {
+    const { data } = await client.post(`/api/friction-sessions/${sessionId}/feedback`, {
+      action_taken: actionTaken,
+      was_helpful: wasHelpful
+    })
+    return data
+  },
+
+  getUserEnergyPatterns: async () => {
+    const { data } = await client.get('/api/users/energy-patterns')
+    return data
+  },
+
+  // ============================================================================
+  // HABIT BREAKDOWN
+  // ============================================================================
+  
+  createHabitBreakdown: async (habitId, subtasks, preserveOriginal = false) => {
+    const { data } = await client.post(`/api/habits/${habitId}/breakdown`, {
+      subtasks: subtasks,
+      preserve_original: preserveOriginal
+    })
+    return data
+  },
+
+  getHabitSubtasks: async (habitId) => {
+    const { data } = await client.get(`/api/habits/${habitId}/subtasks`)
+    return data
+  },
+
+  getHabitWithSubtasks: async (habitId) => {
+    const { data } = await client.get(`/api/habits/${habitId}/with-subtasks`)
+    return data
+  },
+
+  getHabitBreakdown: async (breakdownSessionId) => {
+    const { data } = await client.get(`/api/breakdowns/${breakdownSessionId}`)
+    return data
+  },
+
+  rollbackHabitBreakdown: async (breakdownSessionId, restoreOriginal = true) => {
+    const { data } = await client.post(`/api/breakdowns/${breakdownSessionId}/rollback`, {
+      breakdown_session_id: breakdownSessionId,
+      restore_original: restoreOriginal
+    })
     return data
   }
 }
