@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import RobotMascot from './RobotMascot'
 import BoboAnimations from './BoboAnimations'
 import HabitDetailsView from './HabitDetailsView'
 import FrictionTypeSelector from './FrictionTypeSelector'
@@ -8,6 +7,19 @@ import FrictionActionHandler from './FrictionActionHandler'
 import AchievementNotification from './AchievementNotification'
 import { useBobo } from '../contexts/BoboContext'
 import { api } from '../services/api'
+
+// Speech Bubble Component for Bobo dialogue
+const SpeechBubble = ({ children, typing = false }) => (
+  <div className="relative bg-light/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-light/20 max-w-md">
+    <div className={`text-light ${typing ? 'typing-animation' : ''}`}>
+      {children}
+    </div>
+    {/* Speech bubble tail */}
+    <div className="absolute bottom-0 left-8 transform translate-y-full">
+      <div className="w-0 h-0 border-l-[12px] border-r-[12px] border-t-[12px] border-l-transparent border-r-transparent border-t-light/10"></div>
+    </div>
+  </div>
+)
 
 export default function HabitDetailModal({
   habit,
@@ -23,6 +35,7 @@ export default function HabitDetailModal({
   const [modalState, setModalState] = useState('details')
   const [boboAnimation, setBoboAnimation] = useState('slide-in')
   const [showBobo, setShowBobo] = useState(false)
+  const [showWelcomeDialogue, setShowWelcomeDialogue] = useState(false)
   const [selectedFrictionType, setSelectedFrictionType] = useState(null)
   const [selectedSolution, setSelectedSolution] = useState(null)
   const [journeyAchievement, setJourneyAchievement] = useState(null)
@@ -31,6 +44,7 @@ export default function HabitDetailModal({
     if (isVisible && habit) {
       setModalState('details')
       setShowBobo(false)
+      setShowWelcomeDialogue(true) // Show dialogue immediately when modal opens
 
       setTimeout(() => {
         setBoboAnimation('slide-in')
@@ -104,17 +118,30 @@ export default function HabitDetailModal({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <HabitDetailsView habit={habit} timeOfDay={timeOfDay} logs={logs} />
 
-                <div className="flex flex-col items-center justify-center">
+                <div className="flex flex-col items-center justify-center space-y-4">
                   {showBobo && (
-                    <BoboAnimations
-                      size="lg"
-                      context={boboAnimation}
-                      particleTrail
-                      glowEffect
-                      color={equippedItems.color?.svg_data}
-                      hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
-                      costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
-                    />
+                    <>
+                      <BoboAnimations
+                        size="lg"
+                        context={boboAnimation}
+                        particleTrail
+                        glowEffect
+                        color={equippedItems.color?.svg_data}
+                        hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+                        costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
+                      />
+                      
+                      {/* Welcome Dialogue */}
+                      {showWelcomeDialogue && (
+                        <div className="animate-fade-in">
+                          <SpeechBubble typing={true}>
+                            <p className="text-sm font-medium">
+                              I'm always here if you need help with <span className="font-bold text-purple-300">{habit.name}</span>! 🤖
+                            </p>
+                          </SpeechBubble>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -206,8 +233,13 @@ export default function HabitDetailModal({
           from { opacity: 0; transform: scale(0.95); }
           to { opacity: 1; transform: scale(1); }
         }
+        @keyframes typing {
+          from { opacity: 0.5; }
+          to { opacity: 1; }
+        }
         .animate-fade-in { animation: fadeIn 0.2s ease-out; }
         .animate-scale-in { animation: scaleIn 0.3s ease-out; }
+        .typing-animation { animation: typing 1s ease-in-out infinite alternate; }
       `}</style>
     </>
   )

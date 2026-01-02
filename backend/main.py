@@ -1338,6 +1338,174 @@ async def get_reschedule_suggestion(
         raise HTTPException(status_code=500, detail="Failed to get reschedule suggestion")
 
 
+@app.put("/api/habits/{habit_id}/reschedule")
+async def reschedule_habit(
+    habit_id: int,
+    reschedule_data: dict,
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Reschedule a habit to a new time slot"""
+    try:
+        user_id = current_user_id if current_user_id else "default_user"
+        
+        # Get the habit to verify ownership
+        habit = db.get_habit(habit_id, user_id)
+        if not habit:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        
+        # Extract reschedule parameters
+        new_time = reschedule_data.get("new_time")
+        new_days = reschedule_data.get("new_days", [])
+        reason = reschedule_data.get("reason", "User requested")
+        
+        # Update habit schedule
+        success = db.update_habit_schedule(
+            habit_id=habit_id,
+            user_id=user_id,
+            new_time=new_time,
+            new_days=new_days,
+            reason=reason
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to reschedule habit")
+        
+        # Get updated habit
+        updated_habit = db.get_habit(habit_id, user_id)
+        
+        return {
+            "success": True,
+            "message": f"Habit rescheduled successfully",
+            "new_schedule": {
+                "time": new_time,
+                "days": new_days,
+                "reason": reason
+            },
+            "habit": updated_habit
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error rescheduling habit: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to reschedule habit")
+
+
+@app.put("/api/users/{user_id}/preferences")
+async def update_user_preferences(
+    user_id: str,
+    preferences: dict,
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Update user scheduling preferences"""
+    try:
+        # Ensure user can only update their own preferences
+        if current_user_id and current_user_id != user_id:
+            raise HTTPException(status_code=403, detail="Cannot update other user's preferences")
+        
+        query_user_id = current_user_id if current_user_id else user_id
+        
+        # Update preferences in database
+        success = db.update_user_preferences(query_user_id, preferences)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update preferences")
+        
+        return {
+            "success": True,
+            "message": "Preferences updated successfully",
+            "preferences": preferences
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating user preferences: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to update preferences")
+
+
+@app.get("/api/users/{user_id}/optimal-schedule")
+async def get_optimal_schedule(
+    user_id: str,
+    include_conflicts: bool = True,
+    current_user_id: str = Depends(get_user_id_optional)
+):
+    """Get optimal schedule with conflict resolution"""
+    try:
+        # Ensure user can only access their own data
+        if current_user_id and current_user_id != user_id:
+            raise HTTPException(status_code=403, detail="Cannot access other user's data")
+        
+        query_user_id = current_user_id if current_user_id else user_id
+        
+        # Get user data
+        habits = db.get_habits(query_user_id)
+        completion_logs = db.get_completions(user_id=query_user_id, limit=100)
+        
+        # Get energy patterns
+        ml_engine = MLEngine()
+        energy_analysis = ml_engine.analyze_energy_patterns(
+            user_id=query_user_id,
+            completion_logs=completion_logs
+        )
+        
+        # Generate optimal schedule
+        schedule_optimization = ml_engine.generate_optimal_schedule(
+            habits=habits,
+            energy_patterns=energy_analysis
+        )
+        
+        # Detect conflicts if requested
+        conflicts = []
+        if include_conflicts:
+            schedule_recommendations = schedule_optimization.get("schedule", [])
+            conflicts = detect_schedule_conflicts(schedule_recommendations)
+        
+        return {
+            "user_id": query_user_id,
+            "schedule_optimization": schedule_optimization,
+            "conflicts": conflicts,
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting optimal schedule: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to get optimal schedule")
+
+
+def detect_schedule_conflicts(schedule_recommendations):
+    """Helper function to detect scheduling conflicts"""
+    conflicts = []
+    time_slots = {}
+    
+    # Group habits by time slot
+    for rec in schedule_recommendations:
+        time_key = f"{rec.get('recommended_time', 'flexible')}"
+        if time_key not in time_slots:
+            time_slots[time_key] = []
+        time_slots[time_key].append(rec)
+    
+    # Find conflicts (multiple habits at same time)
+    for time_slot, habits_at_time in time_slots.items():
+        if len(habits_at_time) > 1:
+            conflicts.append({
+                "time_slot": time_slot,
+                "conflicting_habits": [h["habit_name"] for h in habits_at_time],
+                "habit_count": len(habits_at_time),
+                "resolution_needed": True
+            })
+    
+    return conflicts
+
+
 # ============================================================================
 # JOURNEY OBSTACLE TRACKING ENDPOINTS
 # ============================================================================

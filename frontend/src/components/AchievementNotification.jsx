@@ -99,6 +99,112 @@ export default function AchievementNotification({ achievement, onClose }) {
             </p>
           </div>
         )
+
+      // Journey Achievement Reward Types
+      case 'journey_badge':
+        return (
+          <div className="text-center">
+            <div className="text-4xl mb-3">{achievement.reward.icon}</div>
+            <p className="text-lg font-bold mb-2">
+              {achievement.reward.name}
+            </p>
+            <p className="text-sm opacity-70">
+              {achievement.reward.description}
+            </p>
+          </div>
+        )
+
+      case 'special_hat':
+        return (
+          <div className="text-center">
+            <div className="text-4xl mb-3">{achievement.reward.icon}</div>
+            <p className="text-lg font-bold mb-2">
+              {achievement.reward.name}
+            </p>
+            <p className="text-sm opacity-70">
+              {achievement.reward.description}
+            </p>
+          </div>
+        )
+
+      case 'special_costume':
+        return (
+          <div className="text-center">
+            <div className="text-4xl mb-3">{achievement.reward.icon}</div>
+            <p className="text-lg font-bold mb-2">
+              {achievement.reward.name}
+            </p>
+            <p className="text-sm opacity-70">
+              {achievement.reward.description}
+            </p>
+          </div>
+        )
+
+      case 'special_color':
+        return (
+          <div className="text-center">
+            <div className="text-4xl mb-3">🎨</div>
+            <p className="text-lg font-bold mb-2">
+              {achievement.reward.name}
+            </p>
+            <p className="text-sm opacity-70">
+              {achievement.reward.description}
+            </p>
+            <div 
+              className="w-12 h-12 rounded-full mx-auto mt-2 border-2 border-white/20"
+              style={{ backgroundColor: achievement.reward.hex }}
+            />
+          </div>
+        )
+
+      case 'special_dance':
+        return (
+          <div className="text-center">
+            <div className="text-4xl mb-3">💃</div>
+            <p className="text-lg font-bold mb-2">
+              {achievement.reward.name}
+            </p>
+            <p className="text-sm opacity-70">
+              {achievement.reward.description}
+            </p>
+          </div>
+        )
+
+      case 'champion_theme':
+        return (
+          <div className="text-center">
+            <div className="text-4xl mb-3">👑</div>
+            <p className="text-lg font-bold mb-2">
+              {achievement.reward.name}
+            </p>
+            <p className="text-sm opacity-70 mb-2">
+              {achievement.reward.description}
+            </p>
+            <div className="flex justify-center gap-2 mt-2">
+              {achievement.reward.effects?.map((effect, index) => (
+                <span key={index} className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">
+                  ✨ {effect}
+                </span>
+              ))}
+            </div>
+          </div>
+        )
+
+      case 'legend_title':
+        return (
+          <div className="text-center">
+            <div className="text-4xl mb-3">⭐</div>
+            <p className="text-lg font-bold mb-2">
+              {achievement.reward.name}
+            </p>
+            <p className="text-sm opacity-70 mb-2">
+              {achievement.reward.description}
+            </p>
+            <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black px-4 py-2 rounded-full font-bold text-sm">
+              "{achievement.reward.title_text}"
+            </div>
+          </div>
+        )
       
       default:
         return null
@@ -115,6 +221,21 @@ export default function AchievementNotification({ achievement, onClose }) {
         return '🏆'
       case 'monthly_perfect':
         return '👑'
+      // Journey Achievement Types
+      case 'obstacle_navigator':
+        return '🧭'
+      case 'distraction_master':
+        return '🎯'
+      case 'energy_warrior':
+        return '⚡'
+      case 'maze_solver':
+        return '🧩'
+      case 'memory_keeper':
+        return '🧠'
+      case 'journey_champion':
+        return '👑'
+      case 'persistence_legend':
+        return '⭐'
       default:
         return '🎉'
     }
@@ -211,6 +332,32 @@ export default function AchievementNotification({ achievement, onClose }) {
           >
             {achievement.message}
           </p>
+
+          {/* Bobo's Special Message for Journey Achievements */}
+          {achievement.bobo_message && (
+            <div 
+              className="mt-4 p-4 rounded-2xl border-2 border-dashed"
+              style={{
+                backgroundColor: 'var(--color-accent)/10',
+                borderColor: 'var(--color-accent)/30'
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">🤖</div>
+                <div>
+                  <p className="text-sm font-semibold text-[var(--color-accent)] mb-1">
+                    Bobo says:
+                  </p>
+                  <p 
+                    className="text-sm italic"
+                    style={{ color: 'var(--color-foreground)' }}
+                  >
+                    {achievement.bobo_message}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Continue Button */}
           <button

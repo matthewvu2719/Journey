@@ -472,6 +472,26 @@ export const api = {
     return data
   },
 
+  getEnergyPatterns: async (userId) => {
+    const { data } = await client.get(`/api/users/${userId}/energy-patterns`)
+    return data
+  },
+
+  rescheduleHabit: async (habitId, scheduleData) => {
+    const { data } = await client.put(`/api/habits/${habitId}/reschedule`, scheduleData)
+    return data
+  },
+
+  updateUserPreferences: async (userId, preferences) => {
+    const { data } = await client.put(`/api/users/${userId}/preferences`, preferences)
+    return data
+  },
+
+  getOptimalSchedule: async (userId, options = {}) => {
+    const { data } = await client.get(`/api/users/${userId}/optimal-schedule`, { params: options })
+    return data
+  },
+
   // ============================================================================
   // HABIT BREAKDOWN
   // ============================================================================

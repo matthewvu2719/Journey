@@ -467,9 +467,28 @@ ADDITIONAL CONTEXT: {additional_context or 'None provided'}
 
 Your job is to provide 3-4 specific, actionable solutions to overcome distractions. Use simple, encouraging language like a helpful kid would!
 
+IMPORTANT POMODORO DECISION: 
+First, analyze if the Pomodoro technique would be helpful for this habit. Pomodoro works best for:
+- Studying, reading, learning activities
+- Writing, journaling, planning
+- Coding, programming, computer work
+- Research, analysis tasks
+- Creative work requiring focus
+- Any task that requires sustained mental concentration
+
+Pomodoro is NOT suitable for:
+- Physical exercise, workouts, sports
+- Meditation, mindfulness practices
+- Social activities, calls, meetings
+- Quick habits under 10 minutes
+- Routine tasks like brushing teeth, making bed
+- Activities that shouldn't be interrupted (cooking, driving)
+
 IMPORTANT: You MUST respond with valid JSON in exactly this format:
 {{
     "bobo_message": "Your encouraging message about overcoming distractions",
+    "pomodoro_suitable": true/false,
+    "pomodoro_reasoning": "Brief explanation of why pomodoro is or isn't suitable for this habit",
     "solutions": [
         {{
             "title": "Solution title",
@@ -481,19 +500,24 @@ IMPORTANT: You MUST respond with valid JSON in exactly this format:
         {{
             "title": "Another solution title", 
             "description": "Another solution",
-            "action_type": "pomodoro",
-            "action_data": {{"duration": 25}},
+            "action_type": "technology",
+            "action_data": {{"app_suggestion": "specific app or tool"}},
             "confidence_score": 0.9
         }}
     ],
     "recommended_actions": ["action1", "action2"]
 }}
 
-Include these types of solutions:
-- Environment modifications (remove distractions) - action_type: "environment"
-- Technology solutions (apps, timers, phone settings) - action_type: "technology"
-- Mindset techniques (focus tricks) - action_type: "mindset"
-- Suggest a focused pomodoro session if appropriate - action_type: "pomodoro"
+SOLUTION TYPES TO INCLUDE:
+1. Environment modifications (remove distractions) - action_type: "environment"
+2. Technology solutions (apps, timers, phone settings) - action_type: "technology"  
+3. Mindset techniques (focus tricks) - action_type: "mindset"
+4. ONLY if pomodoro_suitable is true: Add a focused pomodoro session - action_type: "pomodoro"
+
+If pomodoro is suitable, include it as one of your solutions with:
+- action_type: "pomodoro"
+- action_data: {{"duration": 25, "break_duration": 5, "cycles": 2}}
+- Explain how pomodoro helps with this specific habit
 
 Keep responses encouraging and use adventure/journey metaphors about overcoming obstacles. Make it sound fun and achievable!
 """,
@@ -637,6 +661,23 @@ Use journey metaphors about navigation markers and trail signs.
                         cleaned_response = json_match.group(1)
                 
                 parsed_response = json.loads(cleaned_response)
+                
+                # Log Pomodoro decision for distraction obstacles
+                if friction_type == 'distraction':
+                    pomodoro_suitable = parsed_response.get("pomodoro_suitable", False)
+                    pomodoro_reasoning = parsed_response.get("pomodoro_reasoning", "No reasoning provided")
+                    print(f"🍅 Pomodoro Decision for '{habit['name']}': {pomodoro_suitable}")
+                    print(f"   Reasoning: {pomodoro_reasoning}")
+                    
+                    # Validate that pomodoro solution is only included if suitable
+                    solutions = parsed_response.get("solutions", [])
+                    pomodoro_solutions = [s for s in solutions if s.get("action_type") == "pomodoro"]
+                    
+                    if pomodoro_solutions and not pomodoro_suitable:
+                        print("⚠️  Warning: Pomodoro solution included but marked as not suitable - removing it")
+                        parsed_response["solutions"] = [s for s in solutions if s.get("action_type") != "pomodoro"]
+                    elif not pomodoro_solutions and pomodoro_suitable:
+                        print("ℹ️  Note: Pomodoro marked as suitable but no pomodoro solution provided")
                 
                 # Add the journey-themed greeting
                 parsed_response["bobo_message"] = obstacle["bobo_greeting"] + " " + parsed_response.get("bobo_message", "")

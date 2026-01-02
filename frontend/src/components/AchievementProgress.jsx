@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { CircularProgress } from './ui/CircularProgress'
 import { api } from '../services/api'
 import AchievementNotification from './AchievementNotification'
+import JourneyAchievementProgress from './JourneyAchievementProgress'
 
 export default function AchievementProgress() {
   const [progress, setProgress] = useState(null)
@@ -17,6 +18,18 @@ export default function AchievementProgress() {
   useEffect(() => {
     loadProgress()
     loadClaimedStatus()
+
+    // Listen for journey achievement unlocks to refresh progress
+    const handleJourneyAchievement = () => {
+      loadProgress()
+      loadClaimedStatus()
+    }
+
+    window.addEventListener('journeyAchievementUnlocked', handleJourneyAchievement)
+    
+    return () => {
+      window.removeEventListener('journeyAchievementUnlocked', handleJourneyAchievement)
+    }
   }, [])
 
   const loadProgress = async () => {
@@ -284,6 +297,11 @@ export default function AchievementProgress() {
               <div className="text-xs text-light/60">Total Completions</div>
             </div>
           </div>
+        </div>
+
+        {/* Journey Achievements Section */}
+        <div className="mt-8">
+          <JourneyAchievementProgress />
         </div>
       </div>
     </>

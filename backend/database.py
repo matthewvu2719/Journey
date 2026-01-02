@@ -231,6 +231,48 @@ class SupabaseClient:
         response = self.client.table("habits").update(habit_data).eq("id", habit_id).execute()
         return response.data[0] if response.data else None
     
+    def update_habit_schedule(self, habit_id: int, user_id: str, new_time: str = None, new_days: List[int] = None, reason: str = "User requested") -> bool:
+        """Update habit scheduling information"""
+        try:
+            # Prepare update data
+            update_data = {}
+            
+            if new_time:
+                # Map time strings to time_of_day_id if needed
+                time_map = {"morning": 1, "noon": 2, "afternoon": 3, "night": 4}
+                if new_time.lower() in time_map:
+                    update_data["time_of_day_id"] = time_map[new_time.lower()]
+                else:
+                    # Assume it's a specific time like "07:00"
+                    update_data["preferred_time"] = new_time
+            
+            if new_days is not None:
+                # Convert day numbers to day names if needed
+                day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                if all(isinstance(day, int) and 0 <= day <= 6 for day in new_days):
+                    update_data["days_of_week"] = [day_names[day] for day in new_days]
+                else:
+                    update_data["days_of_week"] = new_days
+            
+            # Add metadata
+            update_data["last_modified"] = datetime.now().isoformat()
+            update_data["reschedule_reason"] = reason
+            
+            # Update the habit
+            if self.mock_mode:
+                for i, h in enumerate(self.mock_habits):
+                    if h["id"] == habit_id and h.get("user_id") == user_id:
+                        self.mock_habits[i] = {**h, **update_data}
+                        return True
+                return False
+            
+            response = self.client.table("habits").update(update_data).eq("id", habit_id).eq("user_id", user_id).execute()
+            return len(response.data) > 0
+            
+        except Exception as e:
+            print(f"Error updating habit schedule: {e}")
+            return False
+    
     def delete_habit(self, habit_id: int) -> bool:
         """Delete a habit"""
         if self.mock_mode:

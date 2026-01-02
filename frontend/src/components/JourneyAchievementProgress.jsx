@@ -33,6 +33,9 @@ export default function JourneyAchievementProgress() {
         
         // Refresh progress
         await loadJourneyProgress()
+        
+        // Dispatch event to refresh main achievement progress too
+        window.dispatchEvent(new CustomEvent('journeyAchievementUnlocked'))
       }
       
       return result
