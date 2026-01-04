@@ -2,68 +2,78 @@ import React, { useState } from 'react';
 import RobotMascot from './RobotMascot';
 import { api } from '../services/api';
 
+// Helper function to generate default subtasks based on habit
+function generateDefaultSubtasks(habit) {
+  // Generate smart default subtasks based on habit name and type
+  const habitName = habit.name.toLowerCase();
+  
+  if (habitName.includes('exercise') || habitName.includes('workout')) {
+    return [
+      'Put on workout clothes',
+      'Do 5-minute warm-up',
+      'Complete main exercise routine',
+      'Cool down and stretch'
+    ];
+  }
+  
+  if (habitName.includes('read') || habitName.includes('book')) {
+    return [
+      'Find a quiet reading spot',
+      'Open book to current page',
+      'Read for 10 minutes',
+      'Mark progress and close book'
+    ];
+  }
+  
+  if (habitName.includes('meditat')) {
+    return [
+      'Find comfortable sitting position',
+      'Set timer for meditation',
+      'Focus on breathing',
+      'Reflect on the session'
+    ];
+  }
+  
+  if (habitName.includes('write') || habitName.includes('journal')) {
+    return [
+      'Open journal or writing app',
+      'Write one paragraph',
+      'Review what you wrote',
+      'Save and close'
+    ];
+  }
+  
+  // Generic breakdown
+  return [
+    `Prepare for ${habit.name}`,
+    `Start ${habit.name} (5 minutes)`,
+    `Continue ${habit.name}`,
+    `Complete and review ${habit.name}`
+  ];
+}
+
 const HabitBreakdownConfirm = ({ 
   habit, 
   subtasks = [], 
   onComplete, 
   onCancel 
 }) => {
+  // Normalize subtasks - they can be strings or objects with title/name
+  const normalizeSubtasks = (tasks) => {
+    if (!tasks || tasks.length === 0) return generateDefaultSubtasks(habit);
+    return tasks.map(task => {
+      if (typeof task === 'string') return task;
+      return task.title || task.name || 'Step';
+    });
+  };
+
   const [editableSubtasks, setEditableSubtasks] = useState(
-    subtasks.length > 0 ? subtasks : generateDefaultSubtasks(habit)
+    normalizeSubtasks(subtasks)
   );
   const [newSubtask, setNewSubtask] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState(null);
-
-  function generateDefaultSubtasks(habit) {
-    // Generate smart default subtasks based on habit name and type
-    const habitName = habit.name.toLowerCase();
-    
-    if (habitName.includes('exercise') || habitName.includes('workout')) {
-      return [
-        'Put on workout clothes',
-        'Do 5-minute warm-up',
-        'Complete main exercise routine',
-        'Cool down and stretch'
-      ];
-    }
-    
-    if (habitName.includes('read') || habitName.includes('book')) {
-      return [
-        'Find a quiet reading spot',
-        'Open book to current page',
-        'Read for 10 minutes',
-        'Mark progress and close book'
-      ];
-    }
-    
-    if (habitName.includes('meditat')) {
-      return [
-        'Find comfortable sitting position',
-        'Set timer for meditation',
-        'Focus on breathing',
-        'Reflect on the session'
-      ];
-    }
-    
-    if (habitName.includes('write') || habitName.includes('journal')) {
-      return [
-        'Open journal or writing app',
-        'Write one paragraph',
-        'Review what you wrote',
-        'Save and close'
-      ];
-    }
-    
-    // Generic breakdown
-    return [
-      `Prepare for ${habit.name}`,
-      `Start ${habit.name} (5 minutes)`,
-      `Continue ${habit.name}`,
-      `Complete and review ${habit.name}`
-    ];
-  }
 
   const handleSubtaskEdit = (index, newValue) => {
     const updated = [...editableSubtasks];
@@ -114,7 +124,7 @@ const HabitBreakdownConfirm = ({
           estimatedTimePerStep: Math.ceil((habit.duration || 30) / editableSubtasks.length),
           createdAt: new Date().toISOString(),
           breakdownSessionId: breakdown.breakdown_session_id,
-          subtaskIds: breakdown.subtask_ids,
+          //subtaskIds: breakdown.subtask_ids,
           canRollback: breakdown.can_rollback,
           obstacleOvercome: true, // Mark obstacle as overcome when breakdown is created
           executionData: {

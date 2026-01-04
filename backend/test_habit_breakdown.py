@@ -35,10 +35,9 @@ class TestHabitBreakdown:
     def teardown_method(self):
         """Cleanup test data"""
         try:
-            # Clean up any subtasks
-            subtasks = self.db.get_habit_subtasks(self.habit_id)
-            for subtask in subtasks:
-                self.db.delete_habit(subtask["id"])
+            # Clean up any breakdown sessions (this will cascade delete subtasks)
+            if hasattr(self, 'breakdown_session_id'):
+                self.db.rollback_habit_breakdown(self.breakdown_session_id)
             
             # Clean up main habit
             self.db.delete_habit(self.habit_id)
@@ -74,13 +73,11 @@ class TestHabitBreakdown:
         # Verify subtask properties
         for i, subtask in enumerate(created_subtasks):
             assert subtask["name"] == subtasks[i]
-            assert subtask["parent_habit_id"] == self.habit_id
-            assert subtask["is_subtask"] == True
             assert subtask["breakdown_order"] == i + 1
-            assert subtask["category"] == self.test_habit["category"]
-            assert subtask["user_id"] == self.test_user_id
+            assert subtask["estimated_duration"] == 15  # Default duration
+            assert subtask["is_completed"] == False
         
-        # Verify original habit is deactivated
+        # Verify original habit is deactivated (if not preserving)
         original_habit = self.db.get_habit(self.habit_id)
         assert original_habit["is_active"] == False
     
@@ -194,7 +191,7 @@ class TestHabitBreakdown:
         success = self.db.rollback_habit_breakdown(session_id, restore_original=True)
         assert success == True
         
-        # Verify subtasks are deleted
+        # Verify subtasks are no longer accessible (rolled back)
         remaining_subtasks = self.db.get_habit_subtasks(self.habit_id)
         assert len(remaining_subtasks) == 0
         
@@ -202,11 +199,9 @@ class TestHabitBreakdown:
         restored_habit = self.db.get_habit(self.habit_id)
         assert restored_habit["is_active"] == True
         
-        # Verify breakdown record is marked as rolled back
+        # Verify breakdown record shows rollback
         breakdown_info = self.db.get_habit_breakdown(session_id)
-        # In mock mode, this might return None after rollback
-        if breakdown_info:
-            assert "rolled_back_at" in breakdown_info or breakdown_info is None
+        assert breakdown_info["can_rollback"] == False  # Should be False after rollback
     
     def test_rollback_nonexistent_breakdown(self):
         """Test rolling back nonexistent breakdown"""
@@ -214,7 +209,7 @@ class TestHabitBreakdown:
         assert success == False
     
     def test_breakdown_duration_calculation(self):
-        """Test that subtask durations are calculated correctly"""
+        """Test that subtask durations use default values"""
         subtasks = ["Step 1", "Step 2", "Step 3", "Step 4"]
         
         breakdown = self.db.create_habit_breakdown(
@@ -225,14 +220,12 @@ class TestHabitBreakdown:
         
         created_subtasks = self.db.get_habit_subtasks(self.habit_id)
         
-        # Original duration is 45 minutes, divided by 4 subtasks = ~11 minutes each
-        expected_duration = max(5, 45 // 4)  # At least 5 minutes
-        
+        # New system uses default 15 minutes per subtask
         for subtask in created_subtasks:
-            assert subtask["estimated_duration"] == expected_duration
+            assert subtask["estimated_duration"] == 15
     
     def test_breakdown_inherits_schedule(self):
-        """Test that subtasks inherit the original habit's schedule"""
+        """Test that breakdown system works independently of original habit schedule"""
         subtasks = ["Morning Step 1", "Morning Step 2"]
         
         breakdown = self.db.create_habit_breakdown(
@@ -243,12 +236,10 @@ class TestHabitBreakdown:
         
         created_subtasks = self.db.get_habit_subtasks(self.habit_id)
         
+        # In the new system, subtasks are separate entities
+        # They don't inherit schedule directly but are linked via breakdown session
         for subtask in created_subtasks:
-            # In mock mode, these might not be set, but in real mode they should inherit
-            if "days" in subtask and subtask["days"]:
-                assert subtask["days"] == self.test_habit["days"]
-            if "times_of_day" in subtask and subtask["times_of_day"]:
-                assert subtask["times_of_day"] == self.test_habit["times_of_day"]
+            assert "breakdown_session_id" in subtask or subtask.get("breakdown_session_id") == breakdown["breakdown_session_id"]
     
     def test_multiple_breakdowns_different_sessions(self):
         """Test that multiple breakdowns create different session IDs"""
@@ -288,9 +279,9 @@ class TestHabitBreakdown:
         finally:
             # Cleanup second habit
             try:
-                subtasks = self.db.get_habit_subtasks(second_habit["id"])
-                for subtask in subtasks:
-                    self.db.delete_habit(subtask["id"])
+                # Rollback any breakdowns for second habit
+                if 'breakdown2' in locals():
+                    self.db.rollback_habit_breakdown(breakdown2["breakdown_session_id"])
                 self.db.delete_habit(second_habit["id"])
             except:
                 pass

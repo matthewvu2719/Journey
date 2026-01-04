@@ -283,206 +283,280 @@ class SupabaseClient:
         return True
 
     # ========================================================================
-    # HABIT BREAKDOWN METHODS
+    # HABIT BREAKDOWN METHODS (TWO-TABLE ARCHITECTURE)
     # ========================================================================
-    
-    def create_habit_breakdown(self, habit_id: int, subtasks: List[str], user_id: str, preserve_original: bool = False) -> Dict[str, Any]:
-        """Break down a habit into subtasks"""
-        import uuid
-        from datetime import datetime
-        
-        if self.mock_mode:
-            # Mock implementation
-            original_habit = next((h for h in self.mock_habits if h["id"] == habit_id), None)
-            if not original_habit:
-                raise Exception("Habit not found")
-            
-            breakdown_session_id = str(uuid.uuid4())
-            subtask_ids = []
-            
-            for i, subtask_name in enumerate(subtasks):
-                subtask_id = self.next_id
-                self.next_id += 1
-                
-                subtask = {
-                    **original_habit,
-                    "id": subtask_id,
-                    "name": subtask_name,
-                    "parent_habit_id": habit_id,
-                    "is_subtask": True,
-                    "breakdown_order": i + 1,
-                    "breakdown_session_id": breakdown_session_id,
-                    "created_at": datetime.now().isoformat()
-                }
-                
-                self.mock_habits.append(subtask)
-                subtask_ids.append(subtask_id)
-            
-            # Deactivate original habit unless preserving
-            if not preserve_original:
-                for habit in self.mock_habits:
-                    if habit["id"] == habit_id:
-                        habit["is_active"] = False
-                        break
-            
-            return {
-                "original_habit_id": habit_id,
-                "subtask_ids": subtask_ids,
-                "breakdown_session_id": breakdown_session_id,
-                "can_rollback": True,
-                "created_at": datetime.now()
+
+    def create_habit_breakdown(self, habit_id: int, subtasks: list[str], user_id: str, preserve_original: bool = False) -> dict:
+        """
+        Creates a breakdown session for a habit and stores each subtask as a row in
+        public.habit_breakdown_subtasks (NOT in public.habits).
+
+        This implementation does NOT rely on Postgres RPC return types and does NOT
+        write any `subtask_ids` column to `habit_breakdowns` (because it doesn't exist).
+
+        Returns:
+            {
+              "breakdown_session_id": "<uuid str>",
+              "original_habit_id": habit_id,
+              "created_at": "<timestamp>",
+              "subtask_ids": [1,2,3]
             }
+        """
+        print(f"[DEBUG] create_habit_breakdown called: habit_id={habit_id}, user_id={user_id}, subtasks={subtasks}, preserve_original={preserve_original}")
         
+        if not subtasks or not isinstance(subtasks, list):
+            print(f"[DEBUG] ERROR: Invalid subtasks parameter: {subtasks}")
+            raise ValueError("subtasks must be a non-empty list of strings")
+
+        # 1) Create the breakdown session (let DB generate UUID by default)
+        print(f"[DEBUG] Step 1: Creating breakdown session in habit_breakdowns table...")
         try:
-            # Get original habit
-            original_habit = self.get_habit(habit_id)
-            if not original_habit:
-                raise Exception("Habit not found")
-            
-            breakdown_session_id = str(uuid.uuid4())
-            subtask_ids = []
-            
-            # Create subtasks
-            for i, subtask_name in enumerate(subtasks):
-                subtask_data = {
+            # Insert and get the result - Supabase returns inserted data by default
+            session_res = (
+                self.client.table("habit_breakdowns")
+                .insert({
+                    "original_habit_id": habit_id,
                     "user_id": user_id,
-                    "name": subtask_name,
-                    "description": f"Subtask {i+1} of '{original_habit['name']}'",
-                    "habit_type": "atomic",  # Subtasks are always atomic
-                    "category": original_habit["category"],
-                    "priority": original_habit["priority"],
-                    "difficulty": "easy",  # Subtasks should be easier
-                    "estimated_duration": max(5, (original_habit.get("estimated_duration", 30) // len(subtasks))),
-                    "parent_habit_id": habit_id,
-                    "is_subtask": True,
-                    "breakdown_order": i + 1,
-                    "breakdown_session_id": breakdown_session_id,
-                    "days": original_habit.get("days", []),
-                    "times_of_day": original_habit.get("times_of_day", [])
-                }
-                
-                subtask = self.create_habit(subtask_data)
-                subtask_ids.append(subtask["id"])
-            
-            # Deactivate original habit unless preserving
-            if not preserve_original:
-                self.update_habit(habit_id, {"is_active": False})
-            
-            # Create breakdown record
-            breakdown_record = {
-                "original_habit_id": habit_id,
-                "subtask_ids": subtask_ids,
-                "breakdown_session_id": breakdown_session_id,
-                "user_id": user_id,
-                "preserve_original": preserve_original,
-                "created_at": datetime.now().isoformat()
-            }
-            
-            # Store breakdown record (you might want to create a separate table for this)
-            self.client.table("habit_breakdowns").insert(breakdown_record).execute()
-            
-            return {
-                "original_habit_id": habit_id,
-                "subtask_ids": subtask_ids,
-                "breakdown_session_id": breakdown_session_id,
-                "can_rollback": True,
-                "created_at": datetime.now()
-            }
-            
+                    "preserve_original": preserve_original,
+                })
+                .execute()
+            )
+            print(f"[DEBUG] Step 1 SUCCESS: session_res.data = {session_res.data}")
         except Exception as e:
-            print(f"Error creating habit breakdown: {e}")
+            print(f"[DEBUG] Step 1 FAILED: Error creating breakdown session: {e}")
+            print(f"[DEBUG] Error type: {type(e).__name__}")
+            print(f"[DEBUG] Error details: {getattr(e, 'message', str(e))}")
             raise
-    
-    def get_habit_breakdown(self, breakdown_session_id: str) -> Optional[Dict[str, Any]]:
-        """Get breakdown information by session ID"""
-        if self.mock_mode:
-            # Mock implementation - find breakdown by session ID
-            breakdown_habits = [h for h in self.mock_habits if h.get("breakdown_session_id") == breakdown_session_id]
-            if not breakdown_habits:
-                return None
-            
-            parent_id = breakdown_habits[0].get("parent_habit_id")
-            return {
-                "breakdown_session_id": breakdown_session_id,
-                "original_habit_id": parent_id,
-                "subtask_ids": [h["id"] for h in breakdown_habits],
-                "can_rollback": True
-            }
-        
+
+        if not session_res.data or len(session_res.data) == 0:
+            print(f"[DEBUG] ERROR: session_res.data is empty/None")
+            raise Exception("Failed to create breakdown session")
+
+        session_id = session_res.data[0]["breakdown_session_id"]
+        created_at = session_res.data[0].get("created_at")
+        print(f"[DEBUG] Session created: session_id={session_id}, created_at={created_at}")
+
+        # 2) Insert subtasks as rows
+        print(f"[DEBUG] Step 2: Preparing subtask rows...")
+        rows = []
+        for idx, name in enumerate(subtasks, start=1):
+            if not isinstance(name, str) or not name.strip():
+                print(f"[DEBUG] Skipping invalid subtask at index {idx}: {name}")
+                continue
+            rows.append(
+                {
+                    "breakdown_session_id": session_id,
+                    "name": name.strip(),
+                    "description": f"Subtask {idx} of breakdown",
+                    "breakdown_order": idx,
+                    "estimated_duration": 15,
+                }
+            )
+        print(f"[DEBUG] Prepared {len(rows)} subtask rows: {rows}")
+
+        if not rows:
+            # rollback session if no valid rows
+            print(f"[DEBUG] ERROR: No valid subtask rows, rolling back session...")
+            self.client.table("habit_breakdowns").delete().eq("breakdown_session_id", session_id).execute()
+            raise ValueError("No valid subtask names provided")
+
+        print(f"[DEBUG] Step 2: Inserting subtasks into habit_breakdown_subtasks table...")
         try:
-            response = self.client.table("habit_breakdowns").select("*").eq("breakdown_session_id", breakdown_session_id).execute()
-            return response.data[0] if response.data else None
+            subtasks_res = (
+                self.client.table("habit_breakdown_subtasks")
+                .insert(rows)
+                .execute()
+            )
+            print(f"[DEBUG] Step 2 SUCCESS: subtasks_res.data = {subtasks_res.data}")
+        except Exception as e:
+            print(f"[DEBUG] Step 2 FAILED: Error inserting subtasks: {e}")
+            print(f"[DEBUG] Error type: {type(e).__name__}")
+            # Rollback the session
+            print(f"[DEBUG] Rolling back session {session_id}...")
+            self.client.table("habit_breakdowns").delete().eq("breakdown_session_id", session_id).execute()
+            raise
+
+        #subtask_ids = [r["id"] for r in (subtasks_res.data or []) if "id" in r]
+        #print(f"[DEBUG] Extracted subtask_ids: {subtask_ids}")
+
+        # 3) Update the original habit to point to the active session
+        print(f"[DEBUG] Step 3: Updating original habit {habit_id}...")
+        update_payload = {"active_breakdown_session_id": session_id}
+        if not preserve_original:
+            update_payload["is_active"] = False
+        print(f"[DEBUG] Update payload: {update_payload}")
+
+        try:
+            self.client.table("habits").update(update_payload).eq("id", habit_id).execute()
+            print(f"[DEBUG] Step 3 SUCCESS: Habit updated")
+        except Exception as e:
+            print(f"[DEBUG] Step 3 FAILED: Error updating habit: {e}")
+            # Don't rollback here - the breakdown was created successfully
+            print(f"[DEBUG] Warning: Breakdown created but habit not updated")
+
+        result = {
+            "breakdown_session_id": session_id,
+            "original_habit_id": habit_id,
+            "created_at": created_at,
+            #"subtask_ids": subtask_ids,
+            "can_rollback": True,
+        }
+        print(f"[DEBUG] create_habit_breakdown SUCCESS: returning {result}")
+        return result
+
+    def get_habit_breakdowns(self, habit_id: int) -> Dict[str, Any]:
+        """Get all (active) breakdown subtasks for a habit."""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_breakdown_sessions'):
+                self.mock_breakdown_sessions = []
+            if not hasattr(self, 'mock_breakdown_subtasks'):
+                self.mock_breakdown_subtasks = []
+
+            active_sessions = [s for s in self.mock_breakdown_sessions if s['original_habit_id'] == habit_id and s.get('rolled_back_at') is None]
+            session_ids = {s['breakdown_session_id'] for s in active_sessions}
+            subtasks = [t for t in self.mock_breakdown_subtasks if t['breakdown_session_id'] in session_ids]
+            subtasks.sort(key=lambda x: (x['breakdown_session_id'], x.get('breakdown_order') or 0))
+            return {'breakdowns': subtasks, 'total_subtasks': len(subtasks), 'habit_id': habit_id}
+
+        try:
+            res = self.client.rpc('get_habit_subtasks', {'p_habit_id': habit_id}).execute()
+            subtasks = res.data or []
+            return {'breakdowns': subtasks, 'total_subtasks': len(subtasks), 'habit_id': habit_id}
+        except Exception as e:
+            print(f"Error getting habit breakdowns: {e}")
+            return {'breakdowns': [], 'total_subtasks': 0, 'habit_id': habit_id}
+
+    def get_habit_breakdown(self, breakdown_session_id: str) -> Optional[Dict[str, Any]]:
+        """Get breakdown session metadata + subtasks."""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_breakdown_sessions'):
+                self.mock_breakdown_sessions = []
+            if not hasattr(self, 'mock_breakdown_subtasks'):
+                self.mock_breakdown_subtasks = []
+
+            session = next((s for s in self.mock_breakdown_sessions if s['breakdown_session_id'] == breakdown_session_id), None)
+            if not session:
+                return None
+            subtasks = [t for t in self.mock_breakdown_subtasks if t['breakdown_session_id'] == breakdown_session_id]
+            subtasks.sort(key=lambda x: x.get('breakdown_order') or 0)
+            return {**session, 'subtasks': subtasks}
+
+        try:
+            session_res = self.client.table('habit_breakdowns').select('*').eq('breakdown_session_id', breakdown_session_id).limit(1).execute()
+            if not session_res.data:
+                return None
+            session = session_res.data[0]
+            subtasks_res = self.client.rpc('get_breakdown_subtasks', {'p_session_id': breakdown_session_id}).execute()
+            session['subtasks'] = subtasks_res.data or []
+            return session
         except Exception as e:
             print(f"Error getting habit breakdown: {e}")
             return None
-    
-    def rollback_habit_breakdown(self, breakdown_session_id: str, restore_original: bool = True) -> bool:
-        """Rollback a habit breakdown"""
+
+    def rollback_habit_breakdown(self, habit_id: int = None, breakdown_session_id: str = None, restore_original: bool = True) -> bool:
+        """Rollback breakdown(s).
+
+        - If breakdown_session_id is provided: rollback that session.
+        - Else if habit_id is provided: rollback all active sessions for that habit.
+
+        Note: DB function rollback_breakdown(p_session_id) always restores the original habit.
+        The restore_original flag is kept for backward compatibility.
+        """
+        from datetime import datetime
+
         if self.mock_mode:
-            # Mock implementation
-            breakdown_habits = [h for h in self.mock_habits if h.get("breakdown_session_id") == breakdown_session_id]
-            if not breakdown_habits:
+            if not hasattr(self, 'mock_breakdown_sessions'):
+                self.mock_breakdown_sessions = []
+            # rollback by session
+            if breakdown_session_id:
+                for s in self.mock_breakdown_sessions:
+                    if s['breakdown_session_id'] == breakdown_session_id and s.get('rolled_back_at') is None:
+                        s['rolled_back_at'] = datetime.now().isoformat()
+                        return True
                 return False
-            
-            parent_id = breakdown_habits[0].get("parent_habit_id")
-            
-            # Remove subtasks
-            self.mock_habits = [h for h in self.mock_habits if h.get("breakdown_session_id") != breakdown_session_id]
-            
-            # Restore original habit if requested
-            if restore_original and parent_id:
-                for habit in self.mock_habits:
-                    if habit["id"] == parent_id:
-                        habit["is_active"] = True
-                        break
-            
-            return True
-        
+            # rollback by habit
+            if habit_id is not None:
+                changed = False
+                for s in self.mock_breakdown_sessions:
+                    if s['original_habit_id'] == habit_id and s.get('rolled_back_at') is None:
+                        s['rolled_back_at'] = datetime.now().isoformat()
+                        changed = True
+                return changed
+            return False
+
         try:
-            # Get breakdown info
-            breakdown = self.get_habit_breakdown(breakdown_session_id)
-            if not breakdown:
+            if breakdown_session_id:
+                res = self.client.rpc('rollback_breakdown', {'p_session_id': breakdown_session_id}).execute()
+                return bool(res.data) if res.data is not None else False
+
+            if habit_id is None:
                 return False
-            
-            # Delete subtasks
-            for subtask_id in breakdown["subtask_ids"]:
-                self.delete_habit(subtask_id)
-            
-            # Restore original habit if requested
-            if restore_original:
-                self.update_habit(breakdown["original_habit_id"], {"is_active": True})
-            
-            # Delete breakdown record
-            self.client.table("habit_breakdowns").delete().eq("breakdown_session_id", breakdown_session_id).execute()
-            
-            return True
-            
+
+            # Find active sessions for this habit
+            sessions = self.client.table('habit_breakdowns').select('breakdown_session_id').eq('original_habit_id', habit_id).is_('rolled_back_at', 'null').execute()
+            session_ids = [r['breakdown_session_id'] for r in (sessions.data or [])]
+            if not session_ids:
+                return False
+
+            ok_any = False
+            for sid in session_ids:
+                try:
+                    r = self.client.rpc('rollback_breakdown', {'p_session_id': sid}).execute()
+                    ok_any = ok_any or bool(r.data)
+                except Exception:
+                    pass
+            return ok_any
+
         except Exception as e:
             print(f"Error rolling back habit breakdown: {e}")
             return False
-    
-    def get_habit_subtasks(self, parent_habit_id: int) -> List[Dict[str, Any]]:
-        """Get all subtasks for a parent habit"""
+
+    def get_habit_subtasks(self, parent_habit_id: int) -> list[dict]:
+        """
+        Get subtasks for the *active* breakdown session of a habit, from
+        public.habit_breakdown_subtasks.
+        """
         if self.mock_mode:
-            return [h for h in self.mock_habits if h.get("parent_habit_id") == parent_habit_id and h.get("is_subtask")]
-        
+            return []
+
         try:
-            response = self.client.table("habits").select("*").eq("parent_habit_id", parent_habit_id).eq("is_subtask", True).order("breakdown_order").execute()
-            return response.data
+            br = (
+                self.client.table("habit_breakdowns")
+                .select("breakdown_session_id")
+                .eq("original_habit_id", parent_habit_id)
+                .is_("rolled_back_at", "null")
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+
+            if not br.data:
+                return []
+
+            session_id = br.data[0]["breakdown_session_id"]
+
+            subs = (
+                self.client.table("habit_breakdown_subtasks")
+                .select("*")
+                .eq("breakdown_session_id", session_id)
+                .order("breakdown_order")
+                .execute()
+            )
+            return subs.data or []
         except Exception as e:
             print(f"Error getting habit subtasks: {e}")
             return []
-    
+
     def get_habit_with_subtasks(self, habit_id: int) -> Dict[str, Any]:
-        """Get a habit with its subtasks if any"""
+        """Get a habit with its breakdown subtasks (if any)."""
         habit = self.get_habit(habit_id)
         if not habit:
             return None
-        
-        subtasks = self.get_habit_subtasks(habit_id)
-        habit["subtasks"] = subtasks
-        
+        habit['subtasks'] = self.get_habit_subtasks(habit_id)
         return habit
+
+
+    
     
     def get_habits_for_today(self, user_id: str, time_of_day: Optional[str] = None, timezone_offset: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get habits scheduled for today, optionally filtered by time of day - optimized version"""

@@ -195,9 +195,13 @@ export default function HabitDetailModal({
 
                   if (result.executionData?.habitCompleted) {
                     onComplete?.(habit.id, timeOfDay)
+                    onClose()
+                  } else {
+                    // Go back to habit details instead of closing
+                    setModalState('details')
+                    setBoboAnimation('celebration')
+                    setTimeout(() => setBoboAnimation('idle'), 1500)
                   }
-
-                  onClose()
                 }}
                 onBack={() => setModalState('friction-help')}
                 onCancel={() => setModalState('details')}

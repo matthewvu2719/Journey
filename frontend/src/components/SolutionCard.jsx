@@ -136,7 +136,7 @@ const SolutionCard = ({ solution, isSelected, onSelect, delay = 0 }) => {
                 <span>🧩 {solution.action_data.subtasks.length} smaller steps</span>
                 <div className="mt-1 text-xs text-light/60">
                   {solution.action_data.subtasks.slice(0, 2).map((subtask, idx) => (
-                    <div key={idx}>• {subtask}</div>
+                    <div key={idx}>• {typeof subtask === 'string' ? subtask : subtask.title || subtask.name || 'Step'}</div>
                   ))}
                   {solution.action_data.subtasks.length > 2 && (
                     <div>• ... and {solution.action_data.subtasks.length - 2} more</div>

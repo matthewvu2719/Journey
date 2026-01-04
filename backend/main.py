@@ -413,19 +413,29 @@ async def create_habit_breakdown(
     user_id: str = Depends(get_user_id_optional)
 ):
     """Break down a habit into subtasks"""
+    print(f"[DEBUG API] POST /api/habits/{habit_id}/breakdown called")
+    print(f"[DEBUG API] Request: subtasks={request.subtasks}, preserve_original={request.preserve_original}")
+    print(f"[DEBUG API] User ID: {user_id}")
+    
     try:
         # Verify habit exists and user owns it
         existing = db.get_habit(habit_id)
+        print(f"[DEBUG API] Existing habit: {existing}")
+        
         if not existing:
+            print(f"[DEBUG API] ERROR: Habit {habit_id} not found")
             raise HTTPException(status_code=404, detail="Habit not found")
         if existing.get("user_id") != user_id:
+            print(f"[DEBUG API] ERROR: User {user_id} not authorized for habit owned by {existing.get('user_id')}")
             raise HTTPException(status_code=403, detail="Not authorized")
         
         # Check if habit is already a subtask
         if existing.get("is_subtask"):
+            print(f"[DEBUG API] ERROR: Habit {habit_id} is already a subtask")
             raise HTTPException(status_code=400, detail="Cannot break down a subtask")
         
         # Create breakdown
+        print(f"[DEBUG API] Calling db.create_habit_breakdown...")
         breakdown = db.create_habit_breakdown(
             habit_id=habit_id,
             subtasks=request.subtasks,
@@ -433,11 +443,16 @@ async def create_habit_breakdown(
             preserve_original=request.preserve_original
         )
         
+        print(f"[DEBUG API] Breakdown created successfully: {breakdown}")
         return breakdown
         
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[DEBUG API] ERROR: Exception in create_habit_breakdown: {e}")
+        print(f"[DEBUG API] Exception type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

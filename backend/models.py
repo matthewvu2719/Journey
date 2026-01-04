@@ -109,7 +109,7 @@ class HabitBreakdownRequest(BaseModel):
 class HabitBreakdownResponse(BaseModel):
     """Response after breaking down a habit"""
     original_habit_id: int
-    subtask_ids: List[int]
+    subtask_ids: Optional[List[int]] = None  # Optional - subtasks stored in separate table
     breakdown_session_id: str
     can_rollback: bool = True
     created_at: datetime
