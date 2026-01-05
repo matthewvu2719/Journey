@@ -73,6 +73,11 @@ export const api = {
     return data
   },
   
+  getHabit: async (id) => {
+    const { data } = await client.get(`/api/habits/${id}`)
+    return data
+  },
+  
   createHabit: async (habit) => {
     const { data } = await client.post('/api/habits', habit)
     return data
@@ -80,6 +85,12 @@ export const api = {
   
   updateHabit: async (id, habit) => {
     const { data } = await client.put(`/api/habits/${id}`, habit)
+    return data
+  },
+  
+  updateHabitSchedule: async (id, scheduleData) => {
+    // Update habit schedule (time_of_day, days)
+    const { data } = await client.put(`/api/habits/${id}/schedule`, scheduleData)
     return data
   },
   
@@ -509,6 +520,11 @@ export const api = {
     return data
   },
 
+  getHabitBreakdownSessions: async (habitId) => {
+    const { data } = await client.get(`/api/habits/${habitId}/breakdown-sessions`)
+    return data
+  },
+
   getHabitWithSubtasks: async (habitId) => {
     const { data } = await client.get(`/api/habits/${habitId}/with-subtasks`)
     return data
@@ -524,6 +540,25 @@ export const api = {
       breakdown_session_id: breakdownSessionId,
       restore_original: restoreOriginal
     })
+    return data
+  },
+
+  // ============================================================================
+  // SMS REMINDERS
+  // ============================================================================
+  
+  setupSMSReminders: async (reminderData) => {
+    const { data } = await client.post('/api/reminders/sms/setup', reminderData)
+    return data
+  },
+
+  getSMSReminderSettings: async () => {
+    const { data } = await client.get('/api/reminders/sms/settings')
+    return data
+  },
+
+  cancelSMSReminders: async () => {
+    const { data } = await client.delete('/api/reminders/sms')
     return data
   }
 }

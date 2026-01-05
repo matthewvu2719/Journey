@@ -518,6 +518,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         onComplete={handleDetailModalComplete}
         onHelp={handleDetailModalHelp}
         onClose={handleDetailModalClose}
+        onHabitUpdate={onRefresh}
         isVisible={detailModalHabit && detailModalTimeOfDay}
       />
 

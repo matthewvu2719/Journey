@@ -94,7 +94,7 @@ export default function HabitDetailsView({ habit, timeOfDay, logs = [] }) {
               </div>
             </div>
             
-            {habit.estimated_duration && (
+            {habit.estimated_duration && habit.habit_type !== 'atomic' && (
               <div>
                 <span className="text-light/60 text-sm">Duration</span>
                 <div className="flex items-center gap-2 mt-1">

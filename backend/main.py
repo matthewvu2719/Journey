@@ -383,6 +383,65 @@ async def update_habit(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.put("/api/habits/{habit_id}/schedule")
+async def update_habit_schedule(
+    habit_id: int,
+    schedule_data: dict,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Update habit schedule (time_of_day and/or days)"""
+    try:
+        # Verify ownership
+        existing = db.get_habit(habit_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        if existing.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        # Update time_of_day if provided
+        if 'time_of_day' in schedule_data:
+            new_time = schedule_data['time_of_day']
+            time_name_to_id = {'morning': 1, 'noon': 2, 'afternoon': 3, 'night': 4}
+            
+            if new_time in time_name_to_id:
+                time_id = time_name_to_id[new_time]
+                
+                # Delete existing time relationships
+                db.client.table("times_of_day_habits").delete().eq("habit_id", habit_id).execute()
+                
+                # Insert new time relationship
+                db.client.table("times_of_day_habits").insert({
+                    "habit_id": habit_id,
+                    "time_of_day_id": time_id
+                }).execute()
+        
+        # Update days if provided
+        if 'days' in schedule_data:
+            new_days = schedule_data['days']
+            day_name_to_id = {'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7}
+            
+            # Delete existing day relationships
+            db.client.table("days_habits").delete().eq("habit_id", habit_id).execute()
+            
+            # Insert new day relationships
+            for day in new_days:
+                if day in day_name_to_id:
+                    db.client.table("days_habits").insert({
+                        "habit_id": habit_id,
+                        "day_id": day_name_to_id[day]
+                    }).execute()
+        
+        # Return updated habit
+        updated_habit = db.get_habit(habit_id)
+        return {"message": "Schedule updated successfully", "habit": updated_habit}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating habit schedule: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.delete("/api/habits/{habit_id}")
 async def delete_habit(habit_id: int, user_id: str = Depends(get_user_id_optional)):
     """Delete a habit"""
@@ -472,6 +531,29 @@ async def get_habit_subtasks(
         
         subtasks = db.get_habit_subtasks(habit_id)
         return {"habit_id": habit_id, "subtasks": subtasks}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/habits/{habit_id}/breakdown-sessions")
+async def get_habit_breakdown_sessions(
+    habit_id: int,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Get all breakdown sessions (approaches) for a habit"""
+    try:
+        # Verify habit exists and user owns it
+        existing = db.get_habit(habit_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Habit not found")
+        if existing.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        sessions = db.get_all_breakdown_sessions(habit_id)
+        return {"habit_id": habit_id, "sessions": sessions, "total": len(sessions)}
         
     except HTTPException:
         raise
@@ -2088,6 +2170,172 @@ async def debug_chat_context(message: ChatMessage):
         return {"error": str(e), "user_id": message.user_id}
 
 
+# ============================================================================
+# SMS REMINDERS
+# ============================================================================
+
+from pydantic import BaseModel
+
+class SMSReminderSetup(BaseModel):
+    phone_number: str
+    reminder_times: List[str]  # List of times like ["08:00", "12:00", "18:00"]
+    habit_id: Optional[int] = None  # If None, remind about all habits
+
+@app.post("/api/reminders/sms/setup")
+async def setup_sms_reminders(
+    request: SMSReminderSetup,
+    user_id: str = Depends(get_user_id_optional)
+):
+    """Set up SMS reminders for habits"""
+    try:
+        # Import Twilio service
+        from voice_services.twilio_service import get_twilio_service
+        twilio = get_twilio_service()
+        
+        if not twilio.enabled:
+            raise HTTPException(
+                status_code=503, 
+                detail="SMS service is not configured. Please set up Twilio credentials."
+            )
+        
+        # Store reminder settings in user preferences
+        reminder_settings = {
+            "sms_enabled": True,
+            "phone_number": request.phone_number,
+            "reminder_times": request.reminder_times,
+            "habit_id": request.habit_id
+        }
+        
+        # Update user preferences with SMS settings
+        try:
+            db.client.table("user_preferences").upsert({
+                "user_id": user_id,
+                "sms_reminder_settings": reminder_settings,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
+        except Exception as e:
+            print(f"Warning: Could not save SMS settings to database: {e}")
+        
+        # Send a confirmation SMS
+        confirmation_msg = (
+            f"🤖 Hi! It's Bobo!\n\n"
+            f"Your SMS reminders are now active!\n"
+            f"I'll text you at: {', '.join(request.reminder_times)}\n\n"
+            f"Reply STOP to unsubscribe."
+        )
+        
+        sms_sid = twilio.send_sms(request.phone_number, confirmation_msg)
+        
+        if not sms_sid:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to send confirmation SMS. Please check your phone number."
+            )
+        
+        return {
+            "success": True,
+            "message": "SMS reminders set up successfully",
+            "phone_number": request.phone_number,
+            "reminder_times": request.reminder_times,
+            "confirmation_sms_sid": sms_sid
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/reminders/sms/settings")
+async def get_sms_reminder_settings(user_id: str = Depends(get_user_id_optional)):
+    """Get current SMS reminder settings"""
+    try:
+        response = db.client.table("user_preferences").select("sms_reminder_settings").eq("user_id", user_id).execute()
+        
+        if response.data and response.data[0].get("sms_reminder_settings"):
+            return response.data[0]["sms_reminder_settings"]
+        
+        return {
+            "sms_enabled": False,
+            "phone_number": None,
+            "reminder_times": [],
+            "habit_id": None
+        }
+    except Exception as e:
+        return {
+            "sms_enabled": False,
+            "phone_number": None,
+            "reminder_times": [],
+            "habit_id": None,
+            "error": str(e)
+        }
+
+@app.delete("/api/reminders/sms")
+async def cancel_sms_reminders(user_id: str = Depends(get_user_id_optional)):
+    """Cancel SMS reminders"""
+    try:
+        # Update user preferences to disable SMS
+        db.client.table("user_preferences").update({
+            "sms_reminder_settings": {
+                "sms_enabled": False,
+                "phone_number": None,
+                "reminder_times": [],
+                "habit_id": None
+            },
+            "updated_at": datetime.now().isoformat()
+        }).eq("user_id", user_id).execute()
+        
+        return {"success": True, "message": "SMS reminders cancelled"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/reminders/sms/send-now")
+async def send_sms_reminder_now(user_id: str = Depends(get_user_id_optional)):
+    """Manually trigger an SMS reminder (for testing)"""
+    try:
+        from voice_services.twilio_service import get_twilio_service
+        twilio = get_twilio_service()
+        
+        if not twilio.enabled:
+            raise HTTPException(status_code=503, detail="SMS service not configured")
+        
+        # Get user's SMS settings
+        response = db.client.table("user_preferences").select("sms_reminder_settings").eq("user_id", user_id).execute()
+        
+        if not response.data or not response.data[0].get("sms_reminder_settings", {}).get("sms_enabled"):
+            raise HTTPException(status_code=400, detail="SMS reminders not enabled for this user")
+        
+        settings = response.data[0]["sms_reminder_settings"]
+        phone_number = settings.get("phone_number")
+        
+        if not phone_number:
+            raise HTTPException(status_code=400, detail="No phone number configured")
+        
+        # Get today's habits
+        habits = db.get_habits_for_today(user_id)
+        habit_names = [h.get("name", "Unknown habit") for h in habits]
+        
+        if not habit_names:
+            habit_names = ["No habits scheduled for today"]
+        
+        # Send the reminder
+        sms_sid = twilio.send_habit_reminder_sms(phone_number, habit_names)
+        
+        if not sms_sid:
+            raise HTTPException(status_code=500, detail="Failed to send SMS")
+        
+        return {
+            "success": True,
+            "message": "SMS reminder sent",
+            "sms_sid": sms_sid,
+            "habits_included": habit_names
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
 
@@ -2456,11 +2704,11 @@ async def record_obstacle_encounter(
         if not obstacle_type:
             raise HTTPException(status_code=400, detail="obstacle_type is required")
         
-        # Record the encounter
-        success = db.record_obstacle_encounter(user_id, obstacle_type, obstacle_data)
+        # Record the encounter and get the ID
+        encounter_id = db.record_obstacle_encounter(user_id, obstacle_type, obstacle_data)
         
-        if success:
-            return {"success": True, "message": "Obstacle encounter recorded"}
+        if encounter_id:
+            return {"success": True, "message": "Obstacle encounter recorded", "encounter_id": encounter_id}
         else:
             raise HTTPException(status_code=500, detail="Failed to record obstacle encounter")
     except Exception as e:
@@ -2486,20 +2734,26 @@ async def resolve_obstacle_encounter(
     try:
         was_overcome = resolution_data.get('was_overcome', False)
         
+        # Get the encounter to find the obstacle type
+        encounter = db.get_obstacle_encounter(encounter_id)
+        obstacle_type = encounter.get('obstacle_type') if encounter else resolution_data.get('obstacle_type')
+        
         # Resolve the encounter
         success = db.resolve_obstacle_encounter(encounter_id, was_overcome, resolution_data)
         
         if not success:
             raise HTTPException(status_code=500, detail="Failed to resolve obstacle encounter")
         
+        # Update obstacle stats if overcome
+        if was_overcome and obstacle_type:
+            db.update_obstacle_stats(user_id, obstacle_type, was_overcome)
+        
         # Check for journey achievements if obstacle was overcome
         unlocked_achievements = []
-        if was_overcome:
-            obstacle_type = resolution_data.get('obstacle_type')
-            if obstacle_type:
-                from achievement_engine import AchievementEngine
-                achievement_engine = AchievementEngine(db)
-                unlocked_achievements = achievement_engine.check_journey_achievements(user_id, obstacle_type)
+        if was_overcome and obstacle_type:
+            from achievement_engine import AchievementEngine
+            achievement_engine = AchievementEngine(db)
+            unlocked_achievements = achievement_engine.check_journey_achievements(user_id, obstacle_type)
         
         return {
             "success": True,

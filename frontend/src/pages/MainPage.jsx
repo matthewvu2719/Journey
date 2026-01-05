@@ -9,8 +9,6 @@ import AchievementProgress from '../components/AchievementProgress'
 import AchievementNotification from '../components/AchievementNotification'
 import BoboCustomization from '../components/BoboCustomization'
 import BoboTestPanel from '../components/BoboTestPanel'
-import VoiceCallSettings from '../components/VoiceCallSettings'
-import VoiceCallButton from '../components/VoiceCallButton'
 
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -245,16 +243,6 @@ function MainPage() {
                 Schedule
               </button>
               <button
-                onClick={() => handleSectionChange('calls')}
-                className={`px-6 py-2 font-semibold transition rounded-lg ${
-                  currentSection === 'calls'
-                    ? 'bg-[var(--color-accent)] text-[var(--color-background)]'
-                    : 'text-[var(--color-foreground-secondary)] hover:bg-[var(--color-glass)]'
-                }`}
-              >
-                Calls
-              </button>
-              <button
                 onClick={() => handleSectionChange('insights')}
                 className={`px-6 py-2 font-semibold transition rounded-lg ${
                   currentSection === 'insights'
@@ -310,55 +298,6 @@ function MainPage() {
             />
           )}
 
-          {currentSection === 'calls' && (
-            <div className="space-y-6">
-              {/* Header */}
-              <div>
-                <h2 className="text-3xl font-bold text-light">Set up call or notification schedules</h2>
-                <p className="text-light/60 mt-1">Hey! I'd love to call you about your awesome habit journey!</p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left: Voice Call Settings */}
-                <div>
-                  <VoiceCallSettings userId={user?.id || 'guest'} />
-                </div>
-
-                {/* Right: Info & Call History */}
-                <div className="space-y-6">
-                  {/* How It Works */}
-                  <div className="glass rounded-xl p-6 border border-light/20">
-                    <h3 className="text-lg font-bold text-light mb-3">How Our Calls Work</h3>
-                    <ol className="space-y-2 text-sm text-light/80">
-                      <li className="flex items-start">
-                        <span className="font-semibold mr-2">1.</span>
-                        <span>Pick your style - Web Call (totally free!) or Phone Call (premium fun!)</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="font-semibold mr-2">2.</span>
-                        <span>Tell me when you'd like to call - I'll remember!</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="font-semibold mr-2">3.</span>
-                        <span>I'll call you for friendly conversations about your progress!</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="font-semibold mr-2">4.</span>
-                        <span>Get my personal cheering and habit tips just for you!</span>
-                      </li>
-                    </ol>
-                  </div>
-
-                  {/* Call History */}
-                  <div className="glass rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-light mb-4">Our Call History</h3>
-                    <p className="text-light/50 text-sm">Our conversation memories will show up here after we have our first call! Can't wait!</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {currentSection === 'insights' && (
             <div className="space-y-8">
               <AnalyticsInsights 
@@ -390,9 +329,6 @@ function MainPage() {
           </div>
         </footer>
 
-        {/* Floating Voice Call Button */}
-        <VoiceCallButton userId={user?.id || 'guest'} />
-        
         {/* Achievement Test Floating Button */}
         <BoboTestPanel />
       </section>

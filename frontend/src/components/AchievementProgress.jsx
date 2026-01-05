@@ -244,12 +244,7 @@ export default function AchievementProgress() {
                 {/* Info */}
                 <div className="text-center mb-4">
                   <h4 className="font-bold text-light text-lg mb-1">{achievement.title}</h4>
-                  <p className="text-sm text-light/60 mb-2">{achievement.description}</p>
-                  
-                  {/* Stats */}
-                  <div className="text-xs text-light/60">
-                    {achievement.progress.completed} / {achievement.progress.total} completed
-                  </div>
+                  <p className="text-sm text-light/60">{achievement.description}</p>
                 </div>
 
                 {/* Reward */}
@@ -283,20 +278,6 @@ export default function AchievementProgress() {
               </div>
             )
           })}
-        </div>
-
-        {/* Stats Summary */}
-        <div className="glass rounded-2xl p-6 border border-light/20">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-light mb-1">Your Journey</h3>
-              <p className="text-sm text-light/60">Keep building those perfect streaks!</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-light">{progress?.total_completions || 0}</div>
-              <div className="text-xs text-light/60">Total Completions</div>
-            </div>
-          </div>
         </div>
 
         {/* Journey Achievements Section */}

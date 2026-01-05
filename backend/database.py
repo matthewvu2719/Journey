@@ -212,12 +212,35 @@ class SupabaseClient:
             return []
     
     def get_habit(self, habit_id: int) -> Optional[Dict[str, Any]]:
-        """Get a specific habit"""
+        """Get a specific habit with its associated days and times_of_day"""
         if self.mock_mode:
             return next((h for h in self.mock_habits if h["id"] == habit_id), None)
         
         response = self.client.table("habits").select("*").eq("id", habit_id).execute()
-        return response.data[0] if response.data else None
+        if not response.data:
+            return None
+        
+        habit = response.data[0]
+        
+        # Fetch days for this habit
+        try:
+            days_response = self.client.table("days_habits").select("day_id").eq("habit_id", habit_id).execute()
+            day_id_to_name = {1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun'}
+            habit['days'] = [day_id_to_name.get(item['day_id']) for item in days_response.data if day_id_to_name.get(item['day_id'])]
+        except Exception as e:
+            print(f"Warning: Could not fetch days for habit {habit_id}: {e}")
+            habit['days'] = []
+        
+        # Fetch times_of_day for this habit
+        try:
+            times_response = self.client.table("times_of_day_habits").select("time_of_day_id").eq("habit_id", habit_id).execute()
+            time_id_to_name = {1: 'morning', 2: 'noon', 3: 'afternoon', 4: 'night'}
+            habit['times_of_day'] = [time_id_to_name.get(item['time_of_day_id']) for item in times_response.data if time_id_to_name.get(item['time_of_day_id'])]
+        except Exception as e:
+            print(f"Warning: Could not fetch times_of_day for habit {habit_id}: {e}")
+            habit['times_of_day'] = []
+        
+        return habit
     
     def update_habit(self, habit_id: int, habit_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a habit"""
@@ -554,6 +577,58 @@ class SupabaseClient:
             return None
         habit['subtasks'] = self.get_habit_subtasks(habit_id)
         return habit
+
+    def get_all_breakdown_sessions(self, habit_id: int) -> list[dict]:
+        """
+        Get all breakdown sessions (approaches) for a habit, including their subtasks.
+        Returns sessions ordered by creation date (newest first).
+        """
+        if self.mock_mode:
+            return []
+
+        try:
+            # Get all breakdown sessions for this habit (not rolled back)
+            sessions_res = (
+                self.client.table("habit_breakdowns")
+                .select("*")
+                .eq("original_habit_id", habit_id)
+                .is_("rolled_back_at", "null")
+                .order("created_at", desc=True)
+                .execute()
+            )
+
+            if not sessions_res.data:
+                return []
+
+            sessions = sessions_res.data
+            session_ids = [s["breakdown_session_id"] for s in sessions]
+
+            # Get all subtasks for these sessions in one query
+            subtasks_res = (
+                self.client.table("habit_breakdown_subtasks")
+                .select("*")
+                .in_("breakdown_session_id", session_ids)
+                .order("breakdown_order")
+                .execute()
+            )
+
+            # Group subtasks by session
+            subtasks_by_session = {}
+            for subtask in (subtasks_res.data or []):
+                sid = subtask["breakdown_session_id"]
+                if sid not in subtasks_by_session:
+                    subtasks_by_session[sid] = []
+                subtasks_by_session[sid].append(subtask)
+
+            # Attach subtasks to each session
+            for session in sessions:
+                session["subtasks"] = subtasks_by_session.get(session["breakdown_session_id"], [])
+
+            return sessions
+
+        except Exception as e:
+            print(f"Error getting all breakdown sessions: {e}")
+            return []
 
 
     
@@ -1148,206 +1223,96 @@ class SupabaseClient:
             return 0
 
     def get_today_stats(self, user_id: str, timezone_offset: Optional[int] = None) -> Dict[str, Any]:
-        """Get comprehensive stats for today - optimized version"""
+        """Get comprehensive stats for today - uses get_habit_instances_for_today for consistency"""
         from datetime import datetime, date as date_type, timedelta
         
         print(f"[DEBUG] get_today_stats called with timezone_offset: {timezone_offset}")
         
         # Calculate local time based on timezone offset
         if timezone_offset is not None:
-            # timezone_offset is in minutes (e.g., -300 for EST)
             utc_now = datetime.utcnow()
             local_now = utc_now + timedelta(minutes=timezone_offset)
             print(f"[DEBUG] UTC time: {utc_now}")
             print(f"[DEBUG] Local time (with offset): {local_now}")
         else:
-            # Fallback to server time
             local_now = datetime.now()
             print(f"[DEBUG] Using server time: {local_now}")
         
         today_date = local_now.date().isoformat()
-        today_day = local_now.strftime('%a')  # 'Mon', 'Tue', etc.
+        today_day = local_now.strftime('%a')
         
         print(f"[DEBUG] Calculated today_date: {today_date}")
         print(f"[DEBUG] Calculated today_day: {today_day}")
         
-        if self.mock_mode:
-            # Use existing logic for mock mode
-            all_habits = self.get_habits(user_id)
-            today_completions = self.get_completions(
-                user_id=user_id,
-                start_date=today_date,
-                end_date=today_date
-            )
-            
-            # Build list of habit instances (habit × time_of_day combinations) for today
-            habit_instances = []
-            completed_instances = set()
-            
-            for habit in all_habits:
-                habit_days = habit.get('days', [])
-                habit_times = habit.get('times_of_day', [])
-                
-                # Check if habit is scheduled for today
-                if not habit_days or today_day in habit_days:
-                    # If no times specified, default to one instance
-                    if not habit_times:
-                        habit_times = ['default']
-                    
-                    # Create an instance for each time of day
-                    for time_of_day in habit_times:
-                        instance_key = f"{habit['id']}_{time_of_day}"
-                        habit_instances.append({
-                            'habit_id': habit['id'],
-                            'time_of_day': time_of_day,
-                            'instance_key': instance_key
-                        })
-                        
-                        # Check if this instance is completed
-                        is_completed = False
-                        for completion in today_completions:
-                            if completion['habit_id'] == habit['id']:
-                                completion_time = self._get_time_name_from_id(completion.get('time_of_day_id'))
-                                if completion_time == time_of_day or (time_of_day == 'default' and completion_time):
-                                    is_completed = True
-                                    completed_instances.add(instance_key)
-                                    break
-            
-            # Calculate success rate
-            total_instances = len(habit_instances)
-            completed_count = len(completed_instances)
-            success_rate = round((completed_count / total_instances) * 100) if total_instances > 0 else 0
-            
-            # Get time remaining using optimized function
-            time_remaining = self.get_time_remaining_today(user_id, timezone_offset)
-            
-            mock_stats = {
-                'habits_today': total_instances,
-                'completed_today': completed_count,
-                'success_rate_today': success_rate,
-                'time_remaining': time_remaining,
-                'completions_today': len(today_completions)
-            }
-            
-            print(f"[STATS DEBUG] ===== MOCK MODE CALCULATED STATS =====")
-            print(f"[STATS DEBUG] User: {user_id}")
-            print(f"[STATS DEBUG] Date: {today_date} ({today_day})")
-            print(f"[STATS DEBUG] Total Habits Today: {total_instances}")
-            print(f"[STATS DEBUG] Completed Today: {completed_count}")
-            print(f"[STATS DEBUG] Success Rate: {success_rate}%")
-            print(f"[STATS DEBUG] Time Remaining: {time_remaining} minutes")
-            print(f"[STATS DEBUG] Raw Completions: {len(today_completions)}")
-            print(f"[STATS DEBUG] ======================================")
-            
-            return mock_stats
-        
         try:
-            # Use regular Supabase queries instead of execute_sql for better compatibility
-            
-            # Get today's day of week (convert Python 0=Monday to schema 1=Monday, 7=Sunday)
-            python_dow = local_now.weekday()  # 0=Monday, 6=Sunday (using timezone-adjusted time)
-            schema_dow = python_dow + 1 if python_dow < 6 else 7  # 1=Monday, 7=Sunday
-            
-            print(f"[DEBUG] Today is day {schema_dow} (Python: {python_dow})")
-            
-            # Step 1: Get all active habits for user
-            habits_response = self.client.table("habits").select("id").eq("user_id", user_id).eq("is_active", True).execute()
-            all_habit_ids = [h['id'] for h in habits_response.data] if habits_response.data else []
-            
-            if not all_habit_ids:
-                print(f"[DEBUG] No active habits found for user {user_id}")
-                return {
-                    'habits_today': 0,
-                    'completed_today': 0,
-                    'success_rate_today': 0,
-                    'time_remaining': 0,
-                    'completions_today': 0
-                }
-            
-            print(f"[DEBUG] Found {len(all_habit_ids)} active habits")
-            
-            # Step 2: Filter habits scheduled for today
-            # Get habits with no specific days (should happen every day)
-            habits_no_days_response = self.client.table("habits").select("id").eq("user_id", user_id).eq("is_active", True).execute()
-            habits_with_days_response = self.client.table("days_habits").select("habit_id").in_("habit_id", all_habit_ids).execute()
-            
-            habits_with_days = {item['habit_id'] for item in habits_with_days_response.data} if habits_with_days_response.data else set()
-            habits_no_days = [h['id'] for h in habits_no_days_response.data if h['id'] not in habits_with_days] if habits_no_days_response.data else []
-            
-            # Get habits scheduled for today
-            habits_today_response = self.client.table("days_habits").select("habit_id").eq("day_id", schema_dow).in_("habit_id", all_habit_ids).execute()
-            habits_scheduled_today = {item['habit_id'] for item in habits_today_response.data} if habits_today_response.data else set()
-            
-            # Combine: habits with no days + habits scheduled for today
-            today_habit_ids = list(set(habits_no_days) | habits_scheduled_today)
-            
-            print(f"[DEBUG] Habits scheduled for today: {len(today_habit_ids)} (no days: {len(habits_no_days)}, scheduled: {len(habits_scheduled_today)})")
-            
-            if not today_habit_ids:
-                return {
-                    'habits_today': 0,
-                    'completed_today': 0,
-                    'success_rate_today': 0,
-                    'time_remaining': 0,
-                    'completions_today': 0
-                }
-            
-            # Step 3: Count times per day for each habit
-            times_response = self.client.table("times_of_day_habits").select("habit_id").in_("habit_id", today_habit_ids).execute()
-            times_per_habit = {}
-            
-            for item in times_response.data if times_response.data else []:
-                habit_id = item['habit_id']
-                times_per_habit[habit_id] = times_per_habit.get(habit_id, 0) + 1
-            
-            # Habits with no specific times = 1 time per day
-            total_instances = 0
-            for habit_id in today_habit_ids:
-                times_count = times_per_habit.get(habit_id, 1)  # Default to 1 if no times specified
-                total_instances += times_count
+            # Step 1: Use get_habit_instances_for_today - the single source of truth
+            habit_instances = self.get_habit_instances_for_today(user_id, None, timezone_offset)
+            total_instances = len(habit_instances)
             
             print(f"[DEBUG] Total habit instances today: {total_instances}")
             
-            # Step 4: Get today's completions
-            # Use the timezone-adjusted date we calculated earlier
-            completions_response = self.client.table("habit_completions").select("habit_id, time_of_day_id, completed_at").eq("user_id", user_id).eq("completed_date", today_date).in_("habit_id", today_habit_ids).execute()
+            if total_instances == 0:
+                return {
+                    'habits_today': 0,
+                    'completed_today': 0,
+                    'success_rate_today': 0,
+                    'time_remaining': 0,
+                    'completions_today': 0
+                }
             
-            completions_per_habit = {}
-            total_completions = 0
+            # Step 2: Get ALL completions for today (not filtered by habit_ids)
+            completions_response = self.client.table("habit_completions")\
+                .select("id, habit_id, time_of_day_id, completed_at")\
+                .eq("user_id", user_id)\
+                .eq("completed_date", today_date)\
+                .execute()
+            
+            all_completions = completions_response.data if completions_response.data else []
+            total_completions = len(all_completions)
             
             print(f"[DEBUG] ===== QUERYING TODAY'S COMPLETIONS =====")
             print(f"[DEBUG] Query: user_id={user_id}, completed_date={today_date}")
-            print(f"[DEBUG] Filtering for habit_ids: {today_habit_ids}")
-            print(f"[DEBUG] Raw completions found: {len(completions_response.data) if completions_response.data else 0}")
+            print(f"[DEBUG] Total completions found: {total_completions}")
             
-            for item in completions_response.data if completions_response.data else []:
-                habit_id = item['habit_id']
-                time_of_day_id = item.get('time_of_day_id')
-                completed_at = item.get('completed_at')
-                print(f"[DEBUG] Found completion: habit_id={habit_id}, time_of_day_id={time_of_day_id}, completed_at={completed_at}")
-                completions_per_habit[habit_id] = completions_per_habit.get(habit_id, 0) + 1
-                total_completions += 1
+            # Step 3: Match completions to habit instances
+            # Build a set of completed instance keys
+            completed_instance_keys = set()
+            time_id_to_name = {1: 'morning', 2: 'noon', 3: 'afternoon', 4: 'night'}
             
-            print(f"[DEBUG] Total completions today: {total_completions}")
-            print(f"[DEBUG] Completions per habit: {completions_per_habit}")
+            for completion in all_completions:
+                habit_id = completion['habit_id']
+                time_of_day_id = completion.get('time_of_day_id')
+                time_name = time_id_to_name.get(time_of_day_id, 'flexible')
+                
+                # Try to match with instance key
+                instance_key = f"{habit_id}_{time_name}"
+                flexible_key = f"{habit_id}_flexible"
+                
+                # Check if this matches any of our habit instances
+                for instance in habit_instances:
+                    if instance.get('instance_id') == instance_key or instance.get('instance_id') == flexible_key:
+                        completed_instance_keys.add(instance.get('instance_id'))
+                        break
+                    # Also match if habit_id matches and time matches
+                    if instance.get('id') == habit_id:
+                        inst_time = instance.get('time_of_day', 'flexible')
+                        if inst_time == time_name or inst_time == 'flexible':
+                            completed_instance_keys.add(instance.get('instance_id'))
+                            break
+            
+            completed_instances = len(completed_instance_keys)
+            
+            print(f"[DEBUG] Completed instances: {completed_instances}/{total_instances}")
             print(f"[DEBUG] ==========================================")
             
-            # Step 5: Calculate completed instances (capped at expected times per day)
-            completed_instances = 0
-            for habit_id in today_habit_ids:
-                expected_times = times_per_habit.get(habit_id, 1)
-                actual_completions = completions_per_habit.get(habit_id, 0)
-                completed_instances += min(actual_completions, expected_times)
-            
-            # Step 6: Calculate success rate
+            # Step 4: Calculate success rate
             success_rate = round((completed_instances / total_instances) * 100) if total_instances > 0 else 0
             
-            print(f"[DEBUG] Completed instances: {completed_instances}/{total_instances} = {success_rate}%")
+            print(f"[DEBUG] Success rate: {success_rate}%")
             
-            # Get time remaining using optimized function
+            # Get time remaining
             time_remaining = self.get_time_remaining_today(user_id, timezone_offset)
             
-            # COMPREHENSIVE STATS DEBUG LOGGING
             final_stats = {
                 'habits_today': total_instances,
                 'completed_today': completed_instances,
@@ -1366,65 +1331,20 @@ class SupabaseClient:
             print(f"[STATS DEBUG] Raw Completions: {total_completions}")
             print(f"[STATS DEBUG] =====================================")
             
-            # Additional debug: Show per-habit breakdown
-            print(f"[STATS DEBUG] PER-HABIT BREAKDOWN:")
-            for habit_id in today_habit_ids:
-                expected = times_per_habit.get(habit_id, 1)
-                actual = completions_per_habit.get(habit_id, 0)
-                counted = min(actual, expected)
-                print(f"[STATS DEBUG]   Habit {habit_id}: {counted}/{expected} (actual: {actual})")
-            print(f"[STATS DEBUG] =====================================")
-            
             return final_stats
                 
         except Exception as e:
             print(f"Error in get_today_stats: {e}")
             import traceback
             traceback.print_exc()
-            # Fallback to simpler queries
-            try:
-                # Count today's completions
-                completions_response = self.client.table("habit_completions").select("id", count="exact").eq("user_id", user_id).eq("completed_date", today_date).execute()
-                completions_today = completions_response.count or 0
-                
-                # Get basic habit count (simplified)
-                habits_response = self.client.table("habits").select("id", count="exact").eq("user_id", user_id).execute()
-                habits_today = habits_response.count or 0
-                
-                # Calculate basic success rate
-                success_rate = round((completions_today / habits_today) * 100) if habits_today > 0 else 0
-                
-                # Get time remaining using optimized function
-                time_remaining = self.get_time_remaining_today(user_id, timezone_offset)
-                
-                fallback_stats = {
-                    'habits_today': habits_today,
-                    'completed_today': completions_today,
-                    'success_rate_today': success_rate,
-                    'time_remaining': time_remaining,
-                    'completions_today': completions_today
-                }
-                
-                print(f"[STATS DEBUG] ===== FALLBACK CALCULATED STATS =====")
-                print(f"[STATS DEBUG] User: {user_id}")
-                print(f"[STATS DEBUG] Date: {today_date}")
-                print(f"[STATS DEBUG] Total Habits Today: {habits_today}")
-                print(f"[STATS DEBUG] Completed Today: {completions_today}")
-                print(f"[STATS DEBUG] Success Rate: {success_rate}%")
-                print(f"[STATS DEBUG] Time Remaining: {time_remaining} minutes")
-                print(f"[STATS DEBUG] Raw Completions: {completions_today}")
-                print(f"[STATS DEBUG] ========================================")
-                
-                return fallback_stats
-            except Exception as fallback_error:
-                print(f"Fallback query also failed: {fallback_error}")
-                return {
-                    'habits_today': 0,
-                    'completed_today': 0,
-                    'success_rate_today': 0,
-                    'time_remaining': 0,
-                    'completions_today': 0
-                }
+            # Fallback - return zeros rather than broken data
+            return {
+                'habits_today': 0,
+                'completed_today': 0,
+                'success_rate_today': 0,
+                'time_remaining': 0,
+                'completions_today': 0
+            }
     
     def _get_time_name_from_id(self, time_id: Optional[int]) -> Optional[str]:
         """Convert time_of_day_id to time name"""
@@ -1741,7 +1661,7 @@ class SupabaseClient:
                 try:
                     save_result = self.save_daily_success_rate(
                         user_id=user_id,
-                        date=target_date,
+                        target_date=target_date,
                         total_instances=calculated_stats.get('habits_today', 0),
                         completed_instances=calculated_stats.get('completed_today', 0),
                         time_remaining=calculated_stats.get('time_remaining', 0)
@@ -1860,7 +1780,7 @@ class SupabaseClient:
                     try:
                         save_result = self.save_daily_success_rate(
                             user_id=user_id,
-                            date=target_date,
+                            target_date=target_date,
                             total_instances=calculated_stats.get('habits_today', 0),
                             completed_instances=calculated_stats.get('completed_today', 0),
                             time_remaining=calculated_stats.get('time_remaining', 0)
@@ -1947,7 +1867,7 @@ class SupabaseClient:
                 # Recalculate and save correct stats
                 updated_stats = self.save_daily_success_rate(
                     user_id=user_id,
-                    date=target_date,
+                    target_date=target_date,
                     total_instances=actual_stats.get('habits_today', 0),
                     completed_instances=actual_stats.get('completed_today', 0),
                     time_remaining=actual_stats.get('time_remaining', 0)
@@ -1996,7 +1916,7 @@ class SupabaseClient:
             # Save the recalculated stats
             updated_stats = self.save_daily_success_rate(
                 user_id=user_id,
-                date=target_date,
+                target_date=target_date,
                 total_instances=calculated_stats.get('habits_today', 0),
                 completed_instances=calculated_stats.get('completed_today', 0),
                 time_remaining=calculated_stats.get('time_remaining', 0)
@@ -3822,14 +3742,11 @@ class SupabaseClient:
                 'maze_mountains_overcome': 0,
                 'memory_fogs_overcome': 0,
                 'journey_level': 1,
-                'journey_experience': 0,
-                'obstacle_badges_earned': [],
-                'journey_milestones_reached': [],
-                'last_updated': datetime.now().isoformat()
+                'journey_experience': 0
             }
         
         try:
-            response = self.client.table("obstacle_stats").select("*").eq("user_id", user_id).execute()
+            response = self.client.table("user_obstacle_stats").select("*").eq("user_id", user_id).execute()
             
             if response.data:
                 return response.data[0]
@@ -3846,14 +3763,11 @@ class SupabaseClient:
                     'maze_mountains_overcome': 0,
                     'memory_fogs_overcome': 0,
                     'journey_level': 1,
-                    'journey_experience': 0,
-                    'obstacle_badges_earned': [],
-                    'journey_milestones_reached': [],
-                    'last_updated': datetime.now().isoformat()
+                    'journey_experience': 0
                 }
                 
-                create_response = self.client.table("obstacle_stats").insert(initial_stats).execute()
-                return create_response.data[0]
+                create_response = self.client.table("user_obstacle_stats").insert(initial_stats).execute()
+                return create_response.data[0] if create_response.data else initial_stats
                 
         except Exception as e:
             print(f"Error getting obstacle stats: {e}")
@@ -3883,7 +3797,7 @@ class SupabaseClient:
                     current_stats[stat_key] = current_stats.get(stat_key, 0) + 1
                 
                 # Update success streak
-                current_stats['current_success_streak'] += 1
+                current_stats['current_success_streak'] = current_stats.get('current_success_streak', 0) + 1
                 if current_stats['current_success_streak'] > current_stats.get('longest_success_streak', 0):
                     current_stats['longest_success_streak'] = current_stats['current_success_streak']
                 
@@ -3898,13 +3812,22 @@ class SupabaseClient:
                 # Reset success streak if obstacle not overcome
                 current_stats['current_success_streak'] = 0
             
-            current_stats['last_updated'] = datetime.now().isoformat()
+            # Update timestamp
+            current_stats['updated_at'] = datetime.now().isoformat()
+            
+            # Remove any extra fields that aren't in the table
+            allowed_fields = ['user_id', 'total_obstacles_encountered', 'total_obstacles_overcome',
+                            'distraction_detours_overcome', 'energy_valleys_overcome', 
+                            'maze_mountains_overcome', 'memory_fogs_overcome',
+                            'current_success_streak', 'longest_success_streak',
+                            'journey_level', 'journey_experience', 'updated_at']
+            current_stats = {k: v for k, v in current_stats.items() if k in allowed_fields}
             
             if self.mock_mode:
                 return True
             
-            # Update in database
-            response = self.client.table("obstacle_stats").update(current_stats).eq("user_id", user_id).execute()
+            # Update in database (upsert to handle new users)
+            response = self.client.table("user_obstacle_stats").upsert(current_stats).execute()
             return len(response.data) > 0
             
         except Exception as e:
@@ -4547,14 +4470,15 @@ class SupabaseClient:
     # JOURNEY ACHIEVEMENT METHODS
     # ============================================================================
     
-    def record_obstacle_encounter(self, user_id: str, obstacle_type: str, encounter_data: Dict[str, Any]) -> bool:
-        """Record an obstacle encounter in the database"""
+    def record_obstacle_encounter(self, user_id: str, obstacle_type: str, encounter_data: Dict[str, Any]) -> Optional[int]:
+        """Record an obstacle encounter in the database. Returns encounter ID or None."""
         if self.mock_mode:
             if not hasattr(self, 'mock_obstacle_encounters'):
                 self.mock_obstacle_encounters = []
             
+            encounter_id = len(self.mock_obstacle_encounters) + 1
             encounter = {
-                'id': len(self.mock_obstacle_encounters) + 1,
+                'id': encounter_id,
                 'user_id': user_id,
                 'obstacle_type': obstacle_type,
                 'encountered_at': datetime.now().isoformat(),
@@ -4563,7 +4487,7 @@ class SupabaseClient:
                 **encounter_data
             }
             self.mock_obstacle_encounters.append(encounter)
-            return True
+            return encounter_id
         
         try:
             encounter_record = {
@@ -4576,10 +4500,12 @@ class SupabaseClient:
             }
             
             response = self.client.table("obstacle_encounters").insert(encounter_record).execute()
-            return len(response.data) > 0
+            if response.data and len(response.data) > 0:
+                return response.data[0].get('id')
+            return None
         except Exception as e:
             print(f"Error recording obstacle encounter: {e}")
-            return False
+            return None
     
     def resolve_obstacle_encounter(self, encounter_id: int, was_overcome: bool, resolution_data: Dict[str, Any] = None) -> bool:
         """Mark an obstacle encounter as resolved"""
@@ -4610,6 +4536,27 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error resolving obstacle encounter: {e}")
             return False
+    
+    def get_obstacle_encounter(self, encounter_id: int) -> Optional[Dict[str, Any]]:
+        """Get a specific obstacle encounter by ID"""
+        if self.mock_mode:
+            if hasattr(self, 'mock_obstacle_encounters'):
+                for encounter in self.mock_obstacle_encounters:
+                    if encounter['id'] == encounter_id:
+                        return encounter
+            return None
+        
+        try:
+            response = self.client.table("obstacle_encounters")\
+                .select("*")\
+                .eq("id", encounter_id)\
+                .execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error getting obstacle encounter: {e}")
+            return None
     
     def save_journey_achievement(self, user_id: str, achievement_data: Dict[str, Any]) -> bool:
         """Save a journey achievement to the database"""

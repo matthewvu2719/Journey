@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ObstacleCard from './ObstacleCard';
 import RobotMascot from './RobotMascot';
+import { api } from '../services/api';
 
 // Journey-themed obstacles from the design document
 const JourneyObstacles = {
@@ -55,9 +56,47 @@ const FrictionTypeSelector = ({ onSelect, selectedHabit }) => {
   const [hoveredObstacle, setHoveredObstacle] = useState(null);
   const [selectedObstacle, setSelectedObstacle] = useState(null);
 
-  const handleObstacleSelect = (obstacleKey) => {
+  // Map frontend obstacle keys to backend obstacle types
+  const obstacleTypeMap = {
+    distraction: 'distraction_detour',
+    lowEnergy: 'energy_drain_valley',
+    complexity: 'maze_mountain',
+    forgetfulness: 'memory_fog'
+  };
+
+  // Just select/highlight the obstacle (don't proceed yet)
+  const handleObstacleClick = (obstacleKey) => {
     setSelectedObstacle(obstacleKey);
-    onSelect(obstacleKey, JourneyObstacles[obstacleKey]);
+  };
+
+  // Confirm selection and proceed to solutions
+  const handleConfirmObstacle = async () => {
+    if (!selectedObstacle) return;
+    
+    // Create obstacle encounter in database
+    try {
+      const obstacleType = obstacleTypeMap[selectedObstacle];
+      const encounterResult = await api.recordObstacleEncounter({
+        obstacle_type: obstacleType,
+        habit_id: selectedHabit?.id,
+        severity: 'medium',
+        context: {
+          habit_name: selectedHabit?.name,
+          selected_at: new Date().toISOString()
+        }
+      });
+      
+      // Pass encounter ID along with obstacle data for later resolution
+      onSelect(selectedObstacle, {
+        ...JourneyObstacles[selectedObstacle],
+        encounterId: encounterResult.encounter_id,
+        obstacleType: obstacleType
+      });
+    } catch (error) {
+      console.error('Failed to record obstacle encounter:', error);
+      // Still proceed even if recording fails
+      onSelect(selectedObstacle, JourneyObstacles[selectedObstacle]);
+    }
   };
 
   return (
@@ -107,7 +146,7 @@ const FrictionTypeSelector = ({ onSelect, selectedHabit }) => {
             color={obstacle.color}
             isSelected={selectedObstacle === key}
             isHovered={hoveredObstacle === key}
-            onClick={() => handleObstacleSelect(key)}
+            onClick={() => handleObstacleClick(key)}
             onHover={() => setHoveredObstacle(key)}
             onLeave={() => setHoveredObstacle(null)}
           />
@@ -128,7 +167,7 @@ const FrictionTypeSelector = ({ onSelect, selectedHabit }) => {
         {selectedObstacle && (
           <button
             className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-medium transition-all duration-200 transform hover:scale-105 shadow-lg"
-            onClick={() => handleObstacleSelect(selectedObstacle)}
+            onClick={handleConfirmObstacle}
           >
             Get Help with {JourneyObstacles[selectedObstacle].name} 🚀
           </button>

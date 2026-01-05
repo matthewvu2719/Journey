@@ -2,17 +2,21 @@ import React, { useState } from 'react';
 import PomodoroTimer from './PomodoroTimer';
 import HabitRescheduleView from './HabitRescheduleView';
 import HabitBreakdownConfirm from './HabitBreakdownConfirm';
+import SMSReminderSetup from './SMSReminderSetup';
 import RobotMascot from './RobotMascot';
+import { api } from '../services/api';
 
 const FrictionActionHandler = ({ 
   solution, 
   habit, 
   onComplete, 
   onBack, 
-  onCancel 
+  onCancel,
+  onHabitUpdate
 }) => {
   const [actionState, setActionState] = useState('confirm'); // 'confirm' | 'executing' | 'completed'
   const [executionData, setExecutionData] = useState(null);
+  const [isApplying, setIsApplying] = useState(false);
 
   const handleExecuteAction = async () => {
     setActionState('executing');
@@ -24,6 +28,17 @@ const FrictionActionHandler = ({
           break;
         case 'reschedule':
           // Reschedule interface will handle the rescheduling
+          break;
+        case 'smart_reschedule':
+          // Smart reschedule will auto-apply
+          await handleSmartReschedule();
+          break;
+        case 'shorten_duration':
+          // Shorten duration will auto-apply
+          await handleShortenDuration();
+          break;
+        case 'sms_reminder':
+          // SMS reminder setup will handle its own flow
           break;
         case 'breakdown':
           // Breakdown confirmation will handle the habit splitting
@@ -46,6 +61,72 @@ const FrictionActionHandler = ({
     }
   };
 
+  const handleSmartReschedule = async () => {
+    setIsApplying(true);
+    try {
+      const suggestedTime = solution.action_data?.suggested_time || 'morning';
+      
+      // Call API to update habit schedule
+      await api.updateHabitSchedule(habit.id, {
+        time_of_day: suggestedTime
+      });
+      
+      setExecutionData({
+        type: 'smart_rescheduled',
+        suggestedTime: suggestedTime,
+        message: `Habit rescheduled to ${suggestedTime} based on your energy patterns`,
+        obstacleOvercome: true
+      });
+      
+      setActionState('completed');
+    } catch (error) {
+      console.error('Error applying smart reschedule:', error);
+      setExecutionData({
+        type: 'smart_reschedule_failed',
+        error: error.message || 'Failed to reschedule habit'
+      });
+      setActionState('completed');
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleShortenDuration = async () => {
+    setIsApplying(true);
+    try {
+      const newDuration = solution.action_data?.new_duration || Math.ceil(habit.estimated_duration / 2);
+      
+      // Call API to update habit duration
+      await api.updateHabit(habit.id, {
+        estimated_duration: newDuration
+      });
+      
+      setExecutionData({
+        type: 'duration_shortened',
+        originalDuration: habit.estimated_duration,
+        newDuration: newDuration,
+        message: `Duration reduced from ${habit.estimated_duration} to ${newDuration} minutes`,
+        obstacleOvercome: true
+      });
+      
+      // Trigger refresh to update the view with new habit data
+      if (onHabitUpdate) {
+        onHabitUpdate();
+      }
+      
+      setActionState('completed');
+    } catch (error) {
+      console.error('Error shortening duration:', error);
+      setExecutionData({
+        type: 'shorten_duration_failed',
+        error: error.message || 'Failed to update habit duration'
+      });
+      setActionState('completed');
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
   const handleDurationReduction = async () => {
     // Calculate new duration based on reduction factor
     const reduction = solution.action_data?.reduction || 0.5;
@@ -55,7 +136,8 @@ const FrictionActionHandler = ({
       type: 'duration_reduced',
       originalDuration: habit.duration,
       newDuration: newDuration,
-      reduction: reduction
+      reduction: reduction,
+      obstacleOvercome: true
     });
     
     setActionState('completed');
@@ -68,7 +150,8 @@ const FrictionActionHandler = ({
         'Phone placed in another room',
         'Workspace cleared of distractions',
         'Focus music or white noise ready'
-      ]
+      ],
+      obstacleOvercome: true
     });
     
     setActionState('completed');
@@ -78,7 +161,8 @@ const FrictionActionHandler = ({
     setExecutionData({
       type: 'reminder_set',
       reminderType: solution.action_data?.type || 'notification',
-      timing: solution.action_data?.timing || '15 minutes before'
+      timing: solution.action_data?.timing || '15 minutes before',
+      obstacleOvercome: true
     });
     
     setActionState('completed');
@@ -87,7 +171,8 @@ const FrictionActionHandler = ({
   const handleGenericAction = async () => {
     setExecutionData({
       type: 'action_completed',
-      message: `${solution.title} has been set up successfully!`
+      message: `${solution.title} has been set up successfully!`,
+      obstacleOvercome: true
     });
     
     setActionState('completed');
@@ -137,6 +222,15 @@ const FrictionActionHandler = ({
           <HabitBreakdownConfirm
             habit={habit}
             subtasks={solution.action_data?.subtasks || []}
+            onComplete={handleActionComplete}
+            onCancel={() => setActionState('confirm')}
+          />
+        );
+      
+      case 'sms_reminder':
+        return (
+          <SMSReminderSetup
+            habit={habit}
             onComplete={handleActionComplete}
             onCancel={() => setActionState('confirm')}
           />
@@ -198,11 +292,14 @@ const FrictionActionHandler = ({
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xl flex-shrink-0">
               {solution.action_type === 'pomodoro' && '🍅'}
               {solution.action_type === 'reschedule' && '⏰'}
+              {solution.action_type === 'smart_reschedule' && '🎯'}
+              {solution.action_type === 'shorten_duration' && '⚡'}
+              {solution.action_type === 'sms_reminder' && '📱'}
               {solution.action_type === 'breakdown' && '🧩'}
               {solution.action_type === 'reduce' && '⚡'}
               {solution.action_type === 'environment' && '🏠'}
               {solution.action_type === 'reminder' && '🔔'}
-              {!['pomodoro', 'reschedule', 'breakdown', 'reduce', 'environment', 'reminder'].includes(solution.action_type) && '💡'}
+              {!['pomodoro', 'reschedule', 'smart_reschedule', 'shorten_duration', 'sms_reminder', 'breakdown', 'reduce', 'environment', 'reminder'].includes(solution.action_type) && '💡'}
             </div>
             
             <div className="flex-1">
@@ -229,6 +326,48 @@ const FrictionActionHandler = ({
                     <br />
                     <span className="text-blue-300/70">
                       We'll help you find the perfect time slot for this habit
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {solution.action_type === 'smart_reschedule' && (
+                <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/20">
+                  <div className="text-sm text-purple-300">
+                    🎯 <strong>Best time for you:</strong> {solution.action_data?.suggested_time || 'morning'}
+                    <br />
+                    <span className="text-purple-300/70">
+                      Based on your ML-analyzed energy patterns, this is when you perform best.
+                      <br />
+                      Click to automatically update your habit schedule.
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {solution.action_type === 'shorten_duration' && (
+                <div className="bg-yellow-500/10 rounded-lg p-3 border border-yellow-500/20">
+                  <div className="text-sm text-yellow-300">
+                    ⚡ <strong>Reduce to {solution.action_data?.new_duration || Math.ceil(habit.estimated_duration / 2)} minutes</strong>
+                    <br />
+                    <span className="text-yellow-300/70">
+                      From {habit.estimated_duration} minutes → {solution.action_data?.new_duration || Math.ceil(habit.estimated_duration / 2)} minutes
+                      <br />
+                      A shorter version is easier to start when energy is low.
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {solution.action_type === 'sms_reminder' && (
+                <div className="bg-green-500/10 rounded-lg p-3 border border-green-500/20">
+                  <div className="text-sm text-green-300">
+                    📱 <strong>Daily SMS Reminders from Bobo</strong>
+                    <br />
+                    <span className="text-green-300/70">
+                      Set up your phone number and preferred reminder times.
+                      <br />
+                      Bobo will text you a friendly summary of your habits each day!
                     </span>
                   </div>
                 </div>
@@ -281,6 +420,27 @@ const FrictionActionHandler = ({
             </div>
           )}
           
+          {executionData.type === 'smart_rescheduled' && (
+            <div className="text-center text-green-300/80">
+              <p>🎯 Habit rescheduled to <strong>{executionData.suggestedTime}</strong></p>
+              <p className="text-sm text-green-300/60 mt-1">Your habit will now appear during your peak energy time!</p>
+            </div>
+          )}
+          
+          {executionData.type === 'duration_shortened' && (
+            <div className="text-center text-green-300/80">
+              <p>⚡ Duration reduced from <strong>{executionData.originalDuration} minutes</strong> to <strong>{executionData.newDuration} minutes</strong></p>
+              <p className="text-sm text-green-300/60 mt-1">A shorter habit is easier to start when energy is low!</p>
+            </div>
+          )}
+          
+          {(executionData.type === 'smart_reschedule_failed' || executionData.type === 'shorten_duration_failed') && (
+            <div className="text-center text-red-300/80">
+              <p>❌ {executionData.error}</p>
+              <p className="text-sm text-red-300/60 mt-1">Please try again or choose a different solution.</p>
+            </div>
+          )}
+          
           {executionData.type === 'environment_modified' && (
             <div className="text-center text-green-300/80">
               <p className="mb-2">Environment optimized for success:</p>
@@ -296,6 +456,18 @@ const FrictionActionHandler = ({
             <div className="text-center text-green-300/80">
               <p>Reminder configured: <strong>{executionData.reminderType}</strong></p>
               <p className="text-sm text-green-300/60 mt-1">You'll be notified {executionData.timing}</p>
+            </div>
+          )}
+          
+          {executionData.type === 'sms_reminder_set' && (
+            <div className="text-center text-green-300/80">
+              <p>📱 SMS Reminders activated!</p>
+              <p className="text-sm text-green-300/60 mt-1">
+                Bobo will text you at: <strong>{executionData.reminderTimes?.join(', ')}</strong>
+              </p>
+              <p className="text-sm text-green-300/60 mt-1">
+                Phone: {executionData.phoneNumber}
+              </p>
             </div>
           )}
           

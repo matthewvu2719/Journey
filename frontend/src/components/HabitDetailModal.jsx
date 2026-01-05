@@ -22,12 +22,13 @@ const SpeechBubble = ({ children, typing = false }) => (
 )
 
 export default function HabitDetailModal({
-  habit,
+  habit: initialHabit,
   timeOfDay,
   logs = [],
   onComplete,
   onHelp,
   onClose,
+  onHabitUpdate,
   isVisible
 }) {
   const { getEquippedItems } = useBobo()
@@ -39,12 +40,29 @@ export default function HabitDetailModal({
   const [selectedFrictionType, setSelectedFrictionType] = useState(null)
   const [selectedSolution, setSelectedSolution] = useState(null)
   const [journeyAchievement, setJourneyAchievement] = useState(null)
+  const [habit, setHabit] = useState(initialHabit)
 
+  // Fetch fresh habit data from database
+  const fetchHabitData = async () => {
+    if (!initialHabit?.id) return
+    try {
+      const freshHabit = await api.getHabit(initialHabit.id)
+      setHabit(freshHabit)
+    } catch (error) {
+      console.error('Failed to fetch habit data:', error)
+      // Fall back to initial habit if fetch fails
+      setHabit(initialHabit)
+    }
+  }
+
+  // Fetch fresh data when modal opens
   useEffect(() => {
-    if (isVisible && habit) {
+    if (isVisible && initialHabit) {
+      setHabit(initialHabit) // Set initial immediately
+      fetchHabitData() // Then fetch fresh data
       setModalState('details')
       setShowBobo(false)
-      setShowWelcomeDialogue(true) // Show dialogue immediately when modal opens
+      setShowWelcomeDialogue(true)
 
       setTimeout(() => {
         setBoboAnimation('slide-in')
@@ -59,7 +77,14 @@ export default function HabitDetailModal({
         }, 800)
       }, 100)
     }
-  }, [isVisible, habit])
+  }, [isVisible, initialHabit?.id])
+
+  // Fetch fresh data when returning to details view
+  useEffect(() => {
+    if (modalState === 'details' && isVisible && initialHabit?.id) {
+      fetchHabitData()
+    }
+  }, [modalState])
 
   if (!isVisible || !habit) return null
 
@@ -171,25 +196,31 @@ export default function HabitDetailModal({
               <FrictionActionHandler
                 solution={selectedSolution}
                 habit={habit}
+                onHabitUpdate={onHabitUpdate}
                 onComplete={async (result) => {
                   if (result.executionData?.obstacleOvercome) {
                     try {
-                      const map = {
-                        distraction: 'distraction_detour',
-                        lowEnergy: 'energy_drain_valley',
-                        complexity: 'maze_mountain',
-                        forgetfulness: 'memory_fog'
+                      // Resolve the obstacle encounter in database
+                      const encounterId = selectedFrictionType?.data?.encounterId;
+                      const obstacleType = selectedFrictionType?.data?.obstacleType;
+                      
+                      if (encounterId) {
+                        await api.resolveObstacleEncounter(encounterId, {
+                          was_overcome: true,
+                          solution_used: selectedSolution?.action_type,
+                          time_to_resolve: result.executionData?.timeToResolve || null
+                        });
                       }
 
-                      const type = map[selectedFrictionType?.type]
-                      if (type) {
-                        const res = await api.checkJourneyAchievements(type)
+                      // Check for journey achievements
+                      if (obstacleType) {
+                        const res = await api.checkJourneyAchievements(obstacleType)
                         if (res.unlocked_achievements?.length) {
                           setJourneyAchievement(res.unlocked_achievements[0])
                         }
                       }
                     } catch (e) {
-                      console.error(e)
+                      console.error('Failed to resolve obstacle:', e)
                     }
                   }
 

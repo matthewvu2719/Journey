@@ -184,6 +184,67 @@ class TwilioService:
         except Exception as e:
             print(f"Error ending call: {e}")
             return False
+    
+    def send_sms(
+        self,
+        to_number: str,
+        message: str
+    ) -> Optional[str]:
+        """
+        Send an SMS message
+        
+        Args:
+            to_number: Phone number to send to (E.164 format)
+            message: Message content
+        
+        Returns:
+            Message SID or None if failed
+        """
+        if not self.enabled:
+            print("⚠️  Twilio not enabled")
+            return None
+        
+        try:
+            sms = self.client.messages.create(
+                to=to_number,
+                from_=self.from_number,
+                body=message
+            )
+            
+            print(f"📱 Sent SMS {sms.sid} to {to_number}")
+            return sms.sid
+        
+        except Exception as e:
+            print(f"❌ Error sending SMS: {e}")
+            return None
+    
+    def send_habit_reminder_sms(
+        self,
+        to_number: str,
+        habits: list,
+        user_name: str = "there"
+    ) -> Optional[str]:
+        """
+        Send a habit reminder SMS
+        
+        Args:
+            to_number: Phone number to send to
+            habits: List of habit names/details
+            user_name: User's name for personalization
+        
+        Returns:
+            Message SID or None if failed
+        """
+        # Build the message
+        habit_list = "\n".join([f"• {h}" for h in habits[:5]])  # Limit to 5 habits
+        
+        message = f"Hey {user_name}! 👋 It's Bobo!\n\n"
+        message += "Here are your habits for today:\n\n"
+        message += habit_list
+        message += "\n\nYou've got this! 💪\n"
+        message += "Reply STOP to unsubscribe."
+        
+        return self.send_sms(to_number, message)
 
 
 # Singleton instance

@@ -46,7 +46,19 @@ const FrictionSolutionView = ({
         additional_context: `User is struggling with ${frictionType} when trying to do ${habit.name}`
       });
 
-      setSolutions(response.solutions || []);
+      let generatedSolutions = response.solutions || [];
+      
+      // For low-energy, ensure default solutions are always present
+      if (frictionType === 'lowEnergy') {
+        generatedSolutions = ensureLowEnergySolutions(generatedSolutions, response.user_context);
+      }
+      
+      // For forgetfulness, ensure SMS reminder solution is always present
+      if (frictionType === 'forgetfulness') {
+        generatedSolutions = ensureForgetfulnessSolutions(generatedSolutions);
+      }
+
+      setSolutions(generatedSolutions);
       setBoboMessage(response.bobo_message || frictionData?.boboGreeting || "Let me help you overcome this obstacle!");
       
       // Start typing animation
@@ -59,12 +71,81 @@ const FrictionSolutionView = ({
       setError('Failed to generate solutions. Please try again.');
       
       // Fallback solutions
-      setSolutions(getFallbackSolutions(frictionType));
+      let fallback = getFallbackSolutions(frictionType);
+      if (frictionType === 'lowEnergy') {
+        fallback = ensureLowEnergySolutions(fallback, null);
+      }
+      if (frictionType === 'forgetfulness') {
+        fallback = ensureForgetfulnessSolutions(fallback);
+      }
+      setSolutions(fallback);
       setBoboMessage(frictionData?.boboGreeting || "I'm here to help you overcome this obstacle!");
       setTypingComplete(true);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Ensure low-energy always has the shorten duration solution (if applicable)
+  const ensureLowEnergySolutions = (solutions, userContext) => {
+    const result = [];
+    
+    // Shorten Duration solution (only if habit is not atomic and has duration)
+    if (habit.habit_type !== 'atomic' && habit.estimated_duration && habit.estimated_duration > 10) {
+      const newDuration = Math.ceil(habit.estimated_duration / 2);
+      const shortenSolution = {
+        title: "⚡ Shorten Duration",
+        description: `Reduce from ${habit.estimated_duration} to ${newDuration} minutes. A shorter version is easier to start when energy is low.`,
+        action_type: "shorten_duration",
+        action_data: { 
+          current_duration: habit.estimated_duration,
+          new_duration: newDuration,
+          reduction: 0.5,
+          auto_apply: true
+        },
+        confidence_score: 0.9,
+        is_default: true
+      };
+      result.push(shortenSolution);
+    }
+    
+    // Add other AI-generated solutions that aren't duplicates
+    solutions.forEach(sol => {
+      if (sol.action_type !== 'reschedule' && sol.action_type !== 'reduce' && sol.action_type !== 'smart_reschedule' && sol.action_type !== 'shorten_duration') {
+        result.push(sol);
+      }
+    });
+    
+    return result;
+  };
+
+  // Ensure forgetfulness always has the SMS reminder solution
+  const ensureForgetfulnessSolutions = (solutions) => {
+    const result = [];
+    
+    // SMS Reminder solution - always first for forgetfulness
+    const smsReminderSolution = {
+      title: "📱 Bobo SMS Reminders",
+      description: "Get daily text messages from Bobo reminding you about your habits. Choose your preferred reminder times and never forget again!",
+      action_type: "sms_reminder",
+      action_data: {
+        reminder_type: "sms",
+        habit_id: habit.id,
+        habit_name: habit.name
+      },
+      confidence_score: 0.95,
+      is_default: true
+    };
+    result.push(smsReminderSolution);
+    
+    // Add other AI-generated solutions that aren't duplicates
+    solutions.forEach(sol => {
+      if (sol.action_type !== 'sms_reminder' && sol.action_type !== 'reminder') {
+        result.push(sol);
+      }
+    });
+    
+    return result;
   };
 
   const getFallbackSolutions = (type) => {
@@ -88,12 +169,6 @@ const FrictionSolutionView = ({
         }
       ],
       'low-energy': [
-        {
-          title: "Reschedule to Peak Time",
-          description: "Move this habit to when you have more energy",
-          action_type: "reschedule",
-          confidence_score: 0.8
-        },
         {
           title: "Try Shorter Version",
           description: "Reduce the duration by half to make it easier",
