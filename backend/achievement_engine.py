@@ -31,7 +31,7 @@ class AchievementEngine:
         'monthly_perfect': {
             'name': 'Perfect Month',
             'description': 'Complete 100% of this month\'s habits',
-            'reward_type': 'theme',
+            'reward_type': 'color',
             'check_frequency': 'monthly'
         },
         
@@ -619,56 +619,35 @@ class AchievementEngine:
         return reward_data
     
     def _unlock_theme(self, user_id: str) -> Optional[Dict]:
-        """Unlock a random color and theme (popped from available lists)"""
+        """Unlock a random color (Perfect Month reward)"""
         import random
         
-        # Get available colors and themes (not yet unlocked)
+        # Get available colors (not yet unlocked)
         available_colors = self._get_available_colors(user_id)
-        available_themes = self._get_available_themes(user_id)
         
-        # Check if any rewards are available
-        if not available_colors and not available_themes:
+        # Check if any colors are available
+        if not available_colors:
             return {
                 'achievement_type': 'monthly_perfect',
                 'achievement_name': 'Perfect Month',
-                'reward_type': 'color_theme',
+                'reward_type': 'color',
                 'reward': None,
-                'message': '👑 Perfect Month! You\'ve unlocked all available colors and themes!'
+                'message': '👑 Perfect Month! You\'ve unlocked all available colors!'
             }
         
-        color = None
-        theme = None
-        
-        # Pick a random color if available
-        if available_colors:
-            color = random.choice(available_colors)
-            # Save color to bobo_items table (this "pops" it from available list)
-            self._save_bobo_item(user_id, 'color', color, 'monthly_perfect')
-        
-        # Pick a random theme if available
-        if available_themes:
-            theme = random.choice(available_themes)
-            # Save theme to bobo_items table (this "pops" it from available list)
-            self._save_bobo_item(user_id, 'theme', theme, 'monthly_perfect')
+        # Pick a random color
+        color = random.choice(available_colors)
+        # Save color to bobo_items table (this "pops" it from available list)
+        self._save_bobo_item(user_id, 'color', color, 'monthly_perfect')
         
         # Create reward message
-        if color and theme:
-            message = f'👑 Perfect Month! New color "{color["name"]}" and theme "{theme["name"]}" unlocked!'
-        elif color:
-            message = f'👑 Perfect Month! New color "{color["name"]}" unlocked! (All themes already unlocked)'
-        elif theme:
-            message = f'👑 Perfect Month! New theme "{theme["name"]}" unlocked! (All colors already unlocked)'
-        else:
-            message = '👑 Perfect Month! All rewards already unlocked!'
+        message = f'👑 Perfect Month! New color "{color["name"]}" unlocked!'
         
         reward_data = {
             'achievement_type': 'monthly_perfect',
             'achievement_name': 'Perfect Month',
-            'reward_type': 'color_theme',
-            'reward': {
-                'color': color,
-                'theme': theme
-            },
+            'reward_type': 'color',
+            'reward': color,
             'message': message
         }
         
@@ -1217,3 +1196,276 @@ class AchievementEngine:
         except Exception as e:
             print(f"Error getting obstacle message: {e}")
             return "🤖 You've got this! I believe in you! 🌟"
+    
+    # ============================================================================
+    # OBSTACLE ACHIEVEMENT REDEMPTION SYSTEM (Tier-Based)
+    # ============================================================================
+    
+    # Tier goals configuration
+    TIER_GOALS = {
+        'distraction_master': {1: 5, 2: 50, 3: 500},
+        'energy_warrior': {1: 5, 2: 50, 3: 500},
+        'maze_solver': {1: 5, 2: 50, 3: 500},
+        'memory_keeper': {1: 5, 2: 50, 3: 500},
+        'journey_champion': {1: 25, 2: 250, 3: 2500},
+        'obstacle_navigator': {1: 1}  # One-time only
+    }
+    
+    def get_obstacle_achievement_progress(self, user_id: str) -> List[Dict]:
+        """Get progress for all obstacle achievements with tier information"""
+        try:
+            # Get obstacle stats
+            stats = self._get_obstacle_stats(user_id)
+            
+            # Get tier data from database
+            tier_data = self.db.get_obstacle_achievement_tiers(user_id)
+            
+            # Build progress for each achievement
+            achievements = []
+            
+            # Distraction Master
+            achievements.append(self._build_achievement_progress(
+                'distraction_master',
+                'Distraction Detour Master',
+                stats.get('distraction_detours_overcome', 0),
+                tier_data.get('distraction_master', {})
+            ))
+            
+            # Energy Warrior
+            achievements.append(self._build_achievement_progress(
+                'energy_warrior',
+                'Energy Valley Warrior',
+                stats.get('energy_valleys_overcome', 0),
+                tier_data.get('energy_warrior', {})
+            ))
+            
+            # Maze Solver
+            achievements.append(self._build_achievement_progress(
+                'maze_solver',
+                'Maze Mountain Solver',
+                stats.get('maze_mountains_overcome', 0),
+                tier_data.get('maze_solver', {})
+            ))
+            
+            # Memory Keeper
+            achievements.append(self._build_achievement_progress(
+                'memory_keeper',
+                'Memory Fog Keeper',
+                stats.get('memory_fogs_overcome', 0),
+                tier_data.get('memory_keeper', {})
+            ))
+            
+            # Journey Champion
+            achievements.append(self._build_achievement_progress(
+                'journey_champion',
+                'Journey Champion',
+                stats.get('total_obstacles_overcome', 0),
+                tier_data.get('journey_champion', {})
+            ))
+            
+            # Obstacle Navigator (special one-time)
+            achievements.append(self._build_achievement_progress(
+                'obstacle_navigator',
+                'Obstacle Navigator',
+                stats.get('total_obstacles_overcome', 0),
+                tier_data.get('obstacle_navigator', {}),
+                is_one_time=True
+            ))
+            
+            return achievements
+            
+        except Exception as e:
+            print(f"Error getting obstacle achievement progress: {e}")
+            return []
+    
+    def _build_achievement_progress(self, achievement_id: str, name: str, current_count: int, 
+                                   tier_info: Dict, is_one_time: bool = False) -> Dict:
+        """Build achievement progress object with tier information"""
+        # Get tier configuration
+        current_tier = tier_info.get('current_tier', 1)
+        current_goal = tier_info.get('current_goal', self.TIER_GOALS[achievement_id][1])
+        is_redeemable = tier_info.get('is_redeemable', False)
+        times_redeemed = tier_info.get('times_redeemed', 0)
+        last_redeemed_at = tier_info.get('last_redeemed_at')
+        
+        # Check if goal is reached
+        if current_count >= current_goal and not is_redeemable:
+            is_redeemable = True
+        
+        # Calculate progress percentage
+        progress_percentage = min(100, (current_count / current_goal * 100)) if current_goal > 0 else 0
+        
+        # Determine status
+        if is_one_time and times_redeemed > 0:
+            status = 'permanently_unlocked'
+        elif is_redeemable:
+            status = 'ready_to_redeem'
+        elif current_tier > 3:
+            status = 'completed'
+        else:
+            status = 'in_progress'
+        
+        return {
+            'achievement_id': achievement_id,
+            'name': name,
+            'current_count': current_count,
+            'current_goal': current_goal,
+            'current_tier': current_tier,
+            'progress_percentage': round(progress_percentage, 1),
+            'is_redeemable': is_redeemable,
+            'times_redeemed': times_redeemed,
+            'last_redeemed_at': last_redeemed_at,
+            'status': status,
+            'is_one_time': is_one_time
+        }
+    
+    def redeem_obstacle_achievement(self, user_id: str, achievement_id: str) -> Optional[Dict]:
+        """Redeem an obstacle achievement and grant reward"""
+        try:
+            # Validate achievement ID
+            if achievement_id not in self.TIER_GOALS:
+                return {'error': 'Invalid achievement ID'}
+            
+            # Get current tier data
+            tier_data = self.db.get_obstacle_achievement_tier(user_id, achievement_id)
+            if not tier_data:
+                # Initialize tier data if doesn't exist
+                self.db.initialize_obstacle_achievement_tier(user_id, achievement_id)
+                tier_data = self.db.get_obstacle_achievement_tier(user_id, achievement_id)
+            
+            # Check if redeemable
+            if not tier_data.get('is_redeemable', False):
+                return {'error': 'Achievement not ready to redeem'}
+            
+            # Get obstacle stats to verify count
+            stats = self._get_obstacle_stats(user_id)
+            current_count = self._get_count_for_achievement(achievement_id, stats)
+            current_goal = tier_data.get('current_goal')
+            
+            if current_count < current_goal:
+                return {'error': 'Goal not reached yet'}
+            
+            # Grant reward from obstacle rewards pool
+            reward = self._grant_obstacle_reward(user_id, achievement_id)
+            if not reward:
+                return {'error': 'Failed to grant reward'}
+            
+            # Update tier progression
+            current_tier = tier_data.get('current_tier', 1)
+            is_one_time = achievement_id == 'obstacle_navigator'
+            
+            if is_one_time:
+                # Mark as permanently unlocked
+                self.db.update_obstacle_achievement_tier(user_id, achievement_id, {
+                    'is_redeemable': False,
+                    'times_redeemed': tier_data.get('times_redeemed', 0) + 1,
+                    'last_redeemed_at': datetime.now().isoformat()
+                })
+                new_tier = current_tier
+                new_goal = current_goal
+            elif current_tier < 3:
+                # Advance to next tier
+                new_tier = current_tier + 1
+                new_goal = self.TIER_GOALS[achievement_id][new_tier]
+                
+                # Update database
+                self.db.update_obstacle_achievement_tier(user_id, achievement_id, {
+                    'current_tier': new_tier,
+                    'current_goal': new_goal,
+                    'is_redeemable': False,
+                    'times_redeemed': tier_data.get('times_redeemed', 0) + 1,
+                    'last_redeemed_at': datetime.now().isoformat()
+                })
+            else:
+                # Tier 3 completed - mark as complete
+                self.db.update_obstacle_achievement_tier(user_id, achievement_id, {
+                    'is_redeemable': False,
+                    'times_redeemed': tier_data.get('times_redeemed', 0) + 1,
+                    'last_redeemed_at': datetime.now().isoformat()
+                })
+                new_tier = current_tier
+                new_goal = current_goal
+            
+            return {
+                'success': True,
+                'reward': reward,
+                'new_tier': new_tier,
+                'new_goal': new_goal,
+                'current_count': current_count,
+                'message': f'Achievement redeemed! You earned: {reward["name"]}'
+            }
+            
+        except Exception as e:
+            print(f"Error redeeming obstacle achievement: {e}")
+            return {'error': str(e)}
+    
+    def _get_count_for_achievement(self, achievement_id: str, stats: Dict) -> int:
+        """Get the current count for a specific achievement"""
+        count_map = {
+            'distraction_master': stats.get('distraction_detours_overcome', 0),
+            'energy_warrior': stats.get('energy_valleys_overcome', 0),
+            'maze_solver': stats.get('maze_mountains_overcome', 0),
+            'memory_keeper': stats.get('memory_fogs_overcome', 0),
+            'journey_champion': stats.get('total_obstacles_overcome', 0),
+            'obstacle_navigator': stats.get('total_obstacles_overcome', 0)
+        }
+        return count_map.get(achievement_id, 0)
+    
+    def _grant_obstacle_reward(self, user_id: str, achievement_id: str) -> Optional[Dict]:
+        """Grant a reward from AI-generated hat and costume (same as Perfect Week)"""
+        try:
+            from bobo_customization_agent import customization_agent
+            
+            # Generate COMPLETELY NEW hat and costume using AI (same as Perfect Week)
+            hat = customization_agent.generate_hat()
+            costume = customization_agent.generate_costume()
+            
+            # Save individual items to bobo_items table
+            self._save_bobo_item(user_id, 'hat', hat, achievement_id)
+            self._save_bobo_item(user_id, 'costume', costume, achievement_id)
+            
+            # Return both items as reward
+            return {
+                'type': 'hat_costume',
+                'hat': hat,
+                'costume': costume,
+                'name': f'{hat["name"]} & {costume["name"]}',
+                'rarity': 'legendary',  # AI-generated items are special
+                'message': f'🎉 You earned a {hat["name"]} and {costume["name"]} for Bobo!'
+            }
+            
+        except Exception as e:
+            print(f"Error granting obstacle reward: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def update_obstacle_achievement_redeemability(self, user_id: str) -> None:
+        """Update is_redeemable flags based on current obstacle counts"""
+        try:
+            stats = self._get_obstacle_stats(user_id)
+            tier_data = self.db.get_obstacle_achievement_tiers(user_id)
+            
+            for achievement_id in self.TIER_GOALS.keys():
+                tier_info = tier_data.get(achievement_id, {})
+                current_count = self._get_count_for_achievement(achievement_id, stats)
+                current_goal = tier_info.get('current_goal', self.TIER_GOALS[achievement_id][1])
+                times_redeemed = tier_info.get('times_redeemed', 0)
+                
+                # Special handling for one-time achievements
+                if achievement_id == 'obstacle_navigator' and times_redeemed > 0:
+                    # Already redeemed once, never redeemable again
+                    if tier_info.get('is_redeemable', False):
+                        self.db.update_obstacle_achievement_tier(user_id, achievement_id, {
+                            'is_redeemable': False
+                        })
+                    continue
+                
+                # Check if goal reached and not already redeemable
+                if current_count >= current_goal and not tier_info.get('is_redeemable', False):
+                    self.db.update_obstacle_achievement_tier(user_id, achievement_id, {
+                        'is_redeemable': True
+                    })
+                    
+        except Exception as e:
+            print(f"Error updating achievement redeemability: {e}")

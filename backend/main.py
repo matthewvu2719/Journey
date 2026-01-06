@@ -2865,6 +2865,77 @@ async def resolve_obstacle_encounter(
 
 
 # ============================================================================
+# OBSTACLE ACHIEVEMENT REDEMPTION ENDPOINTS
+# ============================================================================
+
+@app.get("/api/achievements/obstacle/progress")
+async def get_obstacle_achievement_progress(user_id: str = Depends(get_user_id)):
+    """
+    Get progress for all obstacle achievements with tier information
+    
+    Returns:
+        List of obstacle achievements with current tier, progress, and redeemability
+    """
+    try:
+        from achievement_engine import AchievementEngine
+        achievement_engine = AchievementEngine(db)
+        
+        # Initialize tiers if they don't exist
+        tier_data = db.get_obstacle_achievement_tiers(user_id)
+        if not tier_data:
+            db.initialize_all_obstacle_tiers(user_id)
+        
+        # Update redeemability based on current counts
+        achievement_engine.update_obstacle_achievement_redeemability(user_id)
+        
+        # Get progress
+        progress = achievement_engine.get_obstacle_achievement_progress(user_id)
+        
+        return {
+            "achievements": progress,
+            "total_count": len(progress)
+        }
+    except Exception as e:
+        print(f"Error getting obstacle achievement progress: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get obstacle achievement progress: {str(e)}")
+
+
+@app.post("/api/achievements/obstacle/redeem")
+async def redeem_obstacle_achievement(
+    request_data: dict,
+    user_id: str = Depends(get_user_id)
+):
+    """
+    Redeem an obstacle achievement and receive a reward
+    
+    Args:
+        request_data: Dictionary containing achievement_id
+        
+    Returns:
+        Redemption result with reward and new tier information
+    """
+    try:
+        achievement_id = request_data.get('achievement_id')
+        if not achievement_id:
+            raise HTTPException(status_code=400, detail="achievement_id is required")
+        
+        from achievement_engine import AchievementEngine
+        achievement_engine = AchievementEngine(db)
+        
+        result = achievement_engine.redeem_obstacle_achievement(user_id, achievement_id)
+        
+        if result.get('error'):
+            raise HTTPException(status_code=400, detail=result['error'])
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error redeeming obstacle achievement: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to redeem achievement: {str(e)}")
+
+
+# ============================================================================
 # BOBO CUSTOMIZATION ENDPOINTS
 # ============================================================================
 
@@ -2974,6 +3045,94 @@ async def trigger_test_achievement(
         traceback.print_exc()
         print(f"\n")
         raise HTTPException(status_code=500, detail=f"Failed to trigger achievement: {str(e)}")
+
+
+@app.post("/api/test/trigger-obstacle")
+async def trigger_test_obstacle(
+    obstacle_type: str = 'distraction_detour',
+    user_id: str = Depends(get_user_id)
+):
+    """
+    TEST ONLY: Simulate overcoming an obstacle to test achievement system
+    
+    Note: The obstacle_encounters table requires a habit_id (legacy design),
+    so we create/use a dummy habit for testing. In reality, obstacles can occur
+    independently of specific habits, but the schema constraint requires it.
+    """
+    try:
+        from achievement_engine import AchievementEngine
+        
+        print(f"\n{'='*60}")
+        print(f"[TEST] Simulating obstacle overcome: {obstacle_type}")
+        print(f"[TEST] User ID: {user_id}")
+        print(f"{'='*60}\n")
+        
+        # Get a real habit ID for the user, or create a dummy one
+        # (Required by schema, though not needed for achievement testing)
+        habits = db.get_habits(user_id)
+        habit_id = habits[0]['id'] if habits else None
+        
+        if not habit_id:
+            print(f"[TEST] No habits found, creating dummy habit for test...")
+            test_habit = db.create_habit({
+                'user_id': user_id,
+                'name': 'Test Habit (for obstacle testing)',
+                'habit_type': 'atomic',
+                'priority': 'medium',
+                'difficulty': 'medium'
+            })
+            habit_id = test_habit['id']
+            print(f"[TEST] Created dummy habit with ID: {habit_id}")
+        
+        # Record obstacle encounter (match actual database schema)
+        encounter_data = {
+            'habit_id': habit_id,
+            'severity': 'medium',
+            'context': {'test': True, 'description': 'Testing obstacle achievement system'}
+        }
+        encounter_id = db.record_obstacle_encounter(user_id, obstacle_type, encounter_data)
+        
+        if not encounter_id:
+            raise Exception("Failed to record obstacle encounter")
+        
+        print(f"[TEST] Recorded encounter ID: {encounter_id}")
+        
+        # Mark as overcome
+        resolution_data = {
+            'solution_used': 'Test solution',
+            'time_to_resolve': 5
+        }
+        success = db.resolve_obstacle_encounter(encounter_id, was_overcome=True, resolution_data=resolution_data)
+        
+        if not success:
+            raise Exception("Failed to resolve obstacle encounter")
+        
+        print(f"[TEST] Marked encounter as overcome")
+        
+        # Update obstacle stats (this is what achievements track)
+        db.update_obstacle_stats(user_id, obstacle_type, was_overcome=True)
+        
+        # Check for achievements and update redeemability
+        achievement_engine = AchievementEngine(db)
+        achievement_engine.update_obstacle_achievement_redeemability(user_id)
+        
+        # Get updated progress
+        achievements = achievement_engine.get_obstacle_achievement_progress(user_id)
+        
+        print(f"[TEST] ✓ Obstacle test completed successfully")
+        
+        return {
+            "success": True,
+            "obstacle_type": obstacle_type,
+            "encounter_id": encounter_id,
+            "achievements": achievements if isinstance(achievements, list) else []
+        }
+            
+    except Exception as e:
+        print(f"\n[TEST] ❌ ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to trigger obstacle: {str(e)}")
 
 
 @app.get("/api/test/db-status")

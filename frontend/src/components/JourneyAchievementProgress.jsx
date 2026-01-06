@@ -3,46 +3,98 @@ import { api } from '../services/api'
 import AchievementNotification from './AchievementNotification'
 
 export default function JourneyAchievementProgress() {
-  const [journeyProgress, setJourneyProgress] = useState(null)
+  const [achievements, setAchievements] = useState([])
   const [loading, setLoading] = useState(true)
-  const [achievementResult, setAchievementResult] = useState(null)
+  const [redeeming, setRedeeming] = useState(null)
+  const [rewardNotification, setRewardNotification] = useState(null)
 
   useEffect(() => {
-    loadJourneyProgress()
+    loadAchievementProgress()
+    
+    // Listen for refresh events from test panel
+    const handleRefresh = () => {
+      loadAchievementProgress()
+    }
+    
+    window.addEventListener('obstacleAchievementUpdated', handleRefresh)
+    
+    return () => {
+      window.removeEventListener('obstacleAchievementUpdated', handleRefresh)
+    }
   }, [])
 
-  const loadJourneyProgress = async () => {
+  const loadAchievementProgress = async () => {
     try {
       setLoading(true)
-      const data = await api.getJourneyProgress()
-      setJourneyProgress(data)
+      const data = await api.getObstacleAchievementProgress()
+      setAchievements(data.achievements || [])
     } catch (error) {
-      console.error('Failed to load journey progress:', error)
+      console.error('Failed to load achievement progress:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const checkJourneyAchievements = async (obstacleType = null) => {
+  const handleRedeem = async (achievementId) => {
+    if (redeeming) return // Prevent double-clicks
+    
     try {
-      const result = await api.checkJourneyAchievements(obstacleType)
+      setRedeeming(achievementId)
+      const result = await api.redeemObstacleAchievement(achievementId)
       
-      if (result.unlocked_achievements && result.unlocked_achievements.length > 0) {
-        // Show notification for first achievement
-        setAchievementResult(result.unlocked_achievements[0])
+      if (result.success) {
+        // Show reward notification
+        setRewardNotification({
+          reward: result.reward,
+          message: result.message,
+          newTier: result.new_tier,
+          newGoal: result.new_goal
+        })
         
-        // Refresh progress
-        await loadJourneyProgress()
+        // Refresh achievement progress
+        await loadAchievementProgress()
         
-        // Dispatch event to refresh main achievement progress too
-        window.dispatchEvent(new CustomEvent('journeyAchievementUnlocked'))
+        // Dispatch event to refresh Bobo wardrobe
+        window.dispatchEvent(new CustomEvent('obstacleRewardUnlocked', { 
+          detail: { reward: result.reward } 
+        }))
       }
-      
-      return result
     } catch (error) {
-      console.error('Failed to check journey achievements:', error)
-      return { unlocked_achievements: [], count: 0 }
+      console.error('Failed to redeem achievement:', error)
+      alert('Failed to redeem achievement. Please try again.')
+    } finally {
+      setRedeeming(null)
     }
+  }
+
+  const getAchievementIcon = (achievementId) => {
+    const icons = {
+      'distraction_master': '🎯',
+      'energy_warrior': '⚡',
+      'maze_solver': '🧩',
+      'memory_keeper': '🧠',
+      'journey_champion': '👑',
+      'obstacle_navigator': '🧭'
+    }
+    return icons[achievementId] || '🏆'
+  }
+
+  const getTierBadge = (tier) => {
+    const badges = {
+      1: { label: 'Tier I', color: 'bg-gray-500' },
+      2: { label: 'Tier II', color: 'bg-blue-500' },
+      3: { label: 'Tier III', color: 'bg-purple-500' }
+    }
+    return badges[tier] || badges[1]
+  }
+
+  const getRarityColor = (rarity) => {
+    const colors = {
+      'common': 'text-gray-400',
+      'rare': 'text-blue-400',
+      'legendary': 'text-yellow-400'
+    }
+    return colors[rarity] || 'text-gray-400'
   }
 
   if (loading) {
@@ -62,145 +114,190 @@ export default function JourneyAchievementProgress() {
     )
   }
 
-  if (!journeyProgress) return null
-
-  const { obstacle_stats, achievement_progress, journey_level, journey_experience } = journeyProgress
-
-  const journeyAchievements = [
-    {
-      id: 'obstacle_navigator',
-      icon: '🧭',
-      title: 'Obstacle Navigator',
-      description: 'Overcome your first obstacle',
-      unlocked: achievement_progress.navigator_unlocked,
-      progress: obstacle_stats.total_obstacles_overcome >= 1 ? 100 : 0,
-      requirement: '1 obstacle overcome',
-      reward: 'Journey Badge'
-    },
-    {
-      id: 'distraction_master',
-      icon: '🎯',
-      title: 'Distraction Master',
-      description: 'Master the Distraction Detour',
-      unlocked: achievement_progress.distraction_master_progress === '5/5',
-      progress: (obstacle_stats.distraction_detours_overcome / 5) * 100,
-      requirement: achievement_progress.distraction_master_progress,
-      reward: 'Special Hat'
-    },
-    {
-      id: 'energy_warrior',
-      icon: '⚡',
-      title: 'Energy Warrior',
-      description: 'Conquer the Energy Drain Valley',
-      unlocked: achievement_progress.energy_warrior_progress === '5/5',
-      progress: (obstacle_stats.energy_valleys_overcome / 5) * 100,
-      requirement: achievement_progress.energy_warrior_progress,
-      reward: 'Special Costume'
-    },
-    {
-      id: 'maze_solver',
-      icon: '🧩',
-      title: 'Maze Solver',
-      description: 'Navigate the Maze Mountain',
-      unlocked: achievement_progress.maze_solver_progress === '5/5',
-      progress: (obstacle_stats.maze_mountains_overcome / 5) * 100,
-      requirement: achievement_progress.maze_solver_progress,
-      reward: 'Special Color'
-    },
-    {
-      id: 'memory_keeper',
-      icon: '🧠',
-      title: 'Memory Keeper',
-      description: 'Clear the Memory Fog',
-      unlocked: achievement_progress.memory_keeper_progress === '5/5',
-      progress: (obstacle_stats.memory_fogs_overcome / 5) * 100,
-      requirement: achievement_progress.memory_keeper_progress,
-      reward: 'Special Dance'
-    },
-    {
-      id: 'journey_champion',
-      icon: '👑',
-      title: 'Journey Champion',
-      description: 'Ultimate obstacle master',
-      unlocked: achievement_progress.champion_progress === '25/25',
-      progress: (obstacle_stats.total_obstacles_overcome / 25) * 100,
-      requirement: achievement_progress.champion_progress,
-      reward: 'Champion Theme'
-    }
-  ]
-
   return (
     <>
-      {/* Achievement Notification */}
-      {achievementResult && (
-        <AchievementNotification 
-          achievement={achievementResult}
-          onClose={() => setAchievementResult(null)}
-        />
+      {/* Reward Notification */}
+      {rewardNotification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark/80 backdrop-blur-sm">
+          <div className="glass rounded-2xl p-8 max-w-md mx-4 border border-[var(--color-accent)]/30 animate-scale-in">
+            <div className="text-center">
+              {/* Reward Icon */}
+              <div className="text-6xl mb-4">
+                {rewardNotification.reward.type === 'hat_costume' && '🎩👘'}
+                {rewardNotification.reward.type === 'hat' && '🎩'}
+                {rewardNotification.reward.type === 'costume' && '👘'}
+              </div>
+              
+              {/* Reward Name */}
+              <h3 className="text-2xl font-bold text-light mb-2">
+                {rewardNotification.reward.name}
+              </h3>
+              
+              {/* Rarity & Type */}
+              <div className={`text-sm font-semibold mb-4 ${getRarityColor(rewardNotification.reward.rarity)}`}>
+                {rewardNotification.reward.rarity?.toUpperCase()} {
+                  rewardNotification.reward.type === 'hat_costume' ? 'HAT & COSTUME' :
+                  rewardNotification.reward.type?.toUpperCase()
+                }
+              </div>
+              
+              {/* Message */}
+              <p className="text-light/80 mb-4">
+                {rewardNotification.reward.message || rewardNotification.message}
+              </p>
+              
+              {/* New Tier Info */}
+              {rewardNotification.newTier && (
+                <div className="bg-light/10 rounded-lg p-3 mb-4">
+                  <div className="text-xs text-light/60 mb-1">Next Goal</div>
+                  <div className="text-sm font-semibold text-[var(--color-accent)]">
+                    {getTierBadge(rewardNotification.newTier).label}: {rewardNotification.newGoal} obstacles
+                  </div>
+                </div>
+              )}
+              
+              {/* Close Button */}
+              <button
+                onClick={() => setRewardNotification(null)}
+                className="btn-primary w-full"
+              >
+                Awesome! 🎉
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="space-y-6">
-        {/* Achievement Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {journeyAchievements.map((achievement) => (
-            <div 
-              key={achievement.id}
-              className={`
-                glass rounded-xl p-4 border transition-all duration-300 hover:scale-105
-                ${achievement.unlocked 
-                  ? 'border-green-500/50 bg-green-500/10' 
-                  : achievement.progress >= 100
-                    ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10'
-                    : 'border-light/20 hover:border-light/30'
-                }
-              `}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-2xl">{achievement.icon}</div>
-                {achievement.unlocked && (
-                  <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                    ✓ Unlocked
-                  </div>
-                )}
-              </div>
-
-              {/* Title & Description */}
-              <div className="mb-3">
-                <h4 className="font-bold text-light text-sm mb-1">{achievement.title}</h4>
-                <p className="text-xs text-light/60 mb-2">{achievement.description}</p>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="mb-3">
-                <div className="flex justify-between text-xs text-light/60 mb-1">
-                  <span>Progress</span>
-                  <span>{achievement.requirement}</span>
-                </div>
-                <div className="w-full bg-light/10 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-500 ${
-                      achievement.unlocked 
-                        ? 'bg-green-500' 
-                        : 'bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent)]/80'
-                    }`}
-                    style={{ width: `${Math.min(achievement.progress, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Reward */}
-              <div className="bg-light/5 rounded-lg p-2 text-center">
-                <div className="text-xs text-light/60 mb-1">Reward</div>
-                <div className="text-xs font-semibold text-[var(--color-accent)]">
-                  🎁 {achievement.reward}
-                </div>
-              </div>
-            </div>
-          ))}
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-light">Obstacle Achievements</h3>
+          <div className="text-sm text-light/60">
+            {achievements.filter(a => a.times_redeemed > 0).length} / {achievements.length} Redeemed
+          </div>
         </div>
 
+        {/* Achievement Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {achievements.map((achievement) => {
+            const tierBadge = getTierBadge(achievement.current_tier)
+            const isRedeemable = achievement.is_redeemable
+            const isOneTime = achievement.is_one_time
+            const isPermanentlyUnlocked = achievement.status === 'permanently_unlocked'
+            const isCompleted = achievement.status === 'completed'
+            const isClickable = isRedeemable && !isPermanentlyUnlocked && !isCompleted
+            
+            return (
+              <div 
+                key={achievement.achievement_id}
+                className={`
+                  glass rounded-xl p-4 border transition-all duration-300
+                  ${isRedeemable && !isPermanentlyUnlocked && !isCompleted
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 hover:scale-105 cursor-pointer' 
+                    : isPermanentlyUnlocked || isCompleted
+                      ? 'border-green-500/50 bg-green-500/10 cursor-not-allowed'
+                      : 'border-light/20 hover:border-light/30'
+                  }
+                `}
+                onClick={() => isClickable && !redeeming && handleRedeem(achievement.achievement_id)}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-2xl">{getAchievementIcon(achievement.achievement_id)}</div>
+                  <div className="flex items-center gap-2">
+                    {/* Tier Badge */}
+                    {!isOneTime && (
+                      <div className={`${tierBadge.color} text-white text-xs px-2 py-1 rounded-full font-semibold`}>
+                        {tierBadge.label}
+                      </div>
+                    )}
+                    
+                    {/* Status Badge */}
+                    {isPermanentlyUnlocked && (
+                      <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                        ✓ Unlocked
+                      </div>
+                    )}
+                    {isCompleted && (
+                      <div className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                        ★ Complete
+                      </div>
+                    )}
+                    {isRedeemable && (
+                      <div className="bg-[var(--color-accent)] text-white text-xs px-2 py-1 rounded-full font-semibold animate-pulse">
+                        🎁 Ready!
+                      </div>
+                    )}
+                  </div>
+                </div>
 
+                {/* Title */}
+                <div className="mb-3">
+                  <h4 className="font-bold text-light text-sm mb-1">{achievement.name}</h4>
+                  <p className="text-xs text-light/60">
+                    {isOneTime ? 'One-time achievement' : `Tier ${achievement.current_tier} of 3`}
+                  </p>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-3">
+                  <div className="flex justify-between text-xs text-light/60 mb-1">
+                    <span>Progress</span>
+                    <span>{achievement.current_count} / {achievement.current_goal}</span>
+                  </div>
+                  <div className="w-full bg-light/10 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        isPermanentlyUnlocked || isCompleted
+                          ? 'bg-green-500' 
+                          : isRedeemable
+                            ? 'bg-[var(--color-accent)] animate-pulse'
+                            : 'bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent)]/80'
+                      }`}
+                      style={{ width: `${Math.min(achievement.progress_percentage, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Redemption Info */}
+                <div className="bg-light/5 rounded-lg p-2">
+                  {isRedeemable ? (
+                    <div className="text-center">
+                      <div className="text-xs font-semibold text-[var(--color-accent)] mb-1">
+                        {redeeming === achievement.achievement_id ? '⏳ Redeeming...' : '🎁 Click to Redeem!'}
+                      </div>
+                      <div className="text-xs text-light/60">
+                        Earn a random reward
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="text-xs text-light/60 mb-1">
+                        Reward
+                      </div>
+                      <div className="text-xs font-semibold text-light">
+                        Random Reward
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Info Box */}
+        <div className="glass rounded-xl p-4 border border-light/20">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">💡</div>
+            <div>
+              <h4 className="font-semibold text-light text-sm mb-1">How It Works</h4>
+              <p className="text-xs text-light/60">
+                Overcome obstacles to progress toward achievement goals. When you reach a goal, click the achievement card to redeem it and earn a random reward for Bobo. After redemption, the goal scales up 10x for the next tier!
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   )

@@ -429,6 +429,20 @@ export const api = {
   },
 
   // ============================================================================
+  // OBSTACLE ACHIEVEMENT REDEMPTION
+  // ============================================================================
+
+  getObstacleAchievementProgress: async () => {
+    const { data } = await client.get('/api/achievements/obstacle/progress')
+    return data
+  },
+
+  redeemObstacleAchievement: async (achievementId) => {
+    const { data } = await client.post('/api/achievements/obstacle/redeem', { achievement_id: achievementId })
+    return data
+  },
+
+  // ============================================================================
   // TESTING
   // ============================================================================
   

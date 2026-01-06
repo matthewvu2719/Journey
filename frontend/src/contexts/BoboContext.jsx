@@ -19,6 +19,7 @@ export const BoboProvider = ({ children }) => {
     hat: null,
     costume: null,
     dance: null,
+    emotion: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -67,6 +68,7 @@ export const BoboProvider = ({ children }) => {
               costume: allItems.find(i => i.item_id === data.costume) || null,
               color: allItems.find(i => i.item_id === data.color) || null,
               dance: allItems.find(i => i.item_id === data.dance) || null,
+              emotion: allItems.find(i => i.item_id === data.emotion) || null,
             };
             
             setEquippedItems(equipped);

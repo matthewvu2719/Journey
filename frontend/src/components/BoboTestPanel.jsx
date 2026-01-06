@@ -10,14 +10,16 @@ export default function BoboTestPanel() {
   const [testResults, setTestResults] = useState({
     daily: null,
     weekly: null,
-    monthly: null
+    monthly: null,
+    obstacle: null
   });
 
   const clearResults = () => {
     setTestResults({
       daily: null,
       weekly: null,
-      monthly: null
+      monthly: null,
+      obstacle: null
     });
   };
 
@@ -130,6 +132,71 @@ export default function BoboTestPanel() {
     }
   };
 
+  // Test obstacle achievement flow
+  const testObstacleAchievement = async () => {
+    setLoading(true);
+    
+    try {
+      const token = localStorage.getItem('habit_coach_token');
+      
+      if (!token) {
+        setTestResults(prev => ({
+          ...prev,
+          obstacle: {
+            success: false,
+            error: 'Not authenticated. Please log in first.',
+            timestamp: new Date().toLocaleTimeString()
+          }
+        }));
+        setLoading(false);
+        return;
+      }
+      
+      // Step 1: Trigger obstacle
+      const response = await fetch('http://localhost:8000/api/test/trigger-obstacle?obstacle_type=distraction_detour', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Step 2: Check if any achievements are redeemable
+      const redeemableAchievements = data.achievements?.filter(a => a.is_redeemable) || [];
+      
+      setTestResults(prev => ({
+        ...prev,
+        obstacle: {
+          success: true,
+          obstacleType: data.obstacle_type,
+          achievements: data.achievements,
+          redeemableCount: redeemableAchievements.length,
+          timestamp: new Date().toLocaleTimeString()
+        }
+      }));
+      
+      // Dispatch event to refresh achievement progress
+      window.dispatchEvent(new CustomEvent('obstacleAchievementUpdated'));
+      
+    } catch (error) {
+      setTestResults(prev => ({
+        ...prev,
+        obstacle: {
+          success: false,
+          error: error.message,
+          timestamp: new Date().toLocaleTimeString()
+        }
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Don't show if not authenticated
   if (!isAuthenticated) {
     return null;
@@ -224,6 +291,27 @@ export default function BoboTestPanel() {
               <div className="text-3xl">🎨</div>
             </div>
           </button>
+
+          {/* Obstacle Achievement Test */}
+          <div className="pt-2 border-t border-[var(--color-border)]">
+            <div className="text-xs font-semibold text-[var(--color-foreground)] mb-2 flex items-center gap-2">
+              <span>🧭</span>
+              <span>Obstacle Achievements (Tier-Based)</span>
+            </div>
+            <button
+              onClick={testObstacleAchievement}
+              disabled={loading}
+              className="w-full p-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <div className="font-bold text-lg">🛤️ Test Obstacle System</div>
+                  <div className="text-sm opacity-90">Simulates overcoming an obstacle</div>
+                </div>
+                <div className="text-3xl">🎁</div>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Clear Button */}
@@ -242,13 +330,15 @@ export default function BoboTestPanel() {
           const icons = {
             daily: '⭐',
             weekly: '🏆',
-            monthly: '👑'
+            monthly: '👑',
+            obstacle: '🧭'
           };
           
           const names = {
             daily: 'Perfect Day',
             weekly: 'Perfect Week',
-            monthly: 'Perfect Month'
+            monthly: 'Perfect Month',
+            obstacle: 'Obstacle Achievement'
           };
 
           return (
@@ -276,31 +366,74 @@ export default function BoboTestPanel() {
 
               {result.success ? (
                 <div className="space-y-2">
-                  <div className="text-sm text-[var(--color-foreground)]">
-                    <strong>Achievement:</strong> {result.achievement.achievement_name}
-                  </div>
-                  <div className="text-sm text-[var(--color-foreground-secondary)]">
-                    {result.achievement.message}
-                  </div>
-                  
-                  {result.items && result.items.length > 0 && (
-                    <div className="mt-3 p-2 bg-[var(--color-background)] rounded border border-[var(--color-border)]">
-                      <div className="text-xs font-semibold text-[var(--color-foreground)] mb-2">
-                        New Items in Wardrobe:
+                  {type === 'obstacle' ? (
+                    // Obstacle achievement result
+                    <>
+                      <div className="text-sm text-[var(--color-foreground)]">
+                        <strong>Obstacle:</strong> {result.obstacleType?.replace(/_/g, ' ')}
                       </div>
-                      {result.items.map((item, idx) => (
-                        <div key={idx} className="text-xs text-[var(--color-foreground-secondary)] flex items-center gap-2">
-                          <span className="text-green-500">✓</span>
-                          <span>{item.item_name}</span>
-                          <span className="text-[var(--color-foreground-secondary)]/50">({item.item_type})</span>
+                      <div className="text-sm text-[var(--color-foreground-secondary)]">
+                        Simulated overcoming an obstacle
+                      </div>
+                      
+                      {result.redeemableCount > 0 && (
+                        <div className="mt-3 p-2 bg-[var(--color-accent)]/20 rounded border border-[var(--color-accent)]">
+                          <div className="text-xs font-semibold text-[var(--color-accent)] mb-2">
+                            🎁 {result.redeemableCount} Achievement{result.redeemableCount > 1 ? 's' : ''} Ready to Redeem!
+                          </div>
+                          <div className="text-xs text-[var(--color-foreground-secondary)]">
+                            Check the Journey Achievement Progress panel to redeem your rewards!
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                      
+                      {result.achievements && result.achievements.length > 0 && (
+                        <div className="mt-3 p-2 bg-[var(--color-background)] rounded border border-[var(--color-border)]">
+                          <div className="text-xs font-semibold text-[var(--color-foreground)] mb-2">
+                            Achievement Progress:
+                          </div>
+                          {result.achievements.slice(0, 3).map((achievement, idx) => (
+                            <div key={idx} className="text-xs text-[var(--color-foreground-secondary)] flex items-center gap-2 mb-1">
+                              <span>{achievement.is_redeemable ? '🎁' : '📊'}</span>
+                              <span>{achievement.name}</span>
+                              <span className="text-[var(--color-foreground-secondary)]/50">
+                                ({achievement.current_count}/{achievement.current_goal})
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    // Regular achievement result
+                    <>
+                      <div className="text-sm text-[var(--color-foreground)]">
+                        <strong>Achievement:</strong> {result.achievement.achievement_name}
+                      </div>
+                      <div className="text-sm text-[var(--color-foreground-secondary)]">
+                        {result.achievement.message}
+                      </div>
+                      
+                      {result.items && result.items.length > 0 && (
+                        <div className="mt-3 p-2 bg-[var(--color-background)] rounded border border-[var(--color-border)]">
+                          <div className="text-xs font-semibold text-[var(--color-foreground)] mb-2">
+                            New Items in Wardrobe:
+                          </div>
+                          {result.items.map((item, idx) => (
+                            <div key={idx} className="text-xs text-[var(--color-foreground-secondary)] flex items-center gap-2">
+                              <span className="text-green-500">✓</span>
+                              <span>{item.item_name}</span>
+                              <span className="text-[var(--color-foreground-secondary)]/50">({item.item_type})</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="mt-2 text-xs text-[var(--color-foreground-secondary)]">
+                        Total in wardrobe: {result.counts.hats} hats, {result.counts.costumes} costumes, {result.counts.colors} colors, {result.counts.dances} dances
+                      </div>
+                    </>
                   )}
-                  
-                  <div className="mt-2 text-xs text-[var(--color-foreground-secondary)]">
-                    Total in wardrobe: {result.counts.hats} hats, {result.counts.costumes} costumes, {result.counts.colors} colors, {result.counts.dances} dances
-                  </div>
                 </div>
               ) : (
                 <div className="text-sm text-red-500">
@@ -322,6 +455,15 @@ export default function BoboTestPanel() {
             <div>3. Navigate to Bobo's Wardrobe</div>
             <div>4. Verify items appear in correct tabs</div>
             <div>5. Equip items and check sync</div>
+            <div className="pt-2 border-t border-[var(--color-border)] mt-2">
+              <strong>For Obstacle Achievements:</strong>
+            </div>
+            <div>1. Click "Test Obstacle System" button</div>
+            <div>2. Check Journey Achievement Progress panel</div>
+            <div>3. When achievement is redeemable, click to redeem</div>
+            <div>4. Receive random reward (emoji/hat/costume)</div>
+            <div>5. Goal scales up 10x for next tier</div>
+            <div>6. Verify reward in Bobo's Wardrobe</div>
           </div>
         </div>
       </div>

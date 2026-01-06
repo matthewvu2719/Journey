@@ -106,9 +106,8 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
   const handleStartCompletion = (habitId, timeOfDay) => {
     const habit = habits.find(h => h.id === habitId)
     
-    // Check if already completed - if so, undo it
+    // Don't allow clicking if already completed
     if (isCompletedByTimeName(habitId, timeOfDay)) {
-      handleUndoCompletion(habitId, timeOfDay)
       return
     }
     
@@ -304,9 +303,10 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
   const checkAchievements = async (date) => {
     try {
       const achievements = await api.checkAchievements(date)
+      // Achievements are checked but not automatically shown
+      // User must manually redeem them from the Achievement Progress panel
       if (achievements && achievements.length > 0) {
-        // Show first achievement (you can queue multiple if needed)
-        setAchievementToShow(achievements[0])
+        console.log('Achievements available:', achievements.length)
       }
     } catch (error) {
       console.error('Failed to check achievements:', error)
@@ -652,14 +652,15 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
                             <div className="text-sm font-medium text-light mb-1">{habit.name}</div>
                             <div className="text-xs text-light/40 mb-2">{habit.category}</div>
                             <ShimmerButton
-                              onClick={() => handleStartCompletion(habit.id, timeOfDay)}
+                              onClick={() => !isCompletedByTimeName(habit.id, timeOfDay) && handleStartCompletion(habit.id, timeOfDay)}
+                              disabled={isCompletedByTimeName(habit.id, timeOfDay)}
                               className={`w-full py-1.5 rounded text-xs font-semibold transition ${
                                 isCompletedByTimeName(habit.id, timeOfDay)
-                                  ? 'bg-green-500 text-white hover:bg-green-600'
+                                  ? 'bg-green-500 text-white cursor-not-allowed opacity-90'
                                   : 'bg-light text-dark hover:bg-light/90'
                               }`}
                             >
-                              {isCompletedByTimeName(habit.id, timeOfDay) ? '✓ Done (click to undo)' : 'View Details'}
+                              {isCompletedByTimeName(habit.id, timeOfDay) ? '✓ Completed' : 'View Details'}
                             </ShimmerButton>
                           </div>
                         </div>

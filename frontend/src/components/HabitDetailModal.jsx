@@ -4,7 +4,6 @@ import HabitDetailsView from './HabitDetailsView'
 import FrictionTypeSelector from './FrictionTypeSelector'
 import FrictionSolutionView from './FrictionSolutionView'
 import FrictionActionHandler from './FrictionActionHandler'
-import AchievementNotification from './AchievementNotification'
 import { useBobo } from '../contexts/BoboContext'
 import { api } from '../services/api'
 
@@ -39,7 +38,6 @@ export default function HabitDetailModal({
   const [showWelcomeDialogue, setShowWelcomeDialogue] = useState(false)
   const [selectedFrictionType, setSelectedFrictionType] = useState(null)
   const [selectedSolution, setSelectedSolution] = useState(null)
-  const [journeyAchievement, setJourneyAchievement] = useState(null)
   const [habit, setHabit] = useState(initialHabit)
 
   // Fetch fresh habit data from database
@@ -113,13 +111,6 @@ export default function HabitDetailModal({
 
   return (
     <>
-      {journeyAchievement && (
-        <AchievementNotification
-          achievement={journeyAchievement}
-          onClose={() => setJourneyAchievement(null)}
-        />
-      )}
-
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
         <div className="bg-darker border border-light/20 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-scale-in">
           {/* Header */}
@@ -212,13 +203,7 @@ export default function HabitDetailModal({
                         });
                       }
 
-                      // Check for journey achievements
-                      if (obstacleType) {
-                        const res = await api.checkJourneyAchievements(obstacleType)
-                        if (res.unlocked_achievements?.length) {
-                          setJourneyAchievement(res.unlocked_achievements[0])
-                        }
-                      }
+                      // Don't automatically check achievements - user must manually redeem from rewards panel
                     } catch (e) {
                       console.error('Failed to resolve obstacle:', e)
                     }

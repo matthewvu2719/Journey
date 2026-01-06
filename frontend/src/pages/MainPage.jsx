@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import RobotBaseCamp from '../components/RobotBaseCamp'
-import GuestModeBanner from '../components/GuestModeBanner'
 import EnhancedSchedule from '../components/EnhancedSchedule'
 import AnalyticsInsights from '../components/AnalyticsInsights'
 import FloatingChat from '../components/FloatingChat'
@@ -9,6 +8,7 @@ import AchievementProgress from '../components/AchievementProgress'
 import AchievementNotification from '../components/AchievementNotification'
 import BoboCustomization from '../components/BoboCustomization'
 import BoboTestPanel from '../components/BoboTestPanel'
+import UserMenu from '../components/UserMenu'
 
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -209,6 +209,11 @@ function MainPage() {
 
   return (
     <div className="min-h-screen bg-theme-bg">
+      {/* User Menu - Top Right (scrolls out of view) */}
+      <div className="absolute top-4 right-4 z-50">
+        <UserMenu />
+      </div>
+
       {/* Test Achievement Notification */}
       {testAchievement && (
         <AchievementNotification 
@@ -216,11 +221,6 @@ function MainPage() {
           onClose={() => setTestAchievement(null)}
         />
       )}
-
-      {/* Guest Mode Banner - Top of Main Page */}
-      <div className="relative z-20">
-        <GuestModeBanner />
-      </div>
 
       {/* Floating AI Agent Chat Widget */}
       <FloatingChat habits={habits} logs={logs} onAction={handleAgentAction} />

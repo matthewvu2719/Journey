@@ -148,7 +148,7 @@ export default function AchievementProgress() {
       title: 'Perfect Month',
       description: 'Complete all this month\'s habits',
       progress: progress.monthly_progress,
-      reward: 'New color + theme'
+      reward: 'New color'
     }
   ]
 

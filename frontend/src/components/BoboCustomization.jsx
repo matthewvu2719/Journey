@@ -10,13 +10,15 @@ const BoboCustomization = () => {
     costumes: [],
     colors: [],
     dances: [],
-    themes: []
+    themes: [],
+    emojis: []
   });
   const [preview, setPreview] = useState({
     hat: equippedItems.hat,
     costume: equippedItems.costume,
     color: equippedItems.color,
     dance: equippedItems.dance,
+    emoji: equippedItems.emoji,
     theme: null
   });
   const [activeTab, setActiveTab] = useState('hats');
@@ -94,7 +96,8 @@ const BoboCustomization = () => {
           costumes: [defaultItems.noneCostume, ...items.filter(i => i.item_type === 'costume')],
           colors: items.filter(i => i.item_type === 'color'), // No default color
           dances: [defaultItems.noneDance, ...items.filter(i => i.item_type === 'dance')],
-          themes: defaultThemes // Always available
+          themes: defaultThemes, // Always available
+          emojis: items.filter(i => i.item_type === 'emoji') // Emojis from achievements
         };
         
         setUnlockedItems(grouped);
@@ -114,10 +117,17 @@ const BoboCustomization = () => {
       fetchUnlockedItems();
     };
     
+    // Listen for obstacle reward unlocks
+    const handleObstacleReward = () => {
+      fetchUnlockedItems();
+    };
+    
     window.addEventListener('achievementUnlocked', handleAchievementUnlock);
+    window.addEventListener('obstacleRewardUnlocked', handleObstacleReward);
     
     return () => {
       window.removeEventListener('achievementUnlocked', handleAchievementUnlock);
+      window.removeEventListener('obstacleRewardUnlocked', handleObstacleReward);
     };
   }, []);
 
@@ -127,7 +137,8 @@ const BoboCustomization = () => {
       hat: equippedItems.hat,
       costume: equippedItems.costume,
       color: equippedItems.color,
-      dance: equippedItems.dance
+      dance: equippedItems.dance,
+      emoji: equippedItems.emoji
     });
   }, [equippedItems]);
 
@@ -151,6 +162,7 @@ const BoboCustomization = () => {
       preview.costume?.item_id !== equippedItems.costume?.item_id ||
       preview.color?.item_id !== equippedItems.color?.item_id ||
       preview.dance?.item_id !== equippedItems.dance?.item_id ||
+      preview.emoji?.item_id !== equippedItems.emoji?.item_id ||
       (preview.theme && preview.theme.item_id !== currentTheme)
     );
   };
@@ -176,7 +188,8 @@ const BoboCustomization = () => {
           hat: getItemId(preview.hat),
           costume: getItemId(preview.costume),
           color: getItemId(preview.color),
-          dance: getItemId(preview.dance)
+          dance: getItemId(preview.dance),
+          emoji: getItemId(preview.emoji)
         })
       });
 
@@ -205,6 +218,7 @@ const BoboCustomization = () => {
   const tabs = [
     { id: 'hats', label: '🎩 Hats', items: unlockedItems.hats },
     { id: 'costumes', label: '👔 Costumes', items: unlockedItems.costumes },
+    { id: 'emojis', label: '😊 Emojis', items: unlockedItems.emojis },
     { id: 'colors', label: '🎨 Colors', items: unlockedItems.colors },
     { id: 'dances', label: '💃 Dances', items: unlockedItems.dances },
     { id: 'themes', label: '⭐ Themes', items: unlockedItems.themes }
@@ -263,6 +277,25 @@ const BoboCustomization = () => {
         ) : itemType === 'dance' ? (
           <div className="flex flex-col items-center gap-2">
             <div className="text-4xl">💃</div>
+            <span className="text-sm font-medium text-[var(--color-foreground)]">
+              {item.item_name}
+            </span>
+            <span className="text-xs text-[var(--color-foreground-secondary)]">
+              {item.item_description}
+            </span>
+          </div>
+        ) : itemType === 'emoji' ? (
+          <div className="flex flex-col items-center gap-2">
+            {/* Display emoji SVG or fallback */}
+            <div className="w-20 h-20 flex items-center justify-center">
+              {item.svg_data ? (
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                  <g dangerouslySetInnerHTML={{ __html: item.svg_data }} />
+                </svg>
+              ) : (
+                <div className="text-5xl">😊</div>
+              )}
+            </div>
             <span className="text-sm font-medium text-[var(--color-foreground)]">
               {item.item_name}
             </span>
@@ -377,6 +410,12 @@ const BoboCustomization = () => {
                 <span className="text-[var(--color-foreground-secondary)]">Costume:</span>
                 <span className="text-[var(--color-foreground)] font-medium">
                   {preview.costume?.item_name || 'None'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--color-foreground-secondary)]">Emoji:</span>
+                <span className="text-[var(--color-foreground)] font-medium">
+                  {preview.emoji?.item_name || 'Default'}
                 </span>
               </div>
               <div className="flex justify-between">

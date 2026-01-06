@@ -2736,7 +2736,8 @@ class SupabaseClient:
                     'hat': result.data[0].get('hat'),
                     'costume': result.data[0].get('costume'),
                     'dance': result.data[0].get('dance'),
-                    'color': result.data[0].get('color')
+                    'color': result.data[0].get('color'),
+                    'emotion': result.data[0].get('emotion')
                 }
                 print(f"[DB] Returning equipped: {equipped}")
                 return equipped
@@ -2764,7 +2765,8 @@ class SupabaseClient:
                 'hat': customizations.get('hat'),
                 'costume': customizations.get('costume'),
                 'dance': customizations.get('dance'),
-                'color': customizations.get('color')
+                'color': customizations.get('color'),
+                'emotion': customizations.get('emotion')
             }
             
             print(f"[DB] Saving equipped customizations for {user_id}: {data}")
@@ -4748,6 +4750,140 @@ class SupabaseClient:
             'completions_today': 0,
             'source': 'safe_defaults'
         }
+    
+    # ============================================================================
+    # OBSTACLE ACHIEVEMENT TIER MANAGEMENT
+    # ============================================================================
+    
+    def get_obstacle_achievement_tiers(self, user_id: str) -> Dict[str, Dict]:
+        """Get all obstacle achievement tier data for a user"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_obstacle_tiers'):
+                self.mock_obstacle_tiers = {}
+            return self.mock_obstacle_tiers.get(user_id, {})
+        
+        try:
+            response = self.client.table("obstacle_achievement_tiers")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .execute()
+            
+            # Convert list to dict keyed by achievement_id
+            tiers_dict = {}
+            for tier in response.data:
+                tiers_dict[tier['achievement_id']] = tier
+            
+            return tiers_dict
+        except Exception as e:
+            print(f"Error getting obstacle achievement tiers: {e}")
+            return {}
+    
+    def get_obstacle_achievement_tier(self, user_id: str, achievement_id: str) -> Optional[Dict]:
+        """Get specific obstacle achievement tier data"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_obstacle_tiers'):
+                self.mock_obstacle_tiers = {}
+            return self.mock_obstacle_tiers.get(user_id, {}).get(achievement_id)
+        
+        try:
+            response = self.client.table("obstacle_achievement_tiers")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .eq("achievement_id", achievement_id)\
+                .execute()
+            
+            # Check if any data was returned
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error getting obstacle achievement tier: {e}")
+            return None
+    
+    def initialize_obstacle_achievement_tier(self, user_id: str, achievement_id: str) -> bool:
+        """Initialize tier data for an achievement"""
+        # Tier goals configuration
+        tier_goals = {
+            'distraction_master': 5,
+            'energy_warrior': 5,
+            'maze_solver': 5,
+            'memory_keeper': 5,
+            'journey_champion': 25,
+            'obstacle_navigator': 1
+        }
+        
+        initial_goal = tier_goals.get(achievement_id, 5)
+        
+        if self.mock_mode:
+            if not hasattr(self, 'mock_obstacle_tiers'):
+                self.mock_obstacle_tiers = {}
+            if user_id not in self.mock_obstacle_tiers:
+                self.mock_obstacle_tiers[user_id] = {}
+            
+            self.mock_obstacle_tiers[user_id][achievement_id] = {
+                'user_id': user_id,
+                'achievement_id': achievement_id,
+                'current_tier': 1,
+                'current_goal': initial_goal,
+                'is_redeemable': False,
+                'times_redeemed': 0,
+                'last_redeemed_at': None
+            }
+            return True
+        
+        try:
+            self.client.table("obstacle_achievement_tiers").insert({
+                'user_id': user_id,
+                'achievement_id': achievement_id,
+                'current_tier': 1,
+                'current_goal': initial_goal,
+                'is_redeemable': False,
+                'times_redeemed': 0
+            }).execute()
+            return True
+        except Exception as e:
+            print(f"Error initializing obstacle achievement tier: {e}")
+            return False
+    
+    def update_obstacle_achievement_tier(self, user_id: str, achievement_id: str, updates: Dict) -> bool:
+        """Update obstacle achievement tier data"""
+        if self.mock_mode:
+            if not hasattr(self, 'mock_obstacle_tiers'):
+                self.mock_obstacle_tiers = {}
+            if user_id not in self.mock_obstacle_tiers:
+                self.mock_obstacle_tiers[user_id] = {}
+            if achievement_id not in self.mock_obstacle_tiers[user_id]:
+                self.initialize_obstacle_achievement_tier(user_id, achievement_id)
+            
+            self.mock_obstacle_tiers[user_id][achievement_id].update(updates)
+            return True
+        
+        try:
+            self.client.table("obstacle_achievement_tiers")\
+                .update(updates)\
+                .eq("user_id", user_id)\
+                .eq("achievement_id", achievement_id)\
+                .execute()
+            return True
+        except Exception as e:
+            print(f"Error updating obstacle achievement tier: {e}")
+            return False
+    
+    def initialize_all_obstacle_tiers(self, user_id: str) -> bool:
+        """Initialize all obstacle achievement tiers for a new user"""
+        achievement_ids = [
+            'distraction_master',
+            'energy_warrior',
+            'maze_solver',
+            'memory_keeper',
+            'journey_champion',
+            'obstacle_navigator'
+        ]
+        
+        for achievement_id in achievement_ids:
+            self.initialize_obstacle_achievement_tier(user_id, achievement_id)
+        
+        return True
 
 
 # Global database instance
