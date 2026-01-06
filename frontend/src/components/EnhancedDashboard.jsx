@@ -20,6 +20,7 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
   const { getEquippedItems } = useBobo()
   const [stats, setStats] = useState(null)
   const [showHabitForm, setShowHabitForm] = useState(false)
+  const [editingHabit, setEditingHabit] = useState(null)
   const [completingHabit, setCompletingHabit] = useState(null)
   const [completingTimeOfDay, setCompletingTimeOfDay] = useState(null)
   const [showConfetti, setShowConfetti] = useState(0)
@@ -322,9 +323,27 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         onRefresh()
       }
       setShowHabitForm(false)
+      setEditingHabit(null)
     } catch (error) {
       console.error('Failed to create habit:', error)
     }
+  }
+
+  const handleUpdateHabit = async (habitData) => {
+    try {
+      await api.updateHabit(editingHabit.id, habitData)
+      await onRefresh()
+      setShowHabitForm(false)
+      setEditingHabit(null)
+    } catch (error) {
+      console.error('Failed to update habit:', error)
+      alert('Failed to update habit. Please try again.')
+    }
+  }
+
+  const handleEditHabit = (habit) => {
+    setEditingHabit(habit)
+    setShowHabitForm(true)
   }
 
   const handleRefreshHabits = async () => {
@@ -460,7 +479,10 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="relative max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
             <button
-              onClick={() => setShowHabitForm(false)}
+              onClick={() => {
+                setShowHabitForm(false)
+                setEditingHabit(null)
+              }}
               className="absolute top-4 right-4 z-10 p-2 rounded-full bg-light/10 hover:bg-light/20 transition-colors"
               aria-label="Close"
             >
@@ -469,8 +491,12 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
               </svg>
             </button>
             <HabitForm
-              onSubmit={handleCreateHabit}
-              onCancel={() => setShowHabitForm(false)}
+              initialData={editingHabit}
+              onSubmit={editingHabit ? handleUpdateHabit : handleCreateHabit}
+              onCancel={() => {
+                setShowHabitForm(false)
+                setEditingHabit(null)
+              }}
             />
           </div>
           <style jsx="true">{`
@@ -643,11 +669,26 @@ export default function EnhancedDashboard({ habits, logs, onRefresh, onHabitCrea
                                   <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded">{habit.estimated_duration}m</span>
                                 )}
                               </div>
-                              {isCompletedByTimeName(habit.id, timeOfDay) && (
-                                <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
+                              <div className="flex items-center gap-1">
+                                {/* Edit and Delete buttons - same height as badges */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEditHabit(habit)
+                                  }}
+                                  className="px-1.5 py-0.5 rounded hover:bg-light/20 transition-colors"
+                                  title="Edit habit"
+                                >
+                                  <svg className="w-3.5 h-3.5 text-light/60 hover:text-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                {isCompletedByTimeName(habit.id, timeOfDay) && (
+                                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
                             </div>
                             <div className="text-sm font-medium text-light mb-1">{habit.name}</div>
                             <div className="text-xs text-light/40 mb-2">{habit.category}</div>

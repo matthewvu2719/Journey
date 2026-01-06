@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react'
 import { api } from '../services/api'
 
 export default function SubtasksPanel({ habitId }) {
-  const [sessions, setSessions] = useState([])
+  const [sessions, setSessions] = useState(null) // null = not fetched yet, [] = no sessions
   const [activeSessionIndex, setActiveSessionIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
   const [completedSubtasks, setCompletedSubtasks] = useState(new Set())
 
   useEffect(() => {
@@ -15,7 +14,6 @@ export default function SubtasksPanel({ habitId }) {
 
   const fetchBreakdownSessions = async () => {
     try {
-      setLoading(true)
       const response = await api.getHabitBreakdownSessions(habitId)
       const fetchedSessions = response.sessions || []
       setSessions(fetchedSessions)
@@ -33,8 +31,6 @@ export default function SubtasksPanel({ habitId }) {
     } catch (error) {
       console.error('Error fetching breakdown sessions:', error)
       setSessions([])
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -73,22 +69,13 @@ export default function SubtasksPanel({ habitId }) {
     })
   }
 
-  if (loading) {
-    return (
-      <div className="bg-light/5 rounded-xl p-4 border border-light/10">
-        <div className="animate-pulse">
-          <div className="h-4 bg-light/10 rounded w-24 mb-3"></div>
-          <div className="space-y-2">
-            <div className="h-3 bg-light/10 rounded w-full"></div>
-            <div className="h-3 bg-light/10 rounded w-3/4"></div>
-            <div className="h-3 bg-light/10 rounded w-1/2"></div>
-          </div>
-        </div>
-      </div>
-    )
+  // Don't render anything until data is fetched (prevents flash)
+  if (sessions === null) {
+    return null
   }
 
-  if (!sessions || sessions.length === 0) {
+  // Don't render if no breakdown sessions exist
+  if (sessions.length === 0) {
     return null
   }
 

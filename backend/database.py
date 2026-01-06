@@ -243,16 +243,102 @@ class SupabaseClient:
         return habit
     
     def update_habit(self, habit_id: int, habit_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update a habit"""
+        """Update a habit - handles all tables like create_habit"""
+        # Extract days and times_of_day lists before updating
+        days_list = habit_data.pop('days', None)
+        times_of_day_list = habit_data.pop('times_of_day', None)
+        
         if self.mock_mode:
             for i, h in enumerate(self.mock_habits):
                 if h["id"] == habit_id:
                     self.mock_habits[i] = {**h, **habit_data}
+                    if days_list is not None:
+                        self.mock_habits[i]['days'] = days_list
+                    if times_of_day_list is not None:
+                        self.mock_habits[i]['times_of_day'] = times_of_day_list
                     return self.mock_habits[i]
             return None
         
-        response = self.client.table("habits").update(habit_data).eq("id", habit_id).execute()
-        return response.data[0] if response.data else None
+        try:
+            # Filter to only include fields that exist in the habits table
+            allowed_fields = {
+                'user_id', 'name', 'description', 'habit_type', 'estimated_duration',
+                'priority', 'difficulty', 'category',
+                'mood_before', 'mood_after', 'energy_level_before', 'energy_level_after',
+                'is_successful', 'actual_duration'
+            }
+            
+            # Filter fields but allow 0 values for estimated_duration
+            filtered_data = {}
+            for k, v in habit_data.items():
+                if k in allowed_fields:
+                    # Allow None and 0 values for estimated_duration, filter None for others
+                    if k == 'estimated_duration' or v is not None:
+                        filtered_data[k] = v
+            
+            # For atomic habits, set estimated_duration to null
+            if habit_data.get('habit_type') == 'atomic':
+                filtered_data['estimated_duration'] = None
+            
+            # Update main habit record
+            response = self.client.table("habits").update(filtered_data).eq("id", habit_id).execute()
+            habit = response.data[0] if response.data else None
+            
+            if not habit:
+                return None
+            
+            # Update days relationships if provided
+            if days_list is not None:
+                try:
+                    # Delete existing day relationships
+                    self.client.table("days_habits").delete().eq("habit_id", habit_id).execute()
+                    
+                    # Insert new day relationships
+                    if days_list:
+                        day_name_to_id = {
+                            'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4,
+                            'Fri': 5, 'Sat': 6, 'Sun': 7
+                        }
+                        day_relationships = [
+                            {"habit_id": habit_id, "day_id": day_name_to_id[day]}
+                            for day in days_list if day in day_name_to_id
+                        ]
+                        if day_relationships:
+                            self.client.table("days_habits").insert(day_relationships).execute()
+                    
+                    habit['days'] = days_list
+                except Exception as e:
+                    print(f"Warning: Could not update day relationships: {e}")
+                    habit['days'] = days_list
+            
+            # Update times_of_day relationships if provided
+            if times_of_day_list is not None:
+                try:
+                    # Delete existing time relationships
+                    self.client.table("times_of_day_habits").delete().eq("habit_id", habit_id).execute()
+                    
+                    # Insert new time relationships
+                    if times_of_day_list:
+                        time_name_to_id = {
+                            'morning': 1, 'noon': 2, 'afternoon': 3, 'night': 4
+                        }
+                        time_relationships = [
+                            {"habit_id": habit_id, "time_of_day_id": time_name_to_id[time]}
+                            for time in times_of_day_list if time in time_name_to_id
+                        ]
+                        if time_relationships:
+                            self.client.table("times_of_day_habits").insert(time_relationships).execute()
+                    
+                    habit['times_of_day'] = times_of_day_list
+                except Exception as e:
+                    print(f"Warning: Could not update time relationships: {e}")
+                    habit['times_of_day'] = times_of_day_list
+            
+            return habit
+            
+        except Exception as e:
+            print(f"Error updating habit: {e}")
+            raise
     
     def update_habit_schedule(self, habit_id: int, user_id: str, new_time: str = None, new_days: List[int] = None, reason: str = "User requested") -> bool:
         """Update habit scheduling information"""

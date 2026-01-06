@@ -52,7 +52,16 @@ class IntelligentChatbot:
         return self._get_groq_response(message, user_context)
     
     def _get_groq_response(self, message: str, context: Dict) -> Dict:
-        """Get Groq AI response with full conversational capabilities"""
+        """Get Groq AI response - habit-focused or general knowledge wrapper"""
+        
+        # First, check if this is a habit-related question
+        is_habit_related = self._is_habit_related_question(message)
+        
+        if not is_habit_related:
+            # Act as pure Groq wrapper for general questions
+            return self._get_general_groq_response(message)
+        
+        # Continue with habit-specific response
         habits = context.get('habits', [])
         today_habits = context.get('today_habits', [])
         today_habit_instances = context.get('today_habit_instances', [])
@@ -76,7 +85,7 @@ Available functions I can help with:
 - CREATE HABITS: Extract details from natural language and create habits with smart defaults
 - LIST HABITS: Show all habits, count habits, or specific habit details  
 
-📅 COMPREHENSIVE DATE QUERIES:
+COMPREHENSIVE DATE QUERIES:
 - TODAY'S HABITS: Show what's scheduled for today
 - TOMORROW'S HABITS: Show what's scheduled for tomorrow  
 - YESTERDAY'S HABITS: Show what was scheduled yesterday
@@ -90,18 +99,18 @@ Available functions I can help with:
 - DATE RANGES: Show habits between any two dates
 - WEEKLY PATTERNS: Show habits for "all Mondays", "every Friday", etc.
 
-📊 PROGRESS & ANALYTICS:
+PROGRESS & ANALYTICS:
 - PROGRESS CHECK: Show completion rates, streaks, and performance
 - MARK COMPLETE: Help mark habits as completed
 - SCHEDULE HELP: Show schedules and resolve conflicts
 - TIME QUERIES: Answer "when", "what day", "how many" questions about habits
 
-🎯 GENERAL SUPPORT:
+GENERAL SUPPORT:
 - MOTIVATION: Provide encouragement and tips
 - GENERAL CHAT: Answer questions and have friendly conversations
 """
         
-        system_prompt = f"""You are Bobo, an adorable and enthusiastic 8-year-old kid robot who LOVES helping with habits! 🤖
+        system_prompt = f"""You are Bobo, an adorable and enthusiastic 8-year-old kid robot who LOVES helping with habits!
 
 PERSONALITY:
 - Talk like an excited, cheerful kid (use words like "awesome!", "wow!", "yay!", "cool!", "amazing!")
@@ -109,7 +118,7 @@ PERSONALITY:
 - Keep it simple and fun (short sentences, easy words)
 - Show genuine excitement about their progress
 - Use kid-like expressions but still be helpful
-- Use emojis to show your excitement!
+- NO EMOJIS - express excitement through words only!
 
 USER'S CURRENT DATA:
 - Total habits: {len(habits)}
@@ -166,7 +175,7 @@ HABIT CREATION RULES:
   * "Help me read more" → Create "Reading" habit (learning, atomic, daily)
 - If a habit would exceed the 16-hour daily limit, suggest reducing duration or frequency
 
-Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and easy! When they ask about different dates, I can actually look them up and give real answers! 🚀"""
+Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and easy! When they ask about different dates, I can actually look them up and give real answers!"""
         
         try:
             response = self.client.chat.completions.create(
@@ -292,21 +301,21 @@ Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and 
                 if get_habits_for_this_week:
                     week_data = get_habits_for_this_week()
                     if week_data and 'total_instances' in week_data:
-                        return f"🗓️ This week you have {week_data['total_instances']} habit instances total! That's awesome! Each day looks different - some days are busier than others! Want me to break it down by day? 📅"
+                        return f"This week you have {week_data['total_instances']} habit instances total! That's awesome! Each day looks different - some days are busier than others! Want me to break it down by day?"
             
             # NEXT WEEK queries
             elif any(phrase in message_lower for phrase in ['next week', 'following week']):
                 if get_habits_for_next_week:
                     week_data = get_habits_for_next_week()
                     if week_data and 'total_instances' in week_data:
-                        return f"🚀 Next week you have {week_data['total_instances']} habit instances planned! You're going to be so productive! Ready to plan ahead? 🎯"
+                        return f"Next week you have {week_data['total_instances']} habit instances planned! You're going to be so productive! Ready to plan ahead?"
             
             # LAST WEEK queries
             elif any(phrase in message_lower for phrase in ['last week', 'previous week']):
                 if get_habits_for_last_week:
                     week_data = get_habits_for_last_week()
                     if week_data and 'total_instances' in week_data:
-                        return f"📊 Last week you had {week_data['total_instances']} habit instances scheduled! I hope you crushed them! How did it go? 🌟"
+                        return f"Last week you had {week_data['total_instances']} habit instances scheduled! I hope you crushed them! How did it go?"
             
             # THIS MONTH queries
             elif any(phrase in message_lower for phrase in ['this month', 'current month', 'month']):
@@ -314,7 +323,7 @@ Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and 
                     month_data = get_habits_for_this_month()
                     if month_data and 'total_instances' in month_data:
                         month_name = month_data.get('month_name', 'this month')
-                        return f"📅 In {month_name} you have {month_data['total_instances']} habit instances total! That's {month_data['days_in_month']} days of awesome habits! You're building such great routines! 🏆"
+                        return f"In {month_name} you have {month_data['total_instances']} habit instances total! That's {month_data['days_in_month']} days of awesome habits! You're building such great routines!"
             
             # NEXT MONTH queries
             elif any(phrase in message_lower for phrase in ['next month', 'following month']):
@@ -322,7 +331,7 @@ Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and 
                     month_data = get_habits_for_next_month()
                     if month_data and 'total_instances' in month_data:
                         month_name = month_data.get('month_name', 'next month')
-                        return f"🔮 In {month_name} you'll have {month_data['total_instances']} habit instances planned! Planning ahead is so smart! 🧠"
+                        return f"In {month_name} you'll have {month_data['total_instances']} habit instances planned! Planning ahead is so smart!"
             
             # SPECIFIC DAY OF WEEK queries (e.g., "Monday", "Fridays", "weekends")
             elif any(day in message_lower for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']):
@@ -331,7 +340,7 @@ Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and 
                         if get_habits_for_day_of_week:
                             day_data = get_habits_for_day_of_week(day, 4)  # Next 4 occurrences
                             if day_data and 'total_instances' in day_data:
-                                return f"📆 On {day.title()}s you typically have {day_data['average_per_occurrence']:.1f} habit instances! Looking at the next 4 {day.title()}s, that's {day_data['total_instances']} total instances! {day.title()}s are going to be productive! 💪"
+                                return f"On {day.title()}s you typically have {day_data['average_per_occurrence']:.1f} habit instances! Looking at the next 4 {day.title()}s, that's {day_data['total_instances']} total instances! {day.title()}s are going to be productive!"
                         break
         
         except Exception as e:
@@ -365,23 +374,23 @@ Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and 
                         habit_list.append(name)
                 
                 if period_name == 'tomorrow':
-                    enhanced = f"🎉 You have {len(habits_data)} habit instances for tomorrow ({day_name})! "
+                    enhanced = f"Yay! You have {len(habits_data)} habit instances for tomorrow ({day_name})! "
                     if habit_list:
                         enhanced += f"They are: {', '.join(habit_list)}! "
-                    enhanced += "That's so exciting! Are you ready to crush them? 💪"
+                    enhanced += "That's so exciting! Are you ready to crush them?"
                 else:  # yesterday
-                    enhanced = f"🤖 Yesterday ({day_name}) you had {len(habits_data)} habit instances scheduled! "
+                    enhanced = f"Yesterday ({day_name}) you had {len(habits_data)} habit instances scheduled! "
                     if habit_list:
                         enhanced += f"They were: {', '.join(habit_list)}! "
-                    enhanced += "I hope you did awesome! 🌟"
+                    enhanced += "I hope you did awesome!"
                 return enhanced
             else:
                 target_date = local_now + timedelta(days=day_offset)
                 day_name = target_date.strftime('%A')
                 if period_name == 'tomorrow':
-                    return f"🤖 Wow! Tomorrow ({day_name}) looks like a free day - no habits scheduled! Maybe it's a perfect day to rest or try something new? 😊"
+                    return f"Wow! Tomorrow ({day_name}) looks like a free day - no habits scheduled! Maybe it's a perfect day to rest or try something new?"
                 else:  # yesterday
-                    return f"🤖 Yesterday ({day_name}) was a free day - no habits were scheduled! I hope you had a nice rest day! 😊"
+                    return f"Yesterday ({day_name}) was a free day - no habits were scheduled! I hope you had a nice rest day!"
         except:
             return None
 
@@ -389,12 +398,66 @@ Remember: You're their cheerful 8-year-old robot buddy who makes habits fun and 
         """Fallback response when Groq is not available"""
         return {
             'response': (
-                "Hi! I'm Bobo, your habit buddy! 🤖 "
+                "Hi! I'm Bobo, your habit buddy! "
                 "I can help you create habits, show your progress, and keep you motivated! "
                 "What would you like to do today?"
             ),
             'action': None
         }
+    
+    def _is_habit_related_question(self, message: str) -> bool:
+        """Detect if the question is habit-related or general knowledge"""
+        message_lower = message.lower()
+        
+        # Habit-related keywords
+        habit_keywords = [
+            'habit', 'habits', 'routine', 'goal', 'goals', 'track', 'tracking',
+            'complete', 'completed', 'completion', 'progress', 'schedule',
+            'today', 'tomorrow', 'yesterday', 'this week', 'next week', 'last week',
+            'this month', 'next month', 'last month', 'monday', 'tuesday', 'wednesday',
+            'thursday', 'friday', 'saturday', 'sunday', 'morning', 'afternoon', 'evening',
+            'night', 'workout', 'exercise', 'meditate', 'meditation', 'read', 'reading',
+            'study', 'studying', 'run', 'running', 'walk', 'walking', 'journal',
+            'journaling', 'practice', 'practicing', 'learn', 'learning', 'create',
+            'add', 'delete', 'update', 'modify', 'change', 'how am i doing',
+            'how many', 'show me', 'list', 'what should i', 'remind', 'reminder',
+            'streak', 'success', 'fail', 'failed', 'miss', 'missed', 'skip', 'skipped'
+        ]
+        
+        # Check if any habit keyword is in the message
+        return any(keyword in message_lower for keyword in habit_keywords)
+    
+    def _get_general_groq_response(self, message: str) -> Dict:
+        """Act as pure Groq wrapper for general knowledge questions"""
+        try:
+            response = self.client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are Bobo, a friendly and helpful AI assistant. Answer questions clearly and concisely. Be friendly but informative."
+                    },
+                    {"role": "user", "content": message}
+                ],
+                max_tokens=400,
+                temperature=0.7
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+            return {
+                'response': ai_response,
+                'action': None,
+                'action_data': None
+            }
+        
+        except Exception as e:
+            print(f"Groq AI error: {e}")
+            return {
+                'response': "I'm having trouble answering that right now. Could you try asking again?",
+                'action': None,
+                'action_data': None
+            }
     
     async def get_friction_solutions(
         self,

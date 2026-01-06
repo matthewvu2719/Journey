@@ -2137,22 +2137,22 @@ async def get_ml_recommendations(user_id: str = Depends(get_user_id_optional), l
 async def chat_with_coach(message: ChatMessage):
     """Chat with AI habit coach (intelligent version with intent recognition)"""
     try:
+        # Get user's timezone offset from preferences FIRST (fallback to message timezone_offset)
+        try:
+            user_timezone_offset = db.get_user_timezone_offset(message.user_id)
+        except:
+            user_timezone_offset = message.timezone_offset or 0
+        
         # Get context - USER-SPECIFIC DATA
         habits = db.get_habits(message.user_id)
         logs = db.get_completions(user_id=message.user_id)  # ✅ Fixed: User-specific completions
         schedule = db.get_schedule(message.user_id)
         
         # Get today's habits specifically (with timezone support)
-        today_habits = db.get_habits_for_today(message.user_id, timezone_offset=message.timezone_offset)
+        today_habits = db.get_habits_for_today(message.user_id, timezone_offset=user_timezone_offset)
         
         # Get today's habit instances (each time-of-day counts separately)
         today_habit_instances = db.get_habit_instances_for_today(message.user_id, timezone_offset=user_timezone_offset)
-        
-        # Get user's timezone offset from preferences (fallback to message timezone_offset)
-        try:
-            user_timezone_offset = db.get_user_timezone_offset(message.user_id)
-        except:
-            user_timezone_offset = message.timezone_offset or 0
         
         # Add comprehensive date range helper functions using user's stored timezone
         def get_habits_for_tomorrow():
