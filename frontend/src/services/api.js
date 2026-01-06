@@ -9,13 +9,24 @@ const client = axios.create({
   }
 })
 
-// Request interceptor - inject Bearer token
+// Request interceptor - inject Bearer token AND timezone offset
 client.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('habit_coach_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    // Always add timezone offset to help backend use user's local time
+    // getTimezoneOffset() returns minutes behind UTC (negative for ahead)
+    // We send the offset in minutes from UTC (positive = ahead of UTC)
+    const timezoneOffset = -new Date().getTimezoneOffset()
+    config.headers['X-Timezone-Offset'] = timezoneOffset.toString()
+    
+    // Also add user's local date for reference
+    const localDate = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD
+    config.headers['X-Local-Date'] = localDate
+    
     return config
   },
   (error) => Promise.reject(error)

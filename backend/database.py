@@ -1418,8 +1418,16 @@ class SupabaseClient:
             return completion
         
         # Insert into habit_completions table
-        response = self.client.table("habit_completions").insert(completion_data).execute()
-        result = response.data[0] if response.data else None
+        try:
+            print(f"[DB DEBUG] Inserting completion: {completion_data}")
+            response = self.client.table("habit_completions").insert(completion_data).execute()
+            result = response.data[0] if response.data else None
+            print(f"[DB DEBUG] Insert result: {result}")
+        except Exception as insert_error:
+            print(f"[DB ERROR] Failed to insert completion: {insert_error}")
+            import traceback
+            traceback.print_exc()
+            raise insert_error
         
         # Ensure date fields are serialized as strings
         if result:
@@ -4207,7 +4215,7 @@ class SupabaseClient:
                 'completions_today': 0
             }
 
-    def get_or_calculate_daily_stats(self, user_id: str, target_date: Optional[date] = None, timezone_offset: Optional[int] = None) -> Dict[str, Any]:
+    def get_or_calculate_daily_stats(self, user_id: str, target_date: Optional[date] = None, timezone_offset: Optional[int] = None, user_local_date: Optional[str] = None) -> Dict[str, Any]:
         """
         Database-first approach for daily statistics with comprehensive error handling:
         1. Try to get from daily_success_rates table
@@ -4216,10 +4224,16 @@ class SupabaseClient:
         4. Return the data for immediate frontend display
         5. Fallback to real-time calculation when database operations fail
         6. Handle edge cases: no habits, missing timezone, corrupted data
+        
+        Args:
+            user_id: The user's ID
+            target_date: Optional specific date to get stats for
+            timezone_offset: Optional timezone offset in minutes from UTC
+            user_local_date: Optional user's local date string (YYYY-MM-DD) from frontend header
         """
         from datetime import datetime, timedelta
         
-        print(f"[DEBUG] get_or_calculate_daily_stats called with timezone_offset: {timezone_offset}")
+        print(f"[DEBUG] get_or_calculate_daily_stats called with timezone_offset: {timezone_offset}, user_local_date: {user_local_date}")
         
         # Enhanced input validation and edge case handling
         try:
@@ -4230,40 +4244,52 @@ class SupabaseClient:
             print(f"[ERROR] User ID validation failed: {validation_error}")
             return self._get_safe_default_stats()
         
-        # Enhanced timezone offset handling with comprehensive fallback
-        try:
-            if timezone_offset is not None:
-                try:
-                    # Validate timezone offset is reasonable (-12 to +14 hours in minutes)
-                    if not isinstance(timezone_offset, (int, float)):
-                        print(f"[WARNING] Invalid timezone offset type {type(timezone_offset)}, using server time")
-                        timezone_offset = None
-                    elif timezone_offset < -720 or timezone_offset > 840:
-                        print(f"[WARNING] Invalid timezone offset value {timezone_offset} (outside -720 to +840 range), using server time")
-                        timezone_offset = None
-                        
-                    if timezone_offset is not None:
-                        utc_now = datetime.utcnow()
-                        local_now = utc_now + timedelta(minutes=timezone_offset)
-                        print(f"[DEBUG] UTC time: {utc_now}")
-                        print(f"[DEBUG] Local time (with offset): {local_now}")
-                    else:
+        # Priority 1: Use user_local_date from frontend header if provided
+        if user_local_date:
+            try:
+                target_date = date.fromisoformat(user_local_date)
+                print(f"[DEBUG] Using user_local_date from header: {target_date}")
+                local_now = datetime.combine(target_date, datetime.now().time())
+            except (ValueError, TypeError) as e:
+                print(f"[WARNING] Invalid user_local_date '{user_local_date}': {e}")
+                user_local_date = None  # Fall through to other methods
+        
+        # Priority 2: Calculate from timezone offset if user_local_date not available
+        if not user_local_date:
+            # Enhanced timezone offset handling with comprehensive fallback
+            try:
+                if timezone_offset is not None:
+                    try:
+                        # Validate timezone offset is reasonable (-12 to +14 hours in minutes)
+                        if not isinstance(timezone_offset, (int, float)):
+                            print(f"[WARNING] Invalid timezone offset type {type(timezone_offset)}, using server time")
+                            timezone_offset = None
+                        elif timezone_offset < -720 or timezone_offset > 840:
+                            print(f"[WARNING] Invalid timezone offset value {timezone_offset} (outside -720 to +840 range), using server time")
+                            timezone_offset = None
+                            
+                        if timezone_offset is not None:
+                            utc_now = datetime.utcnow()
+                            local_now = utc_now + timedelta(minutes=timezone_offset)
+                            print(f"[DEBUG] UTC time: {utc_now}")
+                            print(f"[DEBUG] Local time (with offset): {local_now}")
+                        else:
+                            local_now = datetime.now()
+                            print(f"[DEBUG] Using server time after timezone validation failure")
+                    except (ValueError, TypeError, OverflowError) as tz_error:
+                        print(f"[WARNING] Timezone calculation failed: {tz_error}, using server time")
                         local_now = datetime.now()
-                        print(f"[DEBUG] Using server time after timezone validation failure")
-                except (ValueError, TypeError, OverflowError) as tz_error:
-                    print(f"[WARNING] Timezone calculation failed: {tz_error}, using server time")
+                        timezone_offset = None
+                else:
+                    # Handle missing timezone offset (use server time as fallback)
                     local_now = datetime.now()
-                    timezone_offset = None
-            else:
-                # Handle missing timezone offset (use server time as fallback)
+                    print(f"[DEBUG] No timezone offset provided, using server time as fallback: {local_now}")
+            except Exception as time_error:
+                print(f"[ERROR] Failed to calculate local time: {time_error}")
+                # Fallback to server time
                 local_now = datetime.now()
-                print(f"[DEBUG] No timezone offset provided, using server time as fallback: {local_now}")
-        except Exception as time_error:
-            print(f"[ERROR] Failed to calculate local time: {time_error}")
-            # Fallback to server time
-            local_now = datetime.now()
-            timezone_offset = None
-            print(f"[DEBUG] Emergency fallback to server time: {local_now}")
+                timezone_offset = None
+                print(f"[DEBUG] Emergency fallback to server time: {local_now}")
         
         # Enhanced date handling with validation
         try:

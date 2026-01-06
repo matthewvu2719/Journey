@@ -40,15 +40,22 @@ function MainPage() {
           // Enhanced API provides habits and today's completions
           setHabits(dashboardData.habits)
           
-          // We need this week's completions, so get additional data if needed
+          // Use today's completions from dashboard API directly
+          // Also fetch week's completions for schedule view
           const today = new Date()
           const dayOfWeek = today.getDay()
           const monday = new Date(today)
           monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
-          const startDate = monday.toISOString().split('T')[0]
+          // Use local date format for start_date
+          const startDate = monday.toLocaleDateString('en-CA') // YYYY-MM-DD in local time
           
           // Get full week's completions for schedule view
           const weekCompletions = await api.getCompletions({ start_date: startDate })
+          console.log('[MAIN PAGE] Week completions loaded:', weekCompletions.length, 'records')
+          console.log('[MAIN PAGE] Dashboard completions:', dashboardData.completions.length, 'records')
+          
+          // Merge dashboard completions with week completions (dashboard has today's, week has all)
+          // Use week completions as they should include today's
           setLogs(weekCompletions)
           
           console.log('[MAIN PAGE] Enhanced API success')
@@ -63,12 +70,19 @@ function MainPage() {
       const dayOfWeek = today.getDay()
       const monday = new Date(today)
       monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
-      const startDate = monday.toISOString().split('T')[0]
+      // Use local date format for start_date
+      const startDate = monday.toLocaleDateString('en-CA') // YYYY-MM-DD in local time
+      
+      console.log('[MAIN PAGE] Fetching completions from:', startDate)
       
       const [habitsData, completionsData] = await Promise.all([
         api.getHabits(),
         api.getCompletions({ start_date: startDate })  // Get this week's completions
       ])
+      
+      console.log('[MAIN PAGE] Habits loaded:', habitsData.length)
+      console.log('[MAIN PAGE] Completions loaded:', completionsData.length, completionsData)
+      
       setHabits(habitsData)
       setLogs(completionsData)  // Now logs are completion records for the week
     } catch (error) {

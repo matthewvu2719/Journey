@@ -1,7 +1,7 @@
 """
 Personal Habit Coach - FastAPI Backend (Phase 1 & 2 Enhanced)
 """
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date, time, timedelta
@@ -28,6 +28,47 @@ from auth import (
     SignUpRequest, SignInRequest, GuestLoginRequest, AuthResponse, UserInfo,
     UserPreferences, UserPreferencesUpdate
 )
+
+
+def get_user_local_date(request: Request) -> str:
+    """
+    Get the user's local date from request headers.
+    Frontend sends X-Local-Date header with user's local date in YYYY-MM-DD format.
+    Falls back to server date if header not present.
+    """
+    local_date = request.headers.get('X-Local-Date')
+    if local_date:
+        # Validate format
+        try:
+            datetime.strptime(local_date, '%Y-%m-%d')
+            return local_date
+        except ValueError:
+            pass
+    
+    # Fallback: try to calculate from timezone offset
+    tz_offset = request.headers.get('X-Timezone-Offset')
+    if tz_offset:
+        try:
+            offset_minutes = int(tz_offset)
+            user_now = datetime.utcnow() + timedelta(minutes=offset_minutes)
+            return user_now.strftime('%Y-%m-%d')
+        except (ValueError, TypeError):
+            pass
+    
+    # Final fallback: server's local date
+    return datetime.now().strftime('%Y-%m-%d')
+
+
+def get_timezone_offset_from_header(request: Request) -> Optional[int]:
+    """Get timezone offset from X-Timezone-Offset header"""
+    tz_offset = request.headers.get('X-Timezone-Offset')
+    if tz_offset:
+        try:
+            return int(tz_offset)
+        except (ValueError, TypeError):
+            pass
+    return None
+
 
 # Initialize FastAPI
 app = FastAPI(
@@ -858,12 +899,23 @@ async def calculate_daily_success_rate(
 
 @app.get("/api/dashboard/data")
 async def get_dashboard_data(
+    request: Request,
     user_id: str = Depends(get_user_id_optional),
     timezone_offset: Optional[int] = None
 ):
     """Get all dashboard data in a single optimized request using database-first approach"""
     try:
         query_user_id = user_id if user_id else "default_user"
+        
+        # Get user's local date from headers (frontend sends this)
+        user_local_date = get_user_local_date(request)
+        header_tz_offset = get_timezone_offset_from_header(request)
+        
+        # Use header timezone if query param not provided
+        effective_tz_offset = timezone_offset if timezone_offset is not None else header_tz_offset
+        
+        print(f"[DASHBOARD API] User local date from header: {user_local_date}")
+        print(f"[DASHBOARD API] Timezone offset: {effective_tz_offset}")
         
         # Get all data in parallel for better performance
         import asyncio
@@ -873,13 +925,27 @@ async def get_dashboard_data(
             return db.get_habits(query_user_id)
         
         def get_completions_sync():
-            from datetime import date, datetime, timedelta
-            # Calculate local time based on timezone offset
-            if timezone_offset is not None:
-                local_now = datetime.utcnow() + timedelta(minutes=timezone_offset)
+            from datetime import date as date_type, datetime, timedelta
+            # Use user's local date from header if available
+            if user_local_date:
+                try:
+                    today = date_type.fromisoformat(user_local_date)
+                    print(f"[DASHBOARD API] Using user local date for completions: {today}")
+                    return db.get_completions(
+                        user_id=query_user_id,
+                        start_date=today,
+                        end_date=today
+                    )
+                except ValueError:
+                    pass
+            
+            # Fallback: Calculate local time based on timezone offset
+            if effective_tz_offset is not None:
+                local_now = datetime.utcnow() + timedelta(minutes=effective_tz_offset)
             else:
                 local_now = datetime.now()
             today = local_now.date()
+            print(f"[DASHBOARD API] Fallback - using calculated date: {today}")
             return db.get_completions(
                 user_id=query_user_id,
                 start_date=today,
@@ -888,7 +954,12 @@ async def get_dashboard_data(
         
         def get_stats_sync():
             # Use database-first approach for daily statistics
-            return db.get_or_calculate_daily_stats(query_user_id, timezone_offset=timezone_offset)
+            # Pass user_local_date for accurate stats calculation
+            return db.get_or_calculate_daily_stats(
+                query_user_id, 
+                timezone_offset=effective_tz_offset,
+                user_local_date=user_local_date
+            )
         
         # Execute database calls in parallel
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -1048,6 +1119,7 @@ async def create_completion(
 
 @app.get("/api/completions", response_model=List[Completion])
 async def get_completions(
+    request: Request,
     user_id: str = Depends(get_user_id_optional),
     habit_id: Optional[int] = None,
     start_date: Optional[date] = None,
@@ -1056,12 +1128,21 @@ async def get_completions(
     """Get habit completions with optional filters"""
     try:
         query_user_id = user_id if user_id else "default_user"
+        
+        # Log timezone info for debugging
+        user_local_date = get_user_local_date(request)
+        tz_offset = get_timezone_offset_from_header(request)
+        print(f"[COMPLETIONS API] User local date: {user_local_date}, TZ offset: {tz_offset}")
+        print(f"[COMPLETIONS API] Query params - start: {start_date}, end: {end_date}")
+        
         completions = db.get_completions(
             user_id=query_user_id,
             habit_id=habit_id,
             start_date=start_date,
             end_date=end_date
         )
+        
+        print(f"[COMPLETIONS API] Returning {len(completions)} completions")
         return completions
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1928,16 +2009,30 @@ async def get_recommendations(user_id: str = "default_user"):
 
 
 @app.get("/api/analytics", response_model=AnalyticsResponse)
-async def get_analytics(user_id: str = "default_user"):
+async def get_analytics(request: Request, user_id: str = Depends(get_user_id_optional)):
     """Get ML-powered analytics and insights"""
     try:
+        # Get actual user from auth token, fallback to default
+        user_id = user_id if user_id else "default_user"
+        
+        # Get user's local date from headers
+        user_local_date = get_user_local_date(request)
+        print(f"[ANALYTICS] Getting analytics for user {user_id}, local date: {user_local_date}")
+        
         habits = db.get_habits(user_id)
-        logs = db.get_logs(user_id=user_id)  # ✅ Fixed: User-specific logs
+        logs = db.get_logs(user_id=user_id)
+        
+        print(f"[ANALYTICS] Found {len(habits)} habits and {len(logs)} logs")
         
         analytics = ml_engine.analyze_patterns(habits, logs)
         
+        print(f"[ANALYTICS] Analytics result: total_completions={analytics.get('total_completions')}, avg_rate={analytics.get('average_completion_rate')}")
+        
         return analytics
     except Exception as e:
+        print(f"[ANALYTICS] Error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2476,15 +2571,19 @@ async def check_achievements(
 
 
 @app.get("/api/achievements/progress", response_model=AchievementProgress)
-async def get_achievement_progress(user_id: str = Depends(get_user_id)):
+async def get_achievement_progress(request: Request, user_id: str = Depends(get_user_id)):
     """
     Get user's current achievement progress
     
     Returns progress for daily, weekly, and monthly achievements
     """
     try:
+        # Get user's local date from headers
+        user_local_date = get_user_local_date(request)
+        print(f"[ACHIEVEMENTS] Getting progress for user {user_id}, local date: {user_local_date}")
+        
         achievement_engine = AchievementEngine(db)
-        progress = achievement_engine.get_user_progress(user_id)
+        progress = achievement_engine.get_user_progress(user_id, user_local_date)
         return AchievementProgress(user_id=user_id, **progress)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get progress: {str(e)}")

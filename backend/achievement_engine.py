@@ -716,9 +716,20 @@ class AchievementEngine:
         except Exception as e:
             print(f"Error saving bobo item: {e}")
     
-    def get_user_progress(self, user_id: str) -> Dict:
-        """Get user's current achievement progress"""
-        today = datetime.now().date().isoformat()
+    def get_user_progress(self, user_id: str, user_local_date: str = None) -> Dict:
+        """Get user's current achievement progress
+        
+        Args:
+            user_id: The user's ID
+            user_local_date: Optional user's local date string (YYYY-MM-DD) from frontend
+        """
+        # Use user's local date if provided, otherwise fall back to server date
+        if user_local_date:
+            today = user_local_date
+            print(f"[ACHIEVEMENTS] Using user local date: {today}")
+        else:
+            today = datetime.now().date().isoformat()
+            print(f"[ACHIEVEMENTS] Using server date: {today}")
         
         return {
             'daily_progress': self._get_daily_progress(user_id, today),
@@ -776,7 +787,11 @@ class AchievementEngine:
         """Get daily completion progress using daily_success_rates"""
         try:
             date_obj = datetime.fromisoformat(date).date()
+            print(f"[ACHIEVEMENTS] Getting daily progress for {user_id} on {date_obj}")
+            
             success_rate_data = self.db.get_daily_success_rate(user_id, date_obj)
+            print(f"[ACHIEVEMENTS] Daily success rate data: {success_rate_data}")
+            
             if success_rate_data:
                 return {
                     'completed': success_rate_data.get('completed_instances', 0),
@@ -784,8 +799,22 @@ class AchievementEngine:
                     'percentage': success_rate_data.get('success_rate', 0)
                 }
             else:
+                # Fallback: Calculate from completions directly
+                print(f"[ACHIEVEMENTS] No cached data, calculating from completions...")
+                stats = self.db.get_today_stats(user_id, timezone_offset=None)
+                if stats:
+                    total = stats.get('habits_today', 0)
+                    completed = stats.get('completed_today', 0)
+                    percentage = (completed / total * 100) if total > 0 else 0
+                    print(f"[ACHIEVEMENTS] Calculated: {completed}/{total} = {percentage}%")
+                    return {
+                        'completed': completed,
+                        'total': total,
+                        'percentage': round(percentage, 1)
+                    }
                 return {'completed': 0, 'total': 0, 'percentage': 0}
-        except:
+        except Exception as e:
+            print(f"[ACHIEVEMENTS] Error getting daily progress: {e}")
             return {'completed': 0, 'total': 0, 'percentage': 0}
     
     def _get_weekly_progress(self, user_id: str, date: str) -> Dict:

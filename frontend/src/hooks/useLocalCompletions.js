@@ -13,13 +13,21 @@ export const useLocalCompletions = (logs) => {
     const today = getTodayDate()
     const todayCompletions = new Set()
     
-    logs.forEach(log => {
-      if (log.completed_date === today) {
-        const key = `${log.habit_id}_${log.time_of_day_id}`
-        todayCompletions.add(key)
-      }
-    })
+    console.log('[LOCAL COMPLETIONS] Syncing with logs:', logs?.length || 0, 'total logs')
+    console.log('[LOCAL COMPLETIONS] Today date (local):', today)
     
+    if (logs && logs.length > 0) {
+      logs.forEach(log => {
+        // Match today's completions
+        if (log.completed_date === today) {
+          const key = `${log.habit_id}_${log.time_of_day_id}`
+          todayCompletions.add(key)
+          console.log('[LOCAL COMPLETIONS] Found today completion:', key)
+        }
+      })
+    }
+    
+    console.log('[LOCAL COMPLETIONS] Today completions count:', todayCompletions.size)
     setLocalCompletions(todayCompletions)
   }, [logs])
 

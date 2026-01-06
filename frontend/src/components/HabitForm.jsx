@@ -13,6 +13,11 @@ export default function HabitForm({ onSubmit, onCancel, initialData = null }) {
     times_of_day: [],
     ...initialData
   })
+  
+  const [errors, setErrors] = useState({
+    days: '',
+    times_of_day: ''
+  })
 
   const daysOfWeek = [
     { id: 1, name: 'Mon', label: 'Monday' },
@@ -37,6 +42,8 @@ export default function HabitForm({ onSubmit, onCancel, initialData = null }) {
       setFormData({...formData, days: currentDays.filter(d => d !== dayName)})
     } else {
       setFormData({...formData, days: [...currentDays, dayName]})
+      // Clear error when user selects a day
+      if (errors.days) setErrors({...errors, days: ''})
     }
   }
 
@@ -46,11 +53,32 @@ export default function HabitForm({ onSubmit, onCancel, initialData = null }) {
       setFormData({...formData, times_of_day: currentTimes.filter(t => t !== timeName)})
     } else {
       setFormData({...formData, times_of_day: [...currentTimes, timeName]})
+      // Clear error when user selects a time
+      if (errors.times_of_day) setErrors({...errors, times_of_day: ''})
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Validate required fields
+    const newErrors = { days: '', times_of_day: '' }
+    let hasErrors = false
+    
+    if (!formData.days || formData.days.length === 0) {
+      newErrors.days = 'Please select at least one day for your habit'
+      hasErrors = true
+    }
+    
+    if (!formData.times_of_day || formData.times_of_day.length === 0) {
+      newErrors.times_of_day = 'Please select at least one time of day'
+      hasErrors = true
+    }
+    
+    if (hasErrors) {
+      setErrors(newErrors)
+      return
+    }
     
     // Prepare data for submission
     const submitData = { ...formData }
@@ -148,7 +176,7 @@ export default function HabitForm({ onSubmit, onCancel, initialData = null }) {
         <label className="block text-sm font-medium text-[var(--color-foreground)]/80 mb-2">
           Schedule Days *
         </label>
-        <div className="grid grid-cols-7 gap-2">
+        <div className={`grid grid-cols-7 gap-2 ${errors.days ? 'ring-2 ring-red-500/50 rounded-lg p-2' : ''}`}>
           {daysOfWeek.map(day => (
             <button
               key={day.id}
@@ -165,14 +193,23 @@ export default function HabitForm({ onSubmit, onCancel, initialData = null }) {
             </button>
           ))}
         </div>
-        <p className="text-xs text-[var(--color-foreground-secondary)] mt-2">Select one or more days</p>
+        {errors.days ? (
+          <p className="text-sm text-red-500 mt-2 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            {errors.days}
+          </p>
+        ) : (
+          <p className="text-xs text-[var(--color-foreground-secondary)] mt-2">Select one or more days</p>
+        )}
       </div>
 
       <div>
         <label className="block text-sm font-medium text-[var(--color-foreground)]/80 mb-2">
-          Preferred Times of Day
+          Preferred Times of Day *
         </label>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-2 ${errors.times_of_day ? 'ring-2 ring-red-500/50 rounded-lg p-2' : ''}`}>
           {timesOfDay.map(time => (
             <button
               key={time.id}
@@ -188,7 +225,16 @@ export default function HabitForm({ onSubmit, onCancel, initialData = null }) {
             </button>
           ))}
         </div>
-        <p className="text-xs text-[var(--color-foreground-secondary)] mt-2">Select one or more times (optional)</p>
+        {errors.times_of_day ? (
+          <p className="text-sm text-red-500 mt-2 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            {errors.times_of_day}
+          </p>
+        ) : (
+          <p className="text-xs text-[var(--color-foreground-secondary)] mt-2">Select one or more times</p>
+        )}
       </div>
 
       {formData.habit_type === 'big' && (
