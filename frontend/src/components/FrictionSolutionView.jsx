@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import RobotMascot from './RobotMascot';
 import SolutionCard from './SolutionCard';
+import { useBobo } from '../contexts/BoboContext';
 import { api } from '../services/api';
 
 const FrictionSolutionView = ({ 
@@ -10,12 +11,15 @@ const FrictionSolutionView = ({
   onBack, 
   onSolutionSelect 
 }) => {
+  const { getEquippedItems } = useBobo();
   const [solutions, setSolutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [boboMessage, setBoboMessage] = useState('');
   const [selectedSolution, setSelectedSolution] = useState(null);
   const [typingComplete, setTypingComplete] = useState(false);
+  
+  const equippedItems = getEquippedItems();
 
   useEffect(() => {
     if (habit && frictionType) {
@@ -218,6 +222,9 @@ const FrictionSolutionView = ({
             emotion="excited" 
             animate={true}
             dance={true}
+            color={equippedItems.color?.svg_data}
+            hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+            costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
           />
           <div className="mt-4">
             <div className="bg-light/10 rounded-2xl p-4 relative inline-block">
@@ -245,6 +252,9 @@ const FrictionSolutionView = ({
             size="lg" 
             emotion="friendly" 
             animate={true}
+            color={equippedItems.color?.svg_data}
+            hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+            costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
           />
           <div className="mt-4">
             <div className="bg-red-500/10 rounded-2xl p-4 relative inline-block border border-red-500/20">
@@ -284,6 +294,9 @@ const FrictionSolutionView = ({
             emotion="excited" 
             animate={true}
             dance={false}
+            color={equippedItems.color?.svg_data}
+            hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+            costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
           />
         </div>
         

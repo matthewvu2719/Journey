@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import RobotMascot from './RobotMascot';
+import { useBobo } from '../contexts/BoboContext';
 import { api } from '../services/api';
 
 // Helper function to generate default subtasks based on habit
@@ -58,6 +59,9 @@ const HabitBreakdownConfirm = ({
   onComplete, 
   onCancel 
 }) => {
+  const { getEquippedItems } = useBobo();
+  const equippedItems = getEquippedItems();
+  
   // Normalize subtasks - they can be strings or objects with title/name
   const normalizeSubtasks = (tasks) => {
     if (!tasks || tasks.length === 0) return generateDefaultSubtasks(habit);
@@ -166,6 +170,9 @@ const HabitBreakdownConfirm = ({
             size="lg" 
             emotion="friendly" 
             animate={true}
+            color={equippedItems.color?.svg_data}
+            hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+            costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
           />
         </div>
         

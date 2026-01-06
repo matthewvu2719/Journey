@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ObstacleCard from './ObstacleCard';
 import RobotMascot from './RobotMascot';
+import { useBobo } from '../contexts/BoboContext';
 import { api } from '../services/api';
 
 // Journey-themed obstacles from the design document
@@ -53,8 +54,11 @@ const SpeechBubble = ({ children, typing = false }) => (
 );
 
 const FrictionTypeSelector = ({ onSelect, selectedHabit }) => {
+  const { getEquippedItems } = useBobo();
   const [hoveredObstacle, setHoveredObstacle] = useState(null);
   const [selectedObstacle, setSelectedObstacle] = useState(null);
+  
+  const equippedItems = getEquippedItems();
 
   // Map frontend obstacle keys to backend obstacle types
   const obstacleTypeMap = {
@@ -110,6 +114,9 @@ const FrictionTypeSelector = ({ onSelect, selectedHabit }) => {
             dance={false}
             size="md"
             className="transform hover:scale-105 transition-transform duration-300"
+            color={equippedItems.color?.svg_data}
+            hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+            costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
           />
         </div>
         

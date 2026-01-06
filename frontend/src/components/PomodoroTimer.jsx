@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RobotMascot from './RobotMascot';
+import { useBobo } from '../contexts/BoboContext';
 
 const PomodoroTimer = ({ duration = 25, habit, onComplete, onCancel }) => {
+  const { getEquippedItems } = useBobo();
   const [timeLeft, setTimeLeft] = useState(duration * 60); // Convert minutes to seconds
   const [isRunning, setIsRunning] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [phase, setPhase] = useState('ready'); // 'ready' | 'running' | 'paused' | 'completed'
   const intervalRef = useRef(null);
+  
+  const equippedItems = getEquippedItems();
 
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
@@ -121,6 +125,9 @@ const PomodoroTimer = ({ duration = 25, habit, onComplete, onCancel }) => {
             emotion={getBoboEmotion()}
             animate={true}
             dance={isCompleted}
+            color={equippedItems.color?.svg_data}
+            hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+            costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
           />
         </div>
         

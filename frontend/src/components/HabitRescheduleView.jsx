@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import RobotMascot from './RobotMascot';
+import { useBobo } from '../contexts/BoboContext';
 import { api } from '../services/api';
 
 const HabitRescheduleView = ({ 
@@ -9,11 +10,14 @@ const HabitRescheduleView = ({
   onComplete, 
   onCancel 
 }) => {
+  const { getEquippedItems } = useBobo();
   const [selectedTime, setSelectedTime] = useState(suggestedTime || '');
   const [selectedDays, setSelectedDays] = useState(habit.days || []);
   const [energyData, setEnergyData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [customTime, setCustomTime] = useState('');
+  
+  const equippedItems = getEquippedItems();
 
   useEffect(() => {
     loadEnergyPatterns();
@@ -154,6 +158,9 @@ const HabitRescheduleView = ({
             size="lg" 
             emotion="friendly" 
             animate={true}
+            color={equippedItems.color?.svg_data}
+            hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+            costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
           />
           <div className="mt-4">
             <div className="bg-light/10 rounded-2xl p-4 relative inline-block">
@@ -192,6 +199,9 @@ const HabitRescheduleView = ({
             size="lg" 
             emotion="friendly" 
             animate={true}
+            color={equippedItems.color?.svg_data}
+            hat={equippedItems.hat && { svg: equippedItems.hat.svg_data }}
+            costume={equippedItems.costume && { svg: equippedItems.costume.svg_data }}
           />
         </div>
         
