@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext'
  * @param {string} props.redirectTo - Path to redirect to when authenticated (default: '/main')
  */
 const PublicRoute = ({ children, redirectTo = '/main' }) => {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, isGuest, loading } = useAuth()
 
   // Show loading spinner while checking authentication
   if (loading) {
@@ -26,12 +26,13 @@ const PublicRoute = ({ children, redirectTo = '/main' }) => {
     )
   }
 
-  // Redirect to main page if already authenticated
-  if (isAuthenticated) {
+  // Redirect to main page if authenticated AND not a guest
+  // Guests should be able to access login/signup pages
+  if (isAuthenticated && !isGuest) {
     return <Navigate to={redirectTo} replace />
   }
 
-  // User is not authenticated, render children (login/signup pages)
+  // User is not authenticated or is a guest, render children (login/signup pages)
   return <>{children}</>
 }
 

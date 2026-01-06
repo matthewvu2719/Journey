@@ -1,58 +1,151 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import confetti from 'canvas-confetti'
 
-export function Confetti({ trigger }) {
-  const [particles, setParticles] = useState([])
-
+export function Confetti({ trigger, type = 'default' }) {
   useEffect(() => {
     if (!trigger) return
 
-    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F']
-    const newParticles = Array.from({ length: 50 }, (_, i) => ({
-      id: Date.now() + i,
-      x: Math.random() * 100,
-      y: -10,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      rotation: Math.random() * 360,
-      velocity: 2 + Math.random() * 3,
-      drift: (Math.random() - 0.5) * 2,
-    }))
+    if (type === 'sideCannons') {
+      // Side cannons effect for Perfect Month
+      const end = Date.now() + 3 * 1000 // 3 seconds
+      const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"]
 
-    setParticles(newParticles)
+      const frame = () => {
+        if (Date.now() > end) return
 
-    const timeout = setTimeout(() => {
-      setParticles([])
-    }, 3000)
+        confetti({
+          particleCount: 2,
+          angle: 60,
+          spread: 55,
+          startVelocity: 60,
+          origin: { x: 0, y: 0.5 },
+          colors: colors,
+          zIndex: 9999,
+        })
 
-    return () => clearTimeout(timeout)
-  }, [trigger])
+        confetti({
+          particleCount: 2,
+          angle: 120,
+          spread: 55,
+          startVelocity: 60,
+          origin: { x: 1, y: 0.5 },
+          colors: colors,
+          zIndex: 9999,
+        })
 
-  return (
-    <div className="fixed inset-0 pointer-events-none z-50">
-      {particles.map((particle) => (
-        <div
-          key={particle.id}
-          className="absolute w-3 h-3 animate-confetti"
-          style={{
-            left: `${particle.x}%`,
-            top: `${particle.y}%`,
-            backgroundColor: particle.color,
-            transform: `rotate(${particle.rotation}deg)`,
-            animation: `confetti-fall 3s ease-out forwards`,
-            '--drift': `${particle.drift}vw`,
-          }}
-        />
-      ))}
-      <style jsx="true">{`
-        @keyframes confetti-fall {
-          to {
-            transform: translateY(110vh) translateX(var(--drift)) rotate(720deg);
-            opacity: 0;
-          }
+        requestAnimationFrame(frame)
+      }
+
+      frame()
+    } else if (type === 'fireworks') {
+      // Fireworks effect for Perfect Week
+      const duration = 5 * 1000
+      const animationEnd = Date.now() + duration
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }
+      
+      const randomInRange = (min, max) => Math.random() * (max - min) + min
+
+      const interval = window.setInterval(() => {
+        const timeLeft = animationEnd - Date.now()
+        
+        if (timeLeft <= 0) {
+          return clearInterval(interval)
         }
-        .animate-confetti {
-          animation: confetti-fall 3s ease-out forwards;
-        }
-      `}</style>
-    </div>
-  )
+
+        const particleCount = 50 * (timeLeft / duration)
+        
+        // Left side firework
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+        })
+        
+        // Right side firework
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+        })
+      }, 250)
+
+      return () => clearInterval(interval)
+    } else if (type === 'stars') {
+      // Star confetti effect for Perfect Day
+      const defaults = {
+        spread: 360,
+        ticks: 50,
+        gravity: 0,
+        decay: 0.94,
+        startVelocity: 30,
+        colors: ["#FFE400", "#FFBD00", "#E89400", "#FFCA6C", "#FDFFB8"],
+        zIndex: 9999,
+      }
+
+      const shoot = () => {
+        confetti({
+          ...defaults,
+          particleCount: 40,
+          scalar: 1.2,
+          shapes: ["star"],
+        })
+
+        confetti({
+          ...defaults,
+          particleCount: 10,
+          scalar: 0.75,
+          shapes: ["circle"],
+        })
+      }
+
+      // Trigger multiple bursts for a more dramatic effect
+      setTimeout(shoot, 0)
+      setTimeout(shoot, 100)
+      setTimeout(shoot, 200)
+    } else {
+      // Default confetti effect for habit completion (original confetti)
+      const count = 200
+      const defaults = {
+        origin: { y: 0.7 },
+        zIndex: 9999,
+      }
+
+      function fire(particleRatio, opts) {
+        confetti({
+          ...defaults,
+          ...opts,
+          particleCount: Math.floor(count * particleRatio),
+        })
+      }
+
+      fire(0.25, {
+        spread: 26,
+        startVelocity: 55,
+      })
+
+      fire(0.2, {
+        spread: 60,
+      })
+
+      fire(0.35, {
+        spread: 100,
+        decay: 0.91,
+        scalar: 0.8,
+      })
+
+      fire(0.1, {
+        spread: 120,
+        startVelocity: 25,
+        decay: 0.92,
+        scalar: 1.2,
+      })
+
+      fire(0.1, {
+        spread: 120,
+        startVelocity: 45,
+      })
+    }
+  }, [trigger, type])
+
+  return null // canvas-confetti renders directly to canvas
 }

@@ -7,12 +7,24 @@ export default function AchievementNotification({ achievement, onClose }) {
   const { getEquippedItems } = useBobo()
   const [isVisible, setIsVisible] = useState(false)
   const [confettiTrigger, setConfettiTrigger] = useState(0)
+  const [confettiType, setConfettiType] = useState('stars')
   const [celebrationDance, setCelebrationDance] = useState(true) // Use default celebration dance
 
   useEffect(() => {
     if (achievement) {
       setIsVisible(true)
       setConfettiTrigger(Date.now())
+      
+      // Set confetti type based on achievement
+      if (achievement.achievement_type === 'weekly_perfect') {
+        setConfettiType('fireworks')
+      } else if (achievement.achievement_type === 'monthly_perfect') {
+        setConfettiType('sideCannons')
+      } else if (achievement.achievement_type === 'obstacle_achievement') {
+        setConfettiType('fireworks') // Use fireworks for obstacle achievements
+      } else {
+        setConfettiType('stars')
+      }
       
       // Use default celebration dance
       setCelebrationDance(true)
@@ -243,7 +255,7 @@ export default function AchievementNotification({ achievement, onClose }) {
 
   return (
     <>
-      <Confetti trigger={confettiTrigger} />
+      <Confetti trigger={confettiTrigger} type={confettiType} />
       
       <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'

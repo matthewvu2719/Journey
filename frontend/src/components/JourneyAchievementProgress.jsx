@@ -6,7 +6,7 @@ export default function JourneyAchievementProgress() {
   const [achievements, setAchievements] = useState([])
   const [loading, setLoading] = useState(true)
   const [redeeming, setRedeeming] = useState(null)
-  const [rewardNotification, setRewardNotification] = useState(null)
+  const [achievementResult, setAchievementResult] = useState(null)
 
   useEffect(() => {
     loadAchievementProgress()
@@ -43,13 +43,18 @@ export default function JourneyAchievementProgress() {
       const result = await api.redeemObstacleAchievement(achievementId)
       
       if (result.success) {
-        // Show reward notification
-        setRewardNotification({
-          reward: result.reward,
+        // Format achievement for AchievementNotification component
+        const formattedAchievement = {
+          achievement_type: 'obstacle_achievement', // This will trigger fireworks
+          achievement_name: result.reward.name || 'Obstacle Achievement',
           message: result.message,
-          newTier: result.new_tier,
-          newGoal: result.new_goal
-        })
+          reward_type: result.reward.type === 'hat_costume' ? 'hat_costume' : 
+                       result.reward.type === 'hat' ? 'special_hat' :
+                       result.reward.type === 'costume' ? 'special_costume' : 'journey_badge',
+          reward: result.reward
+        }
+        
+        setAchievementResult(formattedAchievement)
         
         // Refresh achievement progress
         await loadAchievementProgress()
@@ -116,56 +121,12 @@ export default function JourneyAchievementProgress() {
 
   return (
     <>
-      {/* Reward Notification */}
-      {rewardNotification && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark/80 backdrop-blur-sm">
-          <div className="glass rounded-2xl p-8 max-w-md mx-4 border border-[var(--color-accent)]/30 animate-scale-in">
-            <div className="text-center">
-              {/* Reward Icon */}
-              <div className="text-6xl mb-4">
-                {rewardNotification.reward.type === 'hat_costume' && '🎩👘'}
-                {rewardNotification.reward.type === 'hat' && '🎩'}
-                {rewardNotification.reward.type === 'costume' && '👘'}
-              </div>
-              
-              {/* Reward Name */}
-              <h3 className="text-2xl font-bold text-light mb-2">
-                {rewardNotification.reward.name}
-              </h3>
-              
-              {/* Rarity & Type */}
-              <div className={`text-sm font-semibold mb-4 ${getRarityColor(rewardNotification.reward.rarity)}`}>
-                {rewardNotification.reward.rarity?.toUpperCase()} {
-                  rewardNotification.reward.type === 'hat_costume' ? 'HAT & COSTUME' :
-                  rewardNotification.reward.type?.toUpperCase()
-                }
-              </div>
-              
-              {/* Message */}
-              <p className="text-light/80 mb-4">
-                {rewardNotification.reward.message || rewardNotification.message}
-              </p>
-              
-              {/* New Tier Info */}
-              {rewardNotification.newTier && (
-                <div className="bg-light/10 rounded-lg p-3 mb-4">
-                  <div className="text-xs text-light/60 mb-1">Next Goal</div>
-                  <div className="text-sm font-semibold text-[var(--color-accent)]">
-                    {getTierBadge(rewardNotification.newTier).label}: {rewardNotification.newGoal} obstacles
-                  </div>
-                </div>
-              )}
-              
-              {/* Close Button */}
-              <button
-                onClick={() => setRewardNotification(null)}
-                className="btn-primary w-full"
-              >
-                Awesome! 🎉
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Achievement Notification with Fireworks */}
+      {achievementResult && (
+        <AchievementNotification 
+          achievement={achievementResult}
+          onClose={() => setAchievementResult(null)}
+        />
       )}
 
       <div className="space-y-6">

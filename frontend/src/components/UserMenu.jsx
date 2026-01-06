@@ -1,12 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import SignupModal from './SignupModal'
 
 export default function UserMenu() {
   const { user, isGuest, logout } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
-  const [showSignupModal, setShowSignupModal] = useState(false)
   const menuRef = useRef(null)
   const navigate = useNavigate()
 
@@ -36,14 +34,12 @@ export default function UserMenu() {
     }
   }
 
-  const handleLogin = () => {
-    setIsOpen(false)
-    navigate('/login')
-  }
-
   const handleSignup = () => {
     setIsOpen(false)
-    setShowSignupModal(true)
+    // Navigate to signup page instead of opening modal
+    setTimeout(() => {
+      navigate('/signup')
+    }, 0)
   }
 
   // Get display name
@@ -91,15 +87,6 @@ export default function UserMenu() {
               {isGuest ? (
                 <>
                   <button
-                    onClick={handleLogin}
-                    className="w-full text-left px-3 py-2 text-sm text-light hover:bg-[var(--color-accent)]/20 rounded transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                    </svg>
-                    Log In
-                  </button>
-                  <button
                     onClick={handleSignup}
                     className="w-full text-left px-3 py-2 text-sm text-light hover:bg-[var(--color-accent)]/20 rounded transition-colors flex items-center gap-2"
                   >
@@ -124,11 +111,6 @@ export default function UserMenu() {
           </div>
         )}
       </div>
-
-      {/* Signup Modal */}
-      {showSignupModal && (
-        <SignupModal onClose={() => setShowSignupModal(false)} />
-      )}
     </>
   )
 }
