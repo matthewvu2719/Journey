@@ -1288,6 +1288,10 @@ class AchievementEngine:
         times_redeemed = tier_info.get('times_redeemed', 0)
         last_redeemed_at = tier_info.get('last_redeemed_at')
         
+        # For one-time achievements, cap the count at the goal
+        if is_one_time and current_count > current_goal:
+            current_count = current_goal
+        
         # Check if goal is reached
         if current_count >= current_goal and not is_redeemable:
             is_redeemable = True
