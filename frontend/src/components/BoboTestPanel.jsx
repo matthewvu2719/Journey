@@ -202,6 +202,10 @@ export default function BoboTestPanel() {
     return null;
   }
 
+  // Hide test achievements button (for production)
+  return null;
+
+  // eslint-disable-next-line no-unreachable
   if (!isOpen) {
     return (
       <button
