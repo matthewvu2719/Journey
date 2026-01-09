@@ -501,8 +501,44 @@ class AchievementEngine:
             # Convert string date to date object
             date_obj = datetime.fromisoformat(date).date()
             success_rate_data = self.db.get_daily_success_rate(user_id, date_obj)
-            return success_rate_data is not None and success_rate_data.get('success_rate', 0) == 100.0
-        except:
+            
+            if success_rate_data is None:
+                print(f"[ACHIEVEMENTS] No cached success rate data for {user_id} on {date_obj}, calculating on-demand...")
+                
+                # Fallback: Calculate from completions directly
+                stats = self.db.get_today_stats(user_id, timezone_offset=None)
+                if stats:
+                    total = stats.get('habits_today', 0)
+                    completed = stats.get('completed_today', 0)
+                    
+                    print(f"[ACHIEVEMENTS] Calculated stats: {completed}/{total} habits")
+                    
+                    if total == 0:
+                        print(f"[ACHIEVEMENTS] No habits scheduled for today")
+                        return False
+                    
+                    success_rate = (completed / total * 100) if total > 0 else 0
+                    print(f"[ACHIEVEMENTS] Calculated success rate: {success_rate}%")
+                    
+                    is_perfect = success_rate >= 100.0
+                    print(f"[ACHIEVEMENTS] Is perfect day: {is_perfect}")
+                    return is_perfect
+                else:
+                    print(f"[ACHIEVEMENTS] Could not calculate stats")
+                    return False
+            
+            success_rate = success_rate_data.get('success_rate', 0)
+            print(f"[ACHIEVEMENTS] Cached success rate for {user_id} on {date_obj}: {success_rate} (type: {type(success_rate)})")
+            
+            # Check if success rate is 100 (handle both int and float)
+            is_perfect = float(success_rate) >= 100.0
+            print(f"[ACHIEVEMENTS] Is perfect day: {is_perfect}")
+            
+            return is_perfect
+        except Exception as e:
+            print(f"[ACHIEVEMENTS] Error checking daily perfect: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _check_weekly_perfect(self, user_id: str, date: str) -> bool:
@@ -519,13 +555,18 @@ class AchievementEngine:
                 success_rate_data = self.db.get_daily_success_rate(user_id, current_day.date())
                 
                 # If any day is missing or not 100%, week is not perfect
-                if success_rate_data is None or success_rate_data.get('success_rate', 0) != 100.0:
+                if success_rate_data is None:
+                    return False
+                
+                success_rate = success_rate_data.get('success_rate', 0)
+                if float(success_rate) < 100.0:
                     return False
                     
                 current_day += timedelta(days=1)
             
             return True
-        except:
+        except Exception as e:
+            print(f"[ACHIEVEMENTS] Error checking weekly perfect: {e}")
             return False
     
     def _check_monthly_perfect(self, user_id: str, date: str) -> bool:
@@ -545,13 +586,18 @@ class AchievementEngine:
                 success_rate_data = self.db.get_daily_success_rate(user_id, current_day.date())
                 
                 # If any day is missing or not 100%, month is not perfect
-                if success_rate_data is None or success_rate_data.get('success_rate', 0) != 100.0:
+                if success_rate_data is None:
+                    return False
+                
+                success_rate = success_rate_data.get('success_rate', 0)
+                if float(success_rate) < 100.0:
                     return False
                     
                 current_day += timedelta(days=1)
             
             return True
-        except:
+        except Exception as e:
+            print(f"[ACHIEVEMENTS] Error checking monthly perfect: {e}")
             return False
     
     def _unlock_motivational_sentence(self, user_id: str) -> Optional[Dict]:

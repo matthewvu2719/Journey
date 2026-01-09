@@ -77,10 +77,15 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS
+# CORS - Allow localhost for development and Vercel domains for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", os.getenv("FRONTEND_URL", "*")],
+    allow_origins=[
+        "http://localhost:5173",  # Local development
+        "http://localhost:3000",  # Alternative local port
+        os.getenv("FRONTEND_URL", "*"),  # Set this in Vercel env vars
+        "https://*.vercel.app",  # All Vercel preview deployments
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -99,15 +104,19 @@ timetable_engine = TimetableEngine()
 @app.on_event("startup")
 async def startup_event():
     """Start background tasks on app startup"""
-    print("🚀 Starting ML Scheduler...")
-    await ml_scheduler.start()
+    # ML Scheduler disabled for serverless deployment
+    # print("🚀 Starting ML Scheduler...")
+    # await ml_scheduler.start()
+    print("✓ App started (ML Scheduler disabled for serverless)")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Stop background tasks on app shutdown"""
-    print("🛑 Stopping ML Scheduler...")
-    await ml_scheduler.stop()
+    # ML Scheduler disabled for serverless deployment
+    # print("🛑 Stopping ML Scheduler...")
+    # await ml_scheduler.stop()
+    print("✓ App shutdown")
 
 
 @app.get("/")
@@ -2546,9 +2555,9 @@ async def check_habit_capacity(
 from achievement_engine import AchievementEngine
 from models import AchievementProgress, AchievementUnlock
 
-# Import voice routes
-from voice_routes import router as voice_router
-app.include_router(voice_router)
+# Import voice routes (disabled for Vercel serverless deployment)
+# from voice_routes import router as voice_router
+# app.include_router(voice_router)
 
 @app.post("/api/achievements/check", response_model=List[AchievementUnlock])
 async def check_achievements(
@@ -2601,6 +2610,9 @@ async def unlock_daily_achievement(user_id: str = Depends(get_user_id)):
             return {"success": True, "achievement": result}
         else:
             raise HTTPException(status_code=400, detail="Daily achievement conditions not met")
+    except HTTPException:
+        # Re-raise HTTP exceptions without wrapping them
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to unlock daily achievement: {str(e)}")
 
@@ -2617,6 +2629,9 @@ async def unlock_weekly_achievement(user_id: str = Depends(get_user_id)):
             return {"success": True, "achievement": result}
         else:
             raise HTTPException(status_code=400, detail="Weekly achievement conditions not met")
+    except HTTPException:
+        # Re-raise HTTP exceptions without wrapping them
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to unlock weekly achievement: {str(e)}")
 
@@ -2633,6 +2648,9 @@ async def unlock_monthly_achievement(user_id: str = Depends(get_user_id)):
             return {"success": True, "achievement": result}
         else:
             raise HTTPException(status_code=400, detail="Monthly achievement conditions not met")
+    except HTTPException:
+        # Re-raise HTTP exceptions without wrapping them
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to unlock monthly achievement: {str(e)}")
 

@@ -305,17 +305,6 @@ const HabitBreakdownConfirm = ({
         </ul>
       </div>
 
-      {/* Implementation Preview */}
-      <div className="implementation-preview bg-blue-500/10 rounded-xl p-4 border border-blue-500/20">
-        <h5 className="font-medium text-blue-300 mb-3">🚀 How This Will Work:</h5>
-        <div className="text-sm text-blue-300/80 space-y-2">
-          <p>1. Your original habit "{habit.name}" will be replaced with these {editableSubtasks.length} smaller habits</p>
-          <p>2. Each step becomes a separate, trackable habit</p>
-          <p>3. You can complete them all at once or spread throughout the day</p>
-          <p>4. Progress is tracked for each individual step</p>
-        </div>
-      </div>
-
       {/* Error Display */}
       {error && (
         <div className="error bg-red-500/10 rounded-xl p-4 border border-red-500/20">
@@ -358,17 +347,6 @@ const HabitBreakdownConfirm = ({
             <>🧩 Break Down Habit ({editableSubtasks.length} steps)</>
           )}
         </button>
-      </div>
-
-      {/* Warning */}
-      <div className="warning bg-yellow-500/10 rounded-xl p-4 border border-yellow-500/20">
-        <div className="flex items-start gap-3">
-          <span className="text-yellow-400 text-lg">⚠️</span>
-          <div className="text-sm text-yellow-300/80">
-            <strong>Note:</strong> This will replace your current habit with {editableSubtasks.length} separate habits. 
-            You can always merge them back together later if needed.
-          </div>
-        </div>
       </div>
     </div>
   );
