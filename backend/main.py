@@ -104,19 +104,15 @@ timetable_engine = TimetableEngine()
 @app.on_event("startup")
 async def startup_event():
     """Start background tasks on app startup"""
-    # ML Scheduler disabled for serverless deployment
-    # print("🚀 Starting ML Scheduler...")
-    # await ml_scheduler.start()
-    print("✓ App started (ML Scheduler disabled for serverless)")
+    print("🚀 Starting ML Scheduler...")
+    await ml_scheduler.start()
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Stop background tasks on app shutdown"""
-    # ML Scheduler disabled for serverless deployment
-    # print("🛑 Stopping ML Scheduler...")
-    # await ml_scheduler.stop()
-    print("✓ App shutdown")
+    print("🛑 Stopping ML Scheduler...")
+    await ml_scheduler.stop()
 
 
 @app.get("/")
@@ -2555,9 +2551,9 @@ async def check_habit_capacity(
 from achievement_engine import AchievementEngine
 from models import AchievementProgress, AchievementUnlock
 
-# Import voice routes (disabled for Vercel serverless deployment)
-# from voice_routes import router as voice_router
-# app.include_router(voice_router)
+# Import voice routes
+from voice_routes import router as voice_router
+app.include_router(voice_router)
 
 @app.post("/api/achievements/check", response_model=List[AchievementUnlock])
 async def check_achievements(
