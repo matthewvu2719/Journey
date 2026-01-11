@@ -489,10 +489,10 @@ export function applyTheme(themeName) {
 }
 
 /**
- * Get current theme from localStorage or default to 'dark'
+ * Get current theme from localStorage or default to 'amethyst-haze-dark'
  */
 export function getCurrentTheme() {
-  return localStorage.getItem('habit_coach_theme') || 'dark'
+  return localStorage.getItem('habit_coach_theme') || 'amethyst-haze-dark'
 }
 
 /**
